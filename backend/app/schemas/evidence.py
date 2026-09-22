@@ -15,7 +15,7 @@ from app.schemas.contact import (
 )
 
 # Bump when the coaching-facing evidence shape changes.
-EVIDENCE_VERSION = "1.0.0"
+EVIDENCE_VERSION = "1.1.0"
 
 STROKE_TYPE_SMASH = "SMASH"
 
@@ -81,6 +81,7 @@ class EvidencePackage:
     technique_issues: list[dict[str, Any]]
     technique_confidence: float
     keyframes: list[dict[str, Any]]
+    composite_scores: dict[str, Any] = field(default_factory=dict)
     keyframes_output_dir: str | None = None
     notes: str = (
         "Assembled from already-computed analysis artifacts; "
@@ -109,6 +110,7 @@ class EvidencePackage:
             "technique_issues": self.technique_issues,
             "technique_confidence": self.technique_confidence,
             "keyframes": self.keyframes,
+            "composite_scores": self.composite_scores,
             "keyframes_output_dir": self.keyframes_output_dir,
             "notes": self.notes,
         }

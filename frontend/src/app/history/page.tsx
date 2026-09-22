@@ -78,6 +78,27 @@ export default function HistoryPage() {
                   Confidence {band(item.analysis_confidence)}
                 </p>
               </div>
+              {item.composite_scores?.available && (
+                <p className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
+                  {(
+                    [
+                      ["Chain", item.composite_scores.chain_score],
+                      ["Power", item.composite_scores.power_score],
+                      ["Base", item.composite_scores.base_score],
+                    ] as const
+                  ).map(([label, value]) => (
+                    <span
+                      key={label}
+                      className="rounded-md border border-[var(--border)] px-2 py-0.5 font-medium text-[var(--fg)]"
+                    >
+                      {label}{" "}
+                      {value == null || Number.isNaN(value)
+                        ? "n/a"
+                        : Math.round(Number(value) * 100)}
+                    </span>
+                  ))}
+                </p>
+              )}
               <p className="mt-3 text-sm text-[var(--muted)]">
                 Main finding:{" "}
                 {item.main_issue

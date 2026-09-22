@@ -44,6 +44,8 @@ class StrokeMetrics:
     kinetic_chain_order: str | None = None
     # Accel phase length / (prep start → contact) frame span; dimensionless fraction in [0, 1].
     acceleration_phase_fraction: float | None = None
+    # Peak |shoulder-line vs hip-line| angle (deg) in prep/backswing — 2D X-factor proxy.
+    peak_trunk_rotation_deg: float | None = None
 
     # Follow-through: speed retention and duration after contact.
     follow_through_speed_ratio: float | None = None

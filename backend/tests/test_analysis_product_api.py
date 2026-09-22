@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from app.services.analysis_aggregator import (
     compare_analyses,
     get_analysis_result,
@@ -176,6 +178,37 @@ def test_aggregate_result_shape(tmp_path: Path) -> None:
     assert result["coaching"]["drills"][0]["title"] == "High-contact shadow smash"
     assert result["confidence"]["overall"] in {"HIGH", "MODERATE", "LOW"}
     assert result["reference_comparisons"]
+    # Pre-1.1.0 / missing evidence composite_scores → not available (never 0).
+    assert result["composite_scores"]["available"] is False
+    assert result["composite_scores"]["chain_score"] is None
+
+
+def test_composite_scores_surface_when_evidence_has_them(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "comp001")
+    _write(
+        tmp_path / "comp001_pose_evidence.json",
+        {
+            "evidence_version": "1.1.0",
+            "stroke_type": "SMASH",
+            "composite_scores": {
+                "available": True,
+                "chain_score": 0.82,
+                "power_score": 0.71,
+                "base_score": 0.66,
+            },
+        },
+    )
+    result = get_analysis_result("comp001", output_dir=tmp_path)
+    assert result["composite_scores"]["available"] is True
+    assert result["composite_scores"]["chain_score"] == pytest.approx(0.82)
+
+    _seed_analysis(tmp_path, "comp002")
+    cmp = compare_analyses("comp001", "comp002", output_dir=tmp_path)
+    chain_rows = [r for r in cmp["rows"] if r["label"] == "Chain score"]
+    assert len(chain_rows) == 1
+    assert chain_rows[0]["left"] == pytest.approx(0.82)
+    assert chain_rows[0]["right"] is None
+    assert chain_rows[0]["change"] == "n/a"
 
 
 def test_coaching_unavailable_does_not_fail(tmp_path: Path) -> None:

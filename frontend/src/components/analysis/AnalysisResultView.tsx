@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnalysisHeader } from "@/components/analysis/AnalysisHeader";
 import { CoachingFocus } from "@/components/analysis/CoachingFocus";
+import { CompositeScoresPanel } from "@/components/analysis/CompositeScoresPanel";
 import { ConfidenceSummaryPanel } from "@/components/analysis/ConfidenceSummary";
 import { DrillCard } from "@/components/analysis/DrillCard";
 import { MetricsPanel } from "@/components/analysis/MetricsPanel";
@@ -92,6 +93,9 @@ export function AnalysisResultView({ analysisId }: Props) {
   const videoSrc = mediaUrl(data.video.pose_video_url);
   const findings = data.findings || [];
   const insufficient = data.insufficient_evidence || [];
+  const { main, other } = splitMainAndOther(findings);
+  const preferCoachingHero = Boolean(data.coaching?.available && data.coaching.main_focus);
+  const fps = estimateFpsFromPhases(data.phases);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6">
@@ -104,7 +108,6 @@ export function AnalysisResultView({ analysisId }: Props) {
           unavailableMessage="We could not load the annotated analysis video."
           onTimeUpdate={setCurrentTime}
         />
-        <OverlayControls modes={data.video.overlay_modes || []} />
         <PhaseTimeline
           phases={data.phases}
           currentTime={currentTime}
@@ -116,16 +119,38 @@ export function AnalysisResultView({ analysisId }: Props) {
         )}
       </section>
 
-      <CoachingFocus
-        coaching={data.coaching}
-        onSeek={(t) => seek(t, true)}
-      />
+      <CompositeScoresPanel scores={data.composite_scores} />
 
-      <TechniqueFindingsSection
-        findings={findings}
+      {preferCoachingHero ? (
+        <CoachingFocus
+          coaching={data.coaching}
+          onSeek={(t) => seek(t, true)}
+        />
+      ) : main ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+            Main focus
+          </h2>
+          <TechniqueIssueCard
+            issue={main}
+            variant="main"
+            active={activeIssue === main.code}
+            fps={fps}
+            onShowMoment={onShowIssue}
+          />
+        </section>
+      ) : (
+        <CoachingFocus
+          coaching={data.coaching}
+          onSeek={(t) => seek(t, true)}
+        />
+      )}
+
+      <SecondaryFindings
+        other={preferCoachingHero ? findings.filter((f) => f.code !== data.coaching.main_focus?.issue_code) : other}
         insufficient={insufficient}
         activeIssue={activeIssue}
-        fps={estimateFpsFromPhases(data.phases)}
+        fps={fps}
         onShowMoment={onShowIssue}
       />
 
@@ -146,13 +171,6 @@ export function AnalysisResultView({ analysisId }: Props) {
         </section>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Metrics
-        </h2>
-        <MetricsPanel metrics={data.metrics} />
-      </section>
-
       {data.coaching.drills[0] && <DrillCard drill={data.coaching.drills[0]} />}
 
       <ConfidenceSummaryPanel
@@ -168,80 +186,66 @@ export function AnalysisResultView({ analysisId }: Props) {
         <summary className="cursor-pointer text-sm font-semibold">
           Technical details
         </summary>
-        <dl className="mt-3 grid gap-2 text-sm text-[var(--muted)] sm:grid-cols-2">
-          <div>
-            <dt>Analysis ID</dt>
-            <dd className="font-mono text-xs text-[var(--fg)]">{data.analysis_id}</dd>
+        <div className="mt-4 space-y-6">
+          <dl className="grid gap-2 text-sm text-[var(--muted)] sm:grid-cols-2">
+            <div>
+              <dt>Analysis ID</dt>
+              <dd className="font-mono text-xs text-[var(--fg)]">{data.analysis_id}</dd>
+            </div>
+            <div>
+              <dt>Reference profile</dt>
+              <dd className="font-mono text-xs text-[var(--fg)]">
+                {data.reference_profile_id || "—"}
+              </dd>
+            </div>
+            <div>
+              <dt>Analysis status</dt>
+              <dd>{data.analysis_status}</dd>
+            </div>
+            <div>
+              <dt>Coaching status</dt>
+              <dd>{data.coaching_status}</dd>
+            </div>
+            <div>
+              <dt>Contact</dt>
+              <dd>{data.contact.label}</dd>
+            </div>
+          </dl>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-[var(--fg)]">Metrics</h3>
+            <MetricsPanel metrics={data.metrics} />
           </div>
-          <div>
-            <dt>Reference profile</dt>
-            <dd className="font-mono text-xs text-[var(--fg)]">
-              {data.reference_profile_id || "—"}
-            </dd>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-[var(--fg)]">Overlays</h3>
+            <OverlayControls modes={data.video.overlay_modes || []} />
           </div>
-          <div>
-            <dt>Analysis status</dt>
-            <dd>{data.analysis_status}</dd>
-          </div>
-          <div>
-            <dt>Coaching status</dt>
-            <dd>{data.coaching_status}</dd>
-          </div>
-          <div>
-            <dt>Contact</dt>
-            <dd>{data.contact.label}</dd>
-          </div>
-        </dl>
+        </div>
       </details>
     </div>
   );
 }
 
-function TechniqueFindingsSection({
-  findings,
+function SecondaryFindings({
+  other,
   insufficient,
   activeIssue,
   fps,
   onShowMoment,
 }: {
-  findings: TechniqueIssueView[];
+  other: TechniqueIssueView[];
   insufficient: TechniqueIssueView[];
   activeIssue: string | null;
   fps: number | null;
   onShowMoment: (issue: TechniqueIssueView) => void;
 }) {
-  const { main, other } = splitMainAndOther(findings);
-
-  if (!main && other.length === 0 && insufficient.length === 0) {
-    return (
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Technique findings
-        </h2>
-        <p className="text-sm text-[var(--muted)]">
-          No technique findings for this stroke.
-        </p>
-      </section>
-    );
+  if (other.length === 0 && insufficient.length === 0) {
+    return null;
   }
 
   return (
     <section className="space-y-6">
-      {main && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Main focus
-          </h2>
-          <TechniqueIssueCard
-            issue={main}
-            variant="main"
-            active={activeIssue === main.code}
-            fps={fps}
-            onShowMoment={onShowMoment}
-          />
-        </div>
-      )}
-
       {other.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">

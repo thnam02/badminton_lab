@@ -1,0 +1,9 @@
+# Analysis-only Python deps (NOT for production / backend pyproject).
+# Install into the backend venv when running scripts under scripts/analysis/:
+#   pip install -r scripts/analysis/requirements-analysis.txt
+#
+# Pin 0.10.14: the 1.x tasks PoseLandmarker fatals on Apple Metal
+# (DrishtiMetalHelper). The classic solutions.pose API works on this machine.
+mediapipe==0.10.14
+matplotlib>=3.8
+protobuf>=4.25,<5

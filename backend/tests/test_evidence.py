@@ -89,6 +89,11 @@ def test_package_contains_versioned_coaching_fields(tmp_path: Path) -> None:
     assert package.video_quality == quality.to_dict()
     assert package.technique_issues == [i.to_dict() for i in technique.issues]
     assert package.keyframes == [kf.to_dict() for kf in keyframes.keyframes]
+    assert "chain_score" in package.composite_scores
+    assert "power_score" in package.composite_scores
+    assert "base_score" in package.composite_scores
+    assert "available" in package.composite_scores
+    assert package.to_dict()["composite_scores"] == package.composite_scores
     assert "frames" not in package.to_dict()  # no raw pose sequence
     assert "keypoints" not in package.to_dict()
 
@@ -98,6 +103,7 @@ def test_package_contains_versioned_coaching_fields(tmp_path: Path) -> None:
     text = out.read_text(encoding="utf-8")
     assert '"evidence_version"' in text
     assert EVIDENCE_VERSION in text
+    assert '"composite_scores"' in text
 
 
 def test_all_issue_measured_values_match_stroke_metrics() -> None:

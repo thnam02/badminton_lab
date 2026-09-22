@@ -110,6 +110,10 @@ def compute_clear_metrics(
     )
     metrics.acceleration_phase_fraction = _acceleration_fraction(phases, contact_idx)
 
+    from app.processing.trunk_rotation import peak_trunk_rotation_in_phases
+
+    metrics.peak_trunk_rotation_deg = peak_trunk_rotation_in_phases(pose, phases)
+
     follow_ratio, follow_frames = _follow_through_stats(motion_by, phases)
     metrics.follow_through_speed_ratio = follow_ratio
     metrics.follow_through_frame_count = follow_frames

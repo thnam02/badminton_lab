@@ -143,10 +143,10 @@ function CompareInner() {
                   >
                     <td className="px-4 py-3">{row.label}</td>
                     <td className="px-4 py-3">
-                      {formatMetric(row.left, row.unit, 2)}
+                      {row.left == null ? "n/a" : formatMetric(row.left, row.unit, 2)}
                     </td>
                     <td className="px-4 py-3">
-                      {formatMetric(row.right, row.unit, 2)}
+                      {row.right == null ? "n/a" : formatMetric(row.right, row.unit, 2)}
                     </td>
                     <td className="px-4 py-3 font-medium">{row.change}</td>
                   </tr>

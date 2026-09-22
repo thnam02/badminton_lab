@@ -114,6 +114,7 @@ def get_analysis_result(
     coaching_norm = _normalize_coaching(coaching, issues_norm)
     metrics_norm = _normalize_metrics(metrics)
     references = _reference_comparisons(issues_norm, technique)
+    composite_scores = _normalize_composite_scores(evidence)
 
     handedness = (
         (evidence or {}).get("handedness")
@@ -164,6 +165,7 @@ def get_analysis_result(
         ],
         "findings": [i for i in issues_norm if i.get("is_finding")],
         "metrics": metrics_norm,
+        "composite_scores": composite_scores,
         "reference_comparisons": references,
         "coaching": coaching_norm,
         "keyframes": _normalize_keyframes(keyframes, analysis_id),
@@ -246,6 +248,7 @@ def _discover_analyses(root: Path) -> list[dict[str, Any]]:
 
 
 def _summary_from_result(result: dict[str, Any]) -> dict[str, Any]:
+    composite = result.get("composite_scores") or {}
     return {
         "analysis_id": result["analysis_id"],
         "created_at": result.get("created_at"),
@@ -261,6 +264,45 @@ def _summary_from_result(result: dict[str, Any]) -> dict[str, Any]:
         "analysis_status": result.get("analysis_status"),
         "coaching_status": result.get("coaching_status"),
         "mesh_status": result.get("mesh_status"),
+        "composite_scores": {
+            "available": bool(composite.get("available")),
+            "chain_score": composite.get("chain_score"),
+            "power_score": composite.get("power_score"),
+            "base_score": composite.get("base_score"),
+        },
+    }
+
+
+def _normalize_composite_scores(evidence: dict[str, Any] | None) -> dict[str, Any]:
+    """Product DTO for composite scores.
+
+    Missing field (pre-1.1.0 evidence) and ``available=False`` (insufficient
+    inputs on a current analysis) both surface as ``available=False`` — never
+    coerce null scores to 0.
+    """
+    empty = {
+        "available": False,
+        "chain_score": None,
+        "power_score": None,
+        "base_score": None,
+        "notes": None,
+    }
+    if not evidence or "composite_scores" not in evidence:
+        return empty
+    raw = evidence.get("composite_scores")
+    if not isinstance(raw, dict):
+        return empty
+    chain = raw.get("chain_score")
+    power = raw.get("power_score")
+    base = raw.get("base_score")
+    has_any = any(v is not None for v in (chain, power, base))
+    available = bool(raw.get("available", has_any)) and has_any
+    return {
+        "available": available,
+        "chain_score": float(chain) if chain is not None else None,
+        "power_score": float(power) if power is not None else None,
+        "base_score": float(base) if base is not None else None,
+        "notes": raw.get("notes"),
     }
 
 
@@ -755,6 +797,28 @@ def _comparison_rows(
     left_pct = _issue_percentile(left, "INSUFFICIENT_ELBOW_EXTENSION")
     right_pct = _issue_percentile(right, "INSUFFICIENT_ELBOW_EXTENSION")
     rows: list[dict[str, Any]] = []
+
+    left_comp = left.get("composite_scores") or {}
+    right_comp = right.get("composite_scores") or {}
+    for key, label in (
+        ("chain_score", "Chain score"),
+        ("power_score", "Power score"),
+        ("base_score", "Base score"),
+    ):
+        lv = left_comp.get(key) if left_comp.get("available") else None
+        rv = right_comp.get(key) if right_comp.get("available") else None
+        if lv is None and rv is None:
+            continue
+        rows.append(
+            {
+                "label": label,
+                "unit": "",
+                "left": lv,
+                "right": rv,
+                "change": _change_label(lv, rv, higher_is_better=True),
+            }
+        )
+
     for key, label, unit in keys:
         lv = left_map.get(key)
         rv = right_map.get(key)
@@ -807,7 +871,7 @@ def _change_label(
     left: float | None, right: float | None, *, higher_is_better: bool
 ) -> str:
     if left is None or right is None:
-        return "Changed"
+        return "n/a"
     delta = float(right) - float(left)
     if abs(delta) < 1e-6 or abs(delta) / max(abs(float(left)), 1e-6) < 0.03:
         return "Similar"

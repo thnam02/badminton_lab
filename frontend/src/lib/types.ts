@@ -2,23 +2,6 @@
 
 export type ConfidenceLevel = "HIGH" | "MODERATE" | "LOW";
 
-export type AnalysisSummary = {
-  analysis_id: string;
-  created_at?: string | null;
-  stroke_type?: string | null;
-  stroke_type_raw?: string | null;
-  handedness?: string | null;
-  handedness_raw?: string | null;
-  analysis_confidence?: number | null;
-  main_issue?: string | null;
-  pose_video_url?: string | null;
-  snapshot_id?: string | null;
-  reference_profile_id?: string | null;
-  analysis_status?: string | null;
-  coaching_status?: string | null;
-  mesh_status?: string | null;
-};
-
 export type PhaseSegment = {
   id: string;
   label: string;
@@ -132,6 +115,14 @@ export type ConfidenceSummary = {
   message?: string | null;
 };
 
+export type CompositeScoresView = {
+  available: boolean;
+  chain_score?: number | null;
+  power_score?: number | null;
+  base_score?: number | null;
+  notes?: string | null;
+};
+
 export type AnalysisResult = {
   analysis_id: string;
   created_at?: string;
@@ -164,6 +155,7 @@ export type AnalysisResult = {
   findings: TechniqueIssueView[];
   insufficient_evidence: TechniqueIssueView[];
   metrics: { id: string; label: string; value: number; unit: string }[];
+  composite_scores?: CompositeScoresView | null;
   reference_comparisons: ReferenceComparisonData[];
   coaching: CoachingReportView;
   keyframes: { label: string; timestamp?: number; url?: string | null }[];
@@ -171,6 +163,24 @@ export type AnalysisResult = {
   artifacts: Record<string, boolean>;
   main_issue?: string | null;
   analysis_confidence?: number;
+};
+
+export type AnalysisSummary = {
+  analysis_id: string;
+  created_at?: string | null;
+  stroke_type?: string | null;
+  stroke_type_raw?: string | null;
+  handedness?: string | null;
+  handedness_raw?: string | null;
+  analysis_confidence?: number | null;
+  main_issue?: string | null;
+  pose_video_url?: string | null;
+  snapshot_id?: string | null;
+  reference_profile_id?: string | null;
+  analysis_status?: string | null;
+  coaching_status?: string | null;
+  mesh_status?: string | null;
+  composite_scores?: CompositeScoresView | null;
 };
 
 export type CompareResponse = {

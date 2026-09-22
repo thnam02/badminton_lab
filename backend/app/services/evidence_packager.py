@@ -10,6 +10,7 @@ import logging
 from collections import Counter
 from typing import Any
 
+from app.processing.composite_scores import compute_composite_scores
 from app.schemas.contact import ContactEvent
 from app.schemas.evidence import (
     CONTACT_TYPE_KINEMATIC,
@@ -136,6 +137,8 @@ class EvidencePackager:
             technique.confidence,
             video_quality.usable,
         )
+        metrics_dict = metrics.to_dict()
+        composite = compute_composite_scores(metrics_dict)
         return EvidencePackage(
             evidence_version=evidence_version,
             video=video,
@@ -146,10 +149,11 @@ class EvidencePackager:
             phase_boundaries=[seg.to_dict() for seg in phases.segments],
             phase_confidence=float(phases.confidence),
             contact=contact_evidence,
-            metrics=metrics.to_dict(),
+            metrics=metrics_dict,
             technique_issues=[issue.to_dict() for issue in technique.issues],
             technique_confidence=float(technique.confidence),
             keyframes=[kf.to_dict() for kf in keyframes.keyframes],
+            composite_scores=composite,
             keyframes_output_dir=keyframes.output_dir or None,
         )
 
