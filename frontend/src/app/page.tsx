@@ -8,7 +8,7 @@ export default function HomePage() {
           Badminton technique analysis
         </p>
         <h1 className="font-display text-4xl font-semibold tracking-tight text-[var(--fg)] sm:text-5xl">
-          Smash Lab
+          Badminton Lab
         </h1>
         <p className="text-lg leading-relaxed text-[var(--muted)]">
           Upload a forehand smash or clear, see stroke phases and contact, review

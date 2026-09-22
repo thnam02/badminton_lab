@@ -27,9 +27,12 @@ class ForehandClearMetrics:
     backswing_wrist_y_travel: float | None = None
 
     # Acceleration
+    # Peak |right elbow angular velocity| from motion peaks (degrees / second).
     peak_elbow_omega: float | None = None
+    # Peak right-wrist linear speed (normalized image units / second; not m/s).
     peak_wrist_speed: float | None = None
     peak_elbow_omega_offset_frames: int | None = None
+    # Accel phase length / (prep start → contact) frame span; dimensionless [0, 1].
     acceleration_phase_fraction: float | None = None
 
     # Contact

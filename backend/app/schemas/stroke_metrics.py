@@ -22,6 +22,8 @@ class StrokeMetrics:
     contact_knee_angle_deg: float | None = None
     contact_shoulder_angle_deg: float | None = None
     contact_wrist_y_normalized: float | None = None
+    # Peak right-wrist linear speed from motion peaks (normalized image units / second;
+    # keypoints are typically in [0, 1] image space; not m/s or px/frame).
     peak_wrist_speed: float | None = None
 
     # Knee contribution: knee extension from preparation to contact (degrees).
@@ -31,6 +33,7 @@ class StrokeMetrics:
     # Acceleration timing: frames from peak |elbow ω| to estimated contact.
     # Negative → peak before contact; positive → peak after contact.
     peak_elbow_omega_offset_frames: int | None = None
+    # Accel phase length / (prep start → contact) frame span; dimensionless fraction in [0, 1].
     acceleration_phase_fraction: float | None = None
 
     # Follow-through: speed retention and duration after contact.

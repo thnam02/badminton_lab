@@ -14,9 +14,9 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Smash Lab — Badminton Technique Analysis",
+  title: "Badminton Lab — Technique Analysis",
   description:
-    "Upload a smash, review stroke phases, evidence-backed findings, and coaching focus.",
+    "Upload a stroke, review phases and contact, evidence-backed findings, and coaching focus.",
 };
 
 export default function RootLayout({
@@ -36,7 +36,7 @@ export default function RootLayout({
                 href="/"
                 className="font-display text-xl font-semibold tracking-tight text-[var(--fg)]"
               >
-                Smash Lab
+                Badminton Lab
               </Link>
               <nav
                 className="flex items-center gap-1 text-sm font-medium text-[var(--muted)]"

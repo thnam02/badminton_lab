@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from app.ai.prompts import SYSTEM_INSTRUCTIONS, build_user_prompt
+from app.ai.issue_selection import select_top_issues
 from app.ai.schema_models import CoachingReportModel
 from app.config import settings
 from app.schemas.coaching import (
@@ -228,8 +229,15 @@ def _sanitize_against_evidence(
     report: CoachingReport,
     evidence: EvidencePackage,
 ) -> CoachingReport:
-    """Drop invented issue codes; keep at most 3 priorities."""
-    known = {str(i.get("code")) for i in evidence.technique_issues if i.get("code")}
+    """Drop invented / unreliable issue codes; keep at most 3 priorities."""
+    known = {
+        str(i.get("code"))
+        for i in evidence.technique_issues
+        if i.get("code")
+        and not i.get("uncertain")
+        and str(i.get("status") or "").upper()
+        not in {"INSUFFICIENT_EVIDENCE", "NO_ISSUE"}
+    }
     filtered = [
         item
         for item in report.prioritized_issues
@@ -245,6 +253,26 @@ def _sanitize_against_evidence(
         ]
     report.prioritized_issues = filtered
     return report
+
+
+def validate_coaching_report(
+    report: CoachingReportModel, evidence: dict[str, Any]
+) -> list[str]:
+    """Check model issue codes / metric hints against the prompt evidence payload."""
+    valid_codes = {
+        str(i.get("code"))
+        for i in evidence.get("technique_issues", [])
+        if i.get("code")
+    }
+    valid_metrics = set((evidence.get("metrics") or {}).keys())
+    warnings: list[str] = []
+    for issue in report.prioritized_issues:
+        if issue.issue_code not in valid_codes:
+            warnings.append(f"Hallucinated issue_code: {issue.issue_code}")
+        for hint in issue.related_metric_hints:
+            if hint not in valid_metrics:
+                warnings.append(f"Unknown metric hint: {hint}")
+    return warnings
 
 
 def _call_responses_api(
@@ -263,11 +291,17 @@ def _call_responses_api(
     if include_keyframes:
         keyframe_paths = _existing_keyframe_paths(evidence)
 
+    # Prompt payload only: filter/rank issues. On-disk EvidencePackage stays full.
+    prompt_evidence = evidence.to_dict()
+    prompt_evidence["technique_issues"] = select_top_issues(
+        list(prompt_evidence.get("technique_issues") or [])
+    )
+
     user_content: list[dict[str, Any]] = [
         {
             "type": "input_text",
             "text": build_user_prompt(
-                evidence.to_dict(),
+                prompt_evidence,
                 keyframe_count=len(keyframe_paths),
             ),
         }
@@ -288,11 +322,14 @@ def _call_responses_api(
         parsed = _extract_parsed_from_response(response)
     if parsed is None:
         raise CoachingParseError("Responses API returned no parsed CoachingReportModel")
-    if isinstance(parsed, CoachingReportModel):
-        return parsed
     if isinstance(parsed, dict):
-        return validate_coaching_model(parsed)
-    raise CoachingParseError(f"Unexpected parsed type: {type(parsed)!r}")
+        parsed = validate_coaching_model(parsed)
+    if not isinstance(parsed, CoachingReportModel):
+        raise CoachingParseError(f"Unexpected parsed type: {type(parsed)!r}")
+
+    for warning in validate_coaching_report(parsed, prompt_evidence):
+        logger.warning("Coaching report validation: %s", warning)
+    return parsed
 
 
 def _extract_parsed_from_response(response: Any) -> Any | None:
