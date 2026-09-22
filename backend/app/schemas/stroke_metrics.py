@@ -33,6 +33,15 @@ class StrokeMetrics:
     # Acceleration timing: frames from peak |elbow ω| to estimated contact.
     # Negative → peak before contact; positive → peak after contact.
     peak_elbow_omega_offset_frames: int | None = None
+    # Same timing offsets for shoulder / hip angular velocity peaks.
+    peak_shoulder_omega_offset_frames: int | None = None
+    peak_hip_omega_offset_frames: int | None = None
+    # Kinetic-chain sequencing: peak_joint_frame - earlier_joint_frame (frames).
+    # Positive gap ⇒ distal peak after proximal (expected proximal→distal order).
+    kinetic_chain_hip_shoulder_gap_frames: int | None = None
+    kinetic_chain_shoulder_elbow_gap_frames: int | None = None
+    # e.g. "hip_shoulder_elbow" when all three peaks exist.
+    kinetic_chain_order: str | None = None
     # Accel phase length / (prep start → contact) frame span; dimensionless fraction in [0, 1].
     acceleration_phase_fraction: float | None = None
 

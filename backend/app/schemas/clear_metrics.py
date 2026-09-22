@@ -32,6 +32,11 @@ class ForehandClearMetrics:
     # Peak right-wrist linear speed (normalized image units / second; not m/s).
     peak_wrist_speed: float | None = None
     peak_elbow_omega_offset_frames: int | None = None
+    peak_shoulder_omega_offset_frames: int | None = None
+    peak_hip_omega_offset_frames: int | None = None
+    kinetic_chain_hip_shoulder_gap_frames: int | None = None
+    kinetic_chain_shoulder_elbow_gap_frames: int | None = None
+    kinetic_chain_order: str | None = None
     # Accel phase length / (prep start → contact) frame span; dimensionless [0, 1].
     acceleration_phase_fraction: float | None = None
 

@@ -7,6 +7,7 @@ Never recalculates biomechanics — explains EvidencePackage only.
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import mimetypes
 from pathlib import Path
@@ -327,8 +328,31 @@ def _call_responses_api(
     if not isinstance(parsed, CoachingReportModel):
         raise CoachingParseError(f"Unexpected parsed type: {type(parsed)!r}")
 
-    for warning in validate_coaching_report(parsed, prompt_evidence):
+    validation_warnings = validate_coaching_report(parsed, prompt_evidence)
+    for warning in validation_warnings:
         logger.warning("Coaching report validation: %s", warning)
+    logger.info(
+        "observability %s",
+        json.dumps(
+            {
+                "event": "coaching_report_validated",
+                "analysis_id": getattr(evidence, "analysis_id", "") or "",
+                "video": evidence.video,
+                "hallucinated_issue_code_count": sum(
+                    1
+                    for w in validation_warnings
+                    if w.startswith("Hallucinated issue_code:")
+                ),
+                "unknown_metric_hint_count": sum(
+                    1
+                    for w in validation_warnings
+                    if w.startswith("Unknown metric hint:")
+                ),
+                "prompt_issue_count": len(prompt_evidence.get("technique_issues") or []),
+            },
+            sort_keys=True,
+        ),
+    )
     return parsed
 
 

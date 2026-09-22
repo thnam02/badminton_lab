@@ -5,6 +5,11 @@ Performs no biomechanics, pose estimation, or other CV calculations.
 
 from __future__ import annotations
 
+import json
+import logging
+from collections import Counter
+from typing import Any
+
 from app.schemas.contact import ContactEvent
 from app.schemas.evidence import (
     CONTACT_TYPE_KINEMATIC,
@@ -23,7 +28,8 @@ from app.schemas.provenance import (
 )
 from app.schemas.technique import TechniqueEvaluation, TechniqueIssue
 from app.schemas.video_quality import VideoQualityReport
-from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 # Maps technique issue codes → metrics field that supplies measured_value.
@@ -99,6 +105,7 @@ class EvidencePackager:
             artifact_schema_version=evidence_version,
         )
         validate_object_provenance(package, snapshot)
+        _log_evidence_observability(package)
         return package
 
 
@@ -231,6 +238,36 @@ def _analysis_confidence(
         float(technique_confidence),
     ]
     return float(max(0.0, min(1.0, sum(parts) / len(parts))))
+
+
+def _log_evidence_observability(package: EvidencePackage) -> None:
+    """One JSON line per evidence package for later confidence calibration."""
+    status_counts: Counter[str] = Counter()
+    for issue in package.technique_issues:
+        status = str(issue.get("status") or "UNKNOWN").upper()
+        status_counts[status] += 1
+    quality = package.video_quality or {}
+    payload = {
+        "event": "evidence_package_built",
+        "analysis_id": package.analysis_id or "",
+        "video": package.video,
+        "stroke_type": package.stroke_type,
+        "video_quality_analysis_confidence": quality.get("analysis_confidence"),
+        "phase_confidence": package.phase_confidence,
+        "technique_confidence": package.technique_confidence,
+        "analysis_confidence": package.analysis_confidence,
+        "contact_type": package.contact.contact_type,
+        "technique_issue_status_counts": {
+            "MINOR": int(status_counts.get("MINOR", 0)),
+            "MODERATE": int(status_counts.get("MODERATE", 0)),
+            "MAJOR": int(status_counts.get("MAJOR", 0)),
+            "INSUFFICIENT_EVIDENCE": int(
+                status_counts.get("INSUFFICIENT_EVIDENCE", 0)
+            ),
+        },
+        "technique_issue_total": len(package.technique_issues),
+    }
+    logger.info("observability %s", json.dumps(payload, sort_keys=True))
 
 
 evidence_packager = EvidencePackager()

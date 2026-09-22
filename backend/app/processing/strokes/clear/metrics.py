@@ -83,6 +83,19 @@ def compute_clear_metrics(
             motion_by, contact_idx
         )
 
+    from app.processing.stroke_metrics import (
+        _apply_kinetic_chain_fields,
+        _peak_omega_offset,
+    )
+
+    metrics.peak_shoulder_omega_offset_frames = _peak_omega_offset(
+        motion_by, contact_idx, attr="right_shoulder_angular_velocity"
+    )
+    metrics.peak_hip_omega_offset_frames = _peak_omega_offset(
+        motion_by, contact_idx, attr="right_hip_angular_velocity"
+    )
+    _apply_kinetic_chain_fields(metrics, motion)
+
     metrics.preparation_elbow_angle_deg = _phase_mean_angle(
         phases, angle_by, SmashPhase.PREPARATION, "elbow"
     )

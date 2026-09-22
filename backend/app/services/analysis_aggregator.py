@@ -429,6 +429,18 @@ def _normalize_metrics(metrics: dict[str, Any] | None) -> list[dict[str, Any]]:
         ("peak_wrist_speed", "Peak wrist speed", ""),
         ("peak_elbow_omega", "Peak elbow angular velocity", ""),
         ("peak_elbow_omega_offset_frames", "Elbow peak timing offset", "frames"),
+        ("peak_shoulder_omega_offset_frames", "Shoulder peak timing offset", "frames"),
+        ("peak_hip_omega_offset_frames", "Hip peak timing offset", "frames"),
+        (
+            "kinetic_chain_hip_shoulder_gap_frames",
+            "Hip→shoulder peak gap",
+            "frames",
+        ),
+        (
+            "kinetic_chain_shoulder_elbow_gap_frames",
+            "Shoulder→elbow peak gap",
+            "frames",
+        ),
         ("follow_through_speed_ratio", "Follow-through speed retention", ""),
         ("acceleration_phase_fraction", "Acceleration phase fraction", ""),
         ("contact_wrist_y_normalized", "Contact wrist height", ""),

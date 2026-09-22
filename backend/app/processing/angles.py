@@ -16,6 +16,8 @@ _JOINT_TRIPLETS: tuple[tuple[str, str, str, str], ...] = (
     ("right_elbow", "right_shoulder", "right_elbow", "right_wrist"),
     ("right_knee", "right_hip", "right_knee", "right_ankle"),
     ("right_shoulder", "right_hip", "right_shoulder", "right_elbow"),
+    # Hip flexion proxy (trunk→thigh): used for kinetic-chain timing.
+    ("right_hip", "right_shoulder", "right_hip", "right_knee"),
 )
 
 
@@ -90,6 +92,7 @@ def compute_angle_sequence(
                 right_elbow=angles["right_elbow"],
                 right_knee=angles["right_knee"],
                 right_shoulder=angles["right_shoulder"],
+                right_hip=angles["right_hip"],
             )
         )
     return out

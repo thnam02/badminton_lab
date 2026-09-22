@@ -79,6 +79,8 @@ class TechniqueIssue:
     status: str = IssueStatus.MINOR.value
     uncertain: bool = False
     status_reason: str = ""
+    # Continuous adverse strength in [0, 1]; complements discrete status buckets.
+    severity_score: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -88,6 +90,7 @@ class TechniqueIssue:
             "severity": self.severity.value,
             "status": self.status,
             "status_reason": self.status_reason,
+            "severity_score": self.severity_score,
             "confidence": self.confidence,
             "measured_value": self.measured_value,
             "unit": self.unit,

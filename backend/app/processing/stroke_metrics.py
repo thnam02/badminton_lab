@@ -112,6 +112,13 @@ def compute_stroke_metrics(
         metrics.knee_contribution_deg = metrics.contact_knee_angle_deg - prep_knee
 
     metrics.peak_elbow_omega_offset_frames = _peak_elbow_omega_offset(motion_by, contact_idx)
+    metrics.peak_shoulder_omega_offset_frames = _peak_omega_offset(
+        motion_by, contact_idx, attr="right_shoulder_angular_velocity"
+    )
+    metrics.peak_hip_omega_offset_frames = _peak_omega_offset(
+        motion_by, contact_idx, attr="right_hip_angular_velocity"
+    )
+    _apply_kinetic_chain_fields(metrics, motion)
     metrics.acceleration_phase_fraction = _acceleration_fraction(phases, contact_idx)
 
     follow_ratio, follow_frames = _follow_through_stats(motion_by, phases)
@@ -244,10 +251,21 @@ def _peak_elbow_omega_offset(
     motion_by: dict,
     contact_idx: int,
 ) -> int | None:
+    return _peak_omega_offset(
+        motion_by, contact_idx, attr="right_elbow_angular_velocity"
+    )
+
+
+def _peak_omega_offset(
+    motion_by: dict,
+    contact_idx: int,
+    *,
+    attr: str,
+) -> int | None:
     best_idx: int | None = None
     best_mag = float("-inf")
     for idx, mf in motion_by.items():
-        omega = mf.right_elbow_angular_velocity
+        omega = getattr(mf, attr, None)
         if omega is None or not math.isfinite(omega):
             continue
         mag = abs(omega)
@@ -256,7 +274,30 @@ def _peak_elbow_omega_offset(
             best_idx = idx
     if best_idx is None:
         return None
-    return best_idx - contact_idx
+    return int(best_idx - contact_idx)
+
+
+def _apply_kinetic_chain_fields(metrics, motion: MotionSequence) -> None:
+    """Fill proximal→distal peak gaps and order from motion peaks."""
+    hip_peak = motion.peaks.get("right_hip_angular_velocity")
+    shoulder_peak = motion.peaks.get("right_shoulder_angular_velocity")
+    elbow_peak = motion.peaks.get("right_elbow_angular_velocity")
+    hip_f = hip_peak.frame_index if hip_peak is not None else None
+    shoulder_f = shoulder_peak.frame_index if shoulder_peak is not None else None
+    elbow_f = elbow_peak.frame_index if elbow_peak is not None else None
+    if hip_f is not None and shoulder_f is not None:
+        metrics.kinetic_chain_hip_shoulder_gap_frames = int(shoulder_f - hip_f)
+    if shoulder_f is not None and elbow_f is not None:
+        metrics.kinetic_chain_shoulder_elbow_gap_frames = int(elbow_f - shoulder_f)
+    peaks = [
+        ("hip", hip_f),
+        ("shoulder", shoulder_f),
+        ("elbow", elbow_f),
+    ]
+    present = [(name, idx) for name, idx in peaks if idx is not None]
+    if len(present) >= 2:
+        present.sort(key=lambda item: item[1])
+        metrics.kinetic_chain_order = "_".join(name for name, _ in present)
 
 
 def _acceleration_fraction(phases: PhaseSequence, contact_idx: int) -> float | None:

@@ -31,6 +31,8 @@ class MotionFrame:
     # Degrees per second (signed); None when either sample or dt is invalid.
     right_elbow_angular_velocity: float | None = None
     right_knee_angular_velocity: float | None = None
+    right_shoulder_angular_velocity: float | None = None
+    right_hip_angular_velocity: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +41,8 @@ class MotionFrame:
             "right_wrist_speed": self.right_wrist_speed,
             "right_elbow_angular_velocity": self.right_elbow_angular_velocity,
             "right_knee_angular_velocity": self.right_knee_angular_velocity,
+            "right_shoulder_angular_velocity": self.right_shoulder_angular_velocity,
+            "right_hip_angular_velocity": self.right_hip_angular_velocity,
         }
 
 

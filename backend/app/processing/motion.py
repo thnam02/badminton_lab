@@ -16,6 +16,8 @@ from app.schemas.pose import Keypoint, PoseFrame, PoseSequence
 _METRIC_WRIST_SPEED = "right_wrist_speed"
 _METRIC_ELBOW_OMEGA = "right_elbow_angular_velocity"
 _METRIC_KNEE_OMEGA = "right_knee_angular_velocity"
+_METRIC_SHOULDER_OMEGA = "right_shoulder_angular_velocity"
+_METRIC_HIP_OMEGA = "right_hip_angular_velocity"
 
 
 def compute_motion_derivatives(
@@ -63,6 +65,8 @@ def compute_motion_derivatives(
 
         elbow_omega = None
         knee_omega = None
+        shoulder_omega = None
+        hip_omega = None
         if angle_frame is not None and prev_angle is not None:
             elbow_omega = _angular_velocity(
                 prev_angle.right_elbow,
@@ -76,6 +80,18 @@ def compute_motion_derivatives(
                 prev_angle.timestamp,
                 angle_frame.timestamp,
             )
+            shoulder_omega = _angular_velocity(
+                prev_angle.right_shoulder,
+                angle_frame.right_shoulder,
+                prev_angle.timestamp,
+                angle_frame.timestamp,
+            )
+            hip_omega = _angular_velocity(
+                prev_angle.right_hip,
+                angle_frame.right_hip,
+                prev_angle.timestamp,
+                angle_frame.timestamp,
+            )
 
         out.append(
             MotionFrame(
@@ -84,6 +100,8 @@ def compute_motion_derivatives(
                 right_wrist_speed=wrist_speed,
                 right_elbow_angular_velocity=elbow_omega,
                 right_knee_angular_velocity=knee_omega,
+                right_shoulder_angular_velocity=shoulder_omega,
+                right_hip_angular_velocity=hip_omega,
             )
         )
 
@@ -101,6 +119,12 @@ def compute_motion_derivatives(
         ),
         _METRIC_KNEE_OMEGA: _peak_for(
             out.frames, lambda f: f.right_knee_angular_velocity, use_abs=True
+        ),
+        _METRIC_SHOULDER_OMEGA: _peak_for(
+            out.frames, lambda f: f.right_shoulder_angular_velocity, use_abs=True
+        ),
+        _METRIC_HIP_OMEGA: _peak_for(
+            out.frames, lambda f: f.right_hip_angular_velocity, use_abs=True
         ),
     }
     return out
