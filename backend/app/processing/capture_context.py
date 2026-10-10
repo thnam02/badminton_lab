@@ -105,6 +105,7 @@ def swap_left_right(sequence: PoseSequence) -> PoseSequence:
             frame_index=f.frame_index,
             timestamp=f.timestamp,
             keypoints={_swapped_name(n): kp for n, kp in f.keypoints.items()},
+            interpolated={_swapped_name(n) for n in f.interpolated},
         )
         for f in sequence.frames
     ]

@@ -7,6 +7,7 @@ warning codes; does not reject aggressively.
 
 from __future__ import annotations
 
+import dataclasses
 import math
 from collections.abc import Sequence
 
@@ -62,6 +63,66 @@ _RACKET_ARM_JOINTS: tuple[str, ...] = (
     "right_elbow",
     "right_wrist",
 )
+
+CONTACT_WINDOW_FRAMES = 5  # unvalidated prior
+WARNING_LOW_RACKET_ARM_AT_CONTACT = "LOW_RACKET_ARM_AT_CONTACT"
+
+
+def racket_arm_visibility_at_contact(
+    smoothed_pose: PoseSequence,
+    contact_frame_index: int | None,
+    *,
+    confidence_threshold: float = 0.5,
+    window: int = CONTACT_WINDOW_FRAMES,
+) -> float | None:
+    """Share of frames within ±``window`` of contact where the racket-arm
+    shoulder, elbow and wrist were all detected (not interpolated) at or above
+    ``confidence_threshold``. ``None`` when contact or frames are unavailable.
+    """
+    if contact_frame_index is None:
+        return None
+    frames = [
+        f
+        for f in smoothed_pose.frames
+        if abs(f.frame_index - contact_frame_index) <= window
+    ]
+    if not frames:
+        return None
+    good = sum(
+        1
+        for f in frames
+        if all(
+            name not in f.interpolated
+            and _visible(f.keypoints.get(name), confidence_threshold)
+            for name in _RACKET_ARM_JOINTS
+        )
+    )
+    return float(good / len(frames))
+
+
+def apply_contact_visibility(
+    report: VideoQualityReport,
+    visibility: float | None,
+) -> VideoQualityReport:
+    """Return a copy of ``report`` recording contact-window racket-arm
+    visibility; below the racket-arm threshold it caps ``analysis_confidence``
+    at that visibility and adds ``LOW_RACKET_ARM_AT_CONTACT``.
+    """
+    metrics = dataclasses.replace(
+        report.metrics, racket_arm_visibility_at_contact=visibility
+    )
+    warnings = list(report.warnings)
+    confidence = report.analysis_confidence
+    if visibility is not None and visibility < _MIN_RACKET_ARM_VISIBILITY:
+        if WARNING_LOW_RACKET_ARM_AT_CONTACT not in warnings:
+            warnings.append(WARNING_LOW_RACKET_ARM_AT_CONTACT)
+        confidence = min(confidence, float(visibility))
+    return dataclasses.replace(
+        report,
+        metrics=metrics,
+        warnings=warnings,
+        analysis_confidence=confidence,
+    )
 
 
 def assess_video_quality(

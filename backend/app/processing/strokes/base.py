@@ -51,6 +51,7 @@ class StrokeAnalyzer(Protocol):
         metrics: Any,
         *,
         quality_confidence: float | None = None,
+        pose_confidence: float | None = None,
         handedness: str | None = None,
         camera_view: str | None = None,
         skill_level: str | None = None,

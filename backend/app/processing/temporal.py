@@ -25,6 +25,8 @@ def preprocess_pose_sequence(
     1. Drop samples below ``confidence_threshold`` (treat as missing)
     2. Linearly interpolate gaps of length ``<= max_gap``
     3. Savitzky–Golay smooth normalized x/y (confidence left as-is after interp)
+
+    Joints filled in step 2 are listed in ``PoseFrame.interpolated``.
     """
     if sequence.frame_count == 0:
         return PoseSequence(video=sequence.video, frames=[])
@@ -38,6 +40,7 @@ def preprocess_pose_sequence(
     xs: dict[str, np.ndarray] = {}
     ys: dict[str, np.ndarray] = {}
     cs: dict[str, np.ndarray] = {}
+    filled: dict[str, np.ndarray] = {}
 
     for name in joint_names:
         x = np.full(n, np.nan, dtype=np.float64)
@@ -50,9 +53,11 @@ def preprocess_pose_sequence(
             x[i] = kp.x
             y[i] = kp.y
             c[i] = kp.confidence
+        detected = ~np.isnan(x)
         x = _interpolate_short_gaps(x, max_gap=max_gap)
         y = _interpolate_short_gaps(y, max_gap=max_gap)
         c = _interpolate_short_gaps(c, max_gap=max_gap)
+        filled[name] = ~detected & ~np.isnan(x)
         x = _savgol_nan_safe(x, window=savgol_window, polyorder=savgol_polyorder)
         y = _savgol_nan_safe(y, window=savgol_window, polyorder=savgol_polyorder)
         xs[name] = x
@@ -78,6 +83,9 @@ def preprocess_pose_sequence(
                 frame_index=frame.frame_index,
                 timestamp=frame.timestamp,
                 keypoints=keypoints,
+                interpolated={
+                    name for name in keypoints if filled[name][i]
+                },
             )
         )
 

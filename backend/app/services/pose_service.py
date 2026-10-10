@@ -27,7 +27,11 @@ from app.processing.keyframes import extract_keyframes_from_final
 from app.processing.motion import compute_motion_derivatives
 from app.processing.strokes import get_stroke_analyzer
 from app.processing.temporal import preprocess_pose_sequence
-from app.processing.video_quality import assess_video_quality
+from app.processing.video_quality import (
+    apply_contact_visibility,
+    assess_video_quality,
+    racket_arm_visibility_at_contact,
+)
 from app.schemas.analysis_snapshot import build_analysis_snapshot
 from app.schemas.angles import AngleSequence
 from app.schemas.coaching import CoachingReport
@@ -343,6 +347,9 @@ class PoseService:
             final_state,
             stroke_metrics,
             quality_confidence=float(final_state.video_quality.analysis_confidence),
+            pose_confidence=(
+                final_state.video_quality.metrics.racket_arm_visibility_at_contact
+            ),
             handedness=profile_handedness(kinematics.handedness),
             camera_view=profile_camera_view(kinematics.camera_view),
         )
@@ -592,11 +599,19 @@ class PoseService:
             initial_phases=kinematics.initial_phases,
             kinematic_contact=kinematics.kinematic_contact,
         )
+        video_quality = apply_contact_visibility(
+            kinematics.quality_report,
+            racket_arm_visibility_at_contact(
+                kinematics.smoothed_sequence,
+                contact_event.frame_index,
+                confidence_threshold=settings.pose_confidence_threshold,
+            ),
+        )
         return build_final_analysis_state(
             smoothed_pose=kinematics.smoothed_sequence,
             angles=kinematics.angle_sequence,
             motion=kinematics.motion_sequence,
-            video_quality=kinematics.quality_report,
+            video_quality=video_quality,
             phases=final_phases,
             contact=contact_event,
             video_fps=kinematics.video_fps,

@@ -45,6 +45,7 @@ class SmashAnalyzer:
         metrics: StrokeMetrics,
         *,
         quality_confidence: float | None = None,
+        pose_confidence: float | None = None,
         handedness: str | None = None,
         camera_view: str | None = None,
         skill_level: str | None = None,
@@ -65,4 +66,5 @@ class SmashAnalyzer:
             camera_view=camera_view,
             skill_level=skill_level,
             quality_confidence=q,
+            pose_confidence=pose_confidence,
         )

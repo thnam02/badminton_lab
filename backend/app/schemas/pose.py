@@ -25,13 +25,19 @@ class PoseFrame:
     frame_index: int
     timestamp: float
     keypoints: dict[str, Keypoint] = field(default_factory=dict)
+    # Joints filled by temporal gap interpolation rather than detected here;
+    # their confidence is borrowed from neighbouring frames.
+    interpolated: set[str] = field(default_factory=set)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "frame_index": self.frame_index,
             "timestamp": self.timestamp,
             "keypoints": {name: kp.to_dict() for name, kp in self.keypoints.items()},
         }
+        if self.interpolated:
+            payload["interpolated"] = sorted(self.interpolated)
+        return payload
 
 
 @dataclass(slots=True)
