@@ -10,10 +10,12 @@ import logging
 from collections import Counter
 from typing import Any
 
+from app.processing.capture_context import HANDEDNESS_LEFT, RACKET_ARM_NOTE
 from app.processing.composite_scores import compute_composite_scores
 from app.schemas.contact import ContactEvent
 from app.schemas.evidence import (
     CONTACT_TYPE_KINEMATIC,
+    EVIDENCE_DEFAULT_NOTES,
     EVIDENCE_VERSION,
     STROKE_TYPE_SMASH,
     ContactEvidence,
@@ -78,6 +80,7 @@ class EvidencePackager:
         snapshot: AnalysisSnapshot,
         stroke_type: str = STROKE_TYPE_SMASH,
         handedness: str | None = None,
+        camera_view: str | None = None,
         evidence_version: str = EVIDENCE_VERSION,
     ) -> EvidencePackage:
         """Build evidence exclusively from ``FinalAnalysisState`` + derived artifacts."""
@@ -97,6 +100,7 @@ class EvidencePackager:
             keyframes=keyframes,
             stroke_type=stroke_type,
             handedness=handedness,
+            camera_view=camera_view,
             evidence_version=evidence_version,
             contact=state.contact,
         )
@@ -120,6 +124,7 @@ class EvidencePackager:
         keyframes: KeyframeSet,
         stroke_type: str = STROKE_TYPE_SMASH,
         handedness: str | None = None,
+        camera_view: str | None = None,
         evidence_version: str = EVIDENCE_VERSION,
         contact: ContactEvent | ContactEvidence | None = None,
     ) -> EvidencePackage:
@@ -154,7 +159,9 @@ class EvidencePackager:
             technique_confidence=float(technique.confidence),
             keyframes=[kf.to_dict() for kf in keyframes.keyframes],
             composite_scores=composite,
+            camera_view=camera_view,
             keyframes_output_dir=keyframes.output_dir or None,
+            **_handedness_notes(handedness),
         )
 
 
@@ -167,6 +174,7 @@ def package_evidence_from_final(
     snapshot: AnalysisSnapshot,
     stroke_type: str = STROKE_TYPE_SMASH,
     handedness: str | None = None,
+    camera_view: str | None = None,
 ) -> EvidencePackage:
     """Module-level convenience wrapper around ``EvidencePackager.package_from_final``."""
     return EvidencePackager().package_from_final(
@@ -177,6 +185,7 @@ def package_evidence_from_final(
         snapshot=snapshot,
         stroke_type=stroke_type,
         handedness=handedness,
+        camera_view=camera_view,
     )
 
 
@@ -189,6 +198,7 @@ def package_evidence(
     keyframes: KeyframeSet,
     stroke_type: str = STROKE_TYPE_SMASH,
     handedness: str | None = None,
+    camera_view: str | None = None,
     contact: ContactEvent | ContactEvidence | None = None,
 ) -> EvidencePackage:
     """Module-level convenience wrapper around ``EvidencePackager``."""
@@ -200,8 +210,15 @@ def package_evidence(
         keyframes=keyframes,
         stroke_type=stroke_type,
         handedness=handedness,
+        camera_view=camera_view,
         contact=contact,
     )
+
+
+def _handedness_notes(handedness: str | None) -> dict[str, str]:
+    if str(handedness or "").upper() != HANDEDNESS_LEFT:
+        return {}
+    return {"notes": f"{EVIDENCE_DEFAULT_NOTES} {RACKET_ARM_NOTE}"}
 
 
 def _resolve_contact_evidence(

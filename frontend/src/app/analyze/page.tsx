@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { startAnalyze } from "@/lib/api";
+import { startAnalyze, type CameraView, type Handedness } from "@/lib/api";
 
 const ACCEPTED = ".mp4,.mov,video/mp4,video/quicktime";
 
@@ -42,11 +42,26 @@ const STROKES: StrokeOption[] = [
   { id: "lift", label: "Lift", available: false },
 ];
 
+const HANDEDNESS_OPTIONS: { value: Handedness; label: string }[] = [
+  { value: "RIGHT", label: "Right-handed" },
+  { value: "LEFT", label: "Left-handed" },
+  { value: "UNKNOWN", label: "Not sure" },
+];
+
+const CAMERA_VIEW_OPTIONS: { value: CameraView; label: string }[] = [
+  { value: "UNKNOWN", label: "Not sure" },
+  { value: "SIDE", label: "Side" },
+  { value: "FRONT", label: "Front" },
+  { value: "REAR", label: "Behind" },
+];
+
 export default function AnalyzePage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
   const [stroke, setStroke] = useState("forehand_smash");
+  const [handedness, setHandedness] = useState<Handedness | "">("");
+  const [cameraView, setCameraView] = useState<CameraView>("UNKNOWN");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [meta, setMeta] = useState<{
@@ -60,7 +75,7 @@ export default function AnalyzePage() {
   const [analysisReadyId, setAnalysisReadyId] = useState<string | null>(null);
   const [coachingPending, setCoachingPending] = useState(false);
 
-  const canUpload = Boolean(file);
+  const canUpload = Boolean(file) && handedness !== "";
   const fileSizeLabel = useMemo(() => {
     if (!file) return "";
     const mb = file.size / (1024 * 1024);
@@ -98,7 +113,7 @@ export default function AnalyzePage() {
   }
 
   async function runAnalyze() {
-    if (!file) return;
+    if (!file || handedness === "") return;
     setLoading(true);
     setError(null);
     setStageIndex(0);
@@ -114,6 +129,8 @@ export default function AnalyzePage() {
       const data = await startAnalyze(file, {
         meshOverlay: false,
         strokeType: selected?.apiValue || "FOREHAND_SMASH",
+        handedness,
+        cameraView,
       });
       window.clearInterval(timer);
       setStageIndex(STAGES.length - 1);
@@ -190,6 +207,42 @@ export default function AnalyzePage() {
           <li>✓ 60 FPS recommended</li>
           <li>✓ Good lighting</li>
         </ul>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm">
+            <span className="font-medium">
+              Player handedness <span className="text-[var(--danger)]">*</span>
+            </span>
+            <select
+              required
+              value={handedness}
+              onChange={(e) => setHandedness(e.target.value as Handedness)}
+              className="mt-1 block w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {HANDEDNESS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="font-medium">Camera view</span>
+            <select
+              value={cameraView}
+              onChange={(e) => setCameraView(e.target.value as CameraView)}
+              className="mt-1 block w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
+            >
+              {CAMERA_VIEW_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <button
           type="button"
           className="mt-4 text-sm font-medium text-[var(--accent)]"
@@ -259,6 +312,11 @@ export default function AnalyzePage() {
         >
           {loading ? "Analyzing…" : "Start analysis"}
         </button>
+        {file && handedness === "" && (
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Select the player&apos;s handedness in Step 2 to start.
+          </p>
+        )}
 
         {loading && (
           <ol className="mt-5 space-y-2" aria-live="polite">

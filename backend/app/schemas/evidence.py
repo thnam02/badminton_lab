@@ -15,7 +15,13 @@ from app.schemas.contact import (
 )
 
 # Bump when the coaching-facing evidence shape changes.
-EVIDENCE_VERSION = "1.1.0"
+# 1.2.0: camera_view field; handedness is user-declared (RIGHT/LEFT/UNKNOWN).
+EVIDENCE_VERSION = "1.2.0"
+
+EVIDENCE_DEFAULT_NOTES = (
+    "Assembled from already-computed analysis artifacts; "
+    "no biomechanics or CV recalculation."
+)
 
 STROKE_TYPE_SMASH = "SMASH"
 
@@ -65,7 +71,9 @@ class ContactEvidence:
 class EvidencePackage:
     """Deterministic analysis snapshot consumed by a later coaching layer.
 
-    Does not embed full raw pose sequences.
+    Does not embed full raw pose sequences. When ``handedness == "LEFT"`` every
+    ``right_*`` metric refers to the racket arm (labels swapped after pose
+    estimation); ``notes`` says so explicitly.
     """
 
     evidence_version: str
@@ -82,11 +90,9 @@ class EvidencePackage:
     technique_confidence: float
     keyframes: list[dict[str, Any]]
     composite_scores: dict[str, Any] = field(default_factory=dict)
+    camera_view: str | None = None
     keyframes_output_dir: str | None = None
-    notes: str = (
-        "Assembled from already-computed analysis artifacts; "
-        "no biomechanics or CV recalculation."
-    )
+    notes: str = EVIDENCE_DEFAULT_NOTES
     extra: dict[str, Any] = field(default_factory=dict)
     analysis_id: str = ""
     snapshot_id: str = ""
@@ -101,6 +107,7 @@ class EvidencePackage:
             "video": self.video,
             "stroke_type": self.stroke_type,
             "handedness": self.handedness,
+            "camera_view": self.camera_view,
             "analysis_confidence": self.analysis_confidence,
             "video_quality": self.video_quality,
             "phase_boundaries": self.phase_boundaries,

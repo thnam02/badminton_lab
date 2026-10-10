@@ -143,7 +143,7 @@ def get_analysis_result(
         "stroke_type_raw": stroke_type,
         "handedness": _hand_label(handedness),
         "handedness_raw": handedness,
-        "camera_view": None,
+        "camera_view": (evidence or {}).get("camera_view"),
         "reference_profile_id": ref_profile,
         "snapshot_id": (snapshot or {}).get("snapshot_id")
         or (technique or {}).get("snapshot_id")
@@ -777,6 +777,9 @@ def _compatibility(
         return False, "Different stroke types cannot be compared."
     lh = str(left.get("handedness_raw") or "").upper()
     rh = str(right.get("handedness_raw") or "").upper()
+    # UNKNOWN is "not declared", not a third handedness.
+    lh = "" if lh == "UNKNOWN" else lh
+    rh = "" if rh == "UNKNOWN" else rh
     if lh and rh and lh != rh:
         return False, "Different handedness cannot be compared."
     return True, "Compatible for metric comparison."
@@ -932,6 +935,8 @@ def _hand_label(raw: str | None) -> str | None:
     if raw is None or str(raw).strip() == "":
         return None
     key = str(raw).upper()
+    if key == "UNKNOWN":
+        return "Handedness not specified"
     if key.startswith("R"):
         return "Right-handed"
     if key.startswith("L"):

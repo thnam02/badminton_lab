@@ -58,6 +58,7 @@ class SmashAnalyzer:
             profile=reference_profile_from_settings(
                 stroke_type="SMASH",
                 handedness=handedness,
+                camera_view=camera_view,
             ),
             stroke_type="SMASH",
             handedness=handedness,

@@ -16,6 +16,13 @@ from app.services.video_service import (
     new_upload_path,
 )
 from app.services.analysis_aggregator import register_completed_analysis
+from app.processing.capture_context import (
+    CAMERA_VIEW_UNKNOWN,
+    HANDEDNESS_UNKNOWN,
+    InvalidCaptureContextError,
+    normalize_camera_view,
+    normalize_handedness,
+)
 from app.schemas.stroke_types import UnsupportedStrokeError, normalize_stroke_type
 
 router = APIRouter(tags=["analyze"])
@@ -52,6 +59,14 @@ async def analyze(
     stroke_type: str = Query(
         default="FOREHAND_SMASH",
         description="FOREHAND_SMASH or FOREHAND_CLEAR (user-selected)",
+    ),
+    handedness: str = Query(
+        default=HANDEDNESS_UNKNOWN,
+        description="RIGHT, LEFT or UNKNOWN (user-declared racket hand)",
+    ),
+    camera_view: str = Query(
+        default=CAMERA_VIEW_UNKNOWN,
+        description="SIDE, FRONT, REAR or UNKNOWN (user-declared camera position)",
     ),
 ) -> dict[str, str]:
     """Run analysis with measurements finalized before evidence/coaching/render/export.
@@ -109,6 +124,11 @@ async def analyze(
         stroke = normalize_stroke_type(stroke_type)
     except UnsupportedStrokeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        hand = normalize_handedness(handedness)
+        view = normalize_camera_view(camera_view)
+    except InvalidCaptureContextError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         contents = await video.read()
@@ -121,6 +141,8 @@ async def analyze(
             upload_path,
             output_path,
             stroke_type=stroke,
+            handedness=hand,
+            camera_view=view,
         )
 
         # 7–8: optional tracks (before ContactResolver / any downstream artifacts).
@@ -136,6 +158,8 @@ async def analyze(
                 output_path,
                 pose=kinematics.smoothed_sequence,
                 pose_json_path=None,
+                # LEFT poses are label-swapped, so the racket arm is right_* either way.
+                hitting_hand="RIGHT" if hand != HANDEDNESS_UNKNOWN else None,
             )
 
         # 9–17: resolve final contact once → FinalAnalysisState → metrics → … → video.
@@ -293,6 +317,8 @@ async def analyze(
     payload: dict[str, str] = {
         "analysis_id": _artifact_base_stem(video_path),
         "stroke_type": stroke.value,
+        "handedness": hand,
+        "camera_view": view,
         "analysis_status": "COMPLETE",
         "coaching_status": "COMPLETE" if coaching_available else "UNAVAILABLE",
         "output_path": str(video_path),

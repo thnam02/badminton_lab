@@ -130,6 +130,7 @@ export type AnalysisResult = {
   stroke_type_raw?: string;
   handedness?: string | null;
   handedness_raw?: string | null;
+  camera_view?: string | null;
   reference_profile_id?: string;
   snapshot_id?: string;
   analysis_status: string;

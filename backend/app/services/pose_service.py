@@ -11,6 +11,17 @@ from app.config import settings
 from app.cv.mmpose_estimator import MMPoseEstimator
 from app.cv.overlay import AnnotationRenderer
 from app.processing.angles import compute_angle_sequence
+from app.processing.capture_context import (
+    CAMERA_VIEW_UNKNOWN,
+    HANDEDNESS_LEFT,
+    HANDEDNESS_UNKNOWN,
+    capture_context_warnings,
+    normalize_camera_view,
+    normalize_handedness,
+    profile_camera_view,
+    profile_handedness,
+    swap_left_right,
+)
 from app.processing.contact_resolver import resolve_contact
 from app.processing.keyframes import extract_keyframes_from_final
 from app.processing.motion import compute_motion_derivatives
@@ -101,6 +112,10 @@ class PoseKinematics:
     video_width: int
     video_height: int
     stroke_type: StrokeType = StrokeType.FOREHAND_SMASH
+    # When LEFT, every pose/angle/motion field here uses swapped labels:
+    # right_* means racket arm (see app.processing.capture_context).
+    handedness: str = HANDEDNESS_UNKNOWN
+    camera_view: str = CAMERA_VIEW_UNKNOWN
 
 
 @dataclass(slots=True)
@@ -151,9 +166,10 @@ class PoseService:
         output_path: Path,
         *,
         stroke_type: str | StrokeType | None = None,
+        handedness: str = HANDEDNESS_UNKNOWN,
+        camera_view: str = CAMERA_VIEW_UNKNOWN,
     ) -> PoseKinematics:
         """RTMPose → temporal → quality → angles/motion → initial phases → kinematic contact."""
-        analyzer = get_stroke_analyzer(stroke_type)
         estimator = self.estimator
         estimator.reset_tracking()
         raw_sequence = PoseSequence(video=output_path.name)
@@ -171,6 +187,44 @@ class PoseService:
 
         iter_video_frames(input_path, collect_frame)
 
+        return self.kinematics_from_raw_pose(
+            raw_sequence,
+            input_path=input_path,
+            output_path=output_path,
+            stroke_type=stroke_type,
+            handedness=handedness,
+            camera_view=camera_view,
+            video_fps=video_fps,
+            video_width=video_width,
+            video_height=video_height,
+            extra_warnings=estimator.tracker.warnings(),
+        )
+
+    def kinematics_from_raw_pose(
+        self,
+        raw_sequence: PoseSequence,
+        *,
+        input_path: Path,
+        output_path: Path,
+        stroke_type: str | StrokeType | None = None,
+        handedness: str = HANDEDNESS_UNKNOWN,
+        camera_view: str = CAMERA_VIEW_UNKNOWN,
+        video_fps: float,
+        video_width: int,
+        video_height: int,
+        extra_warnings: list[str] | None = None,
+    ) -> PoseKinematics:
+        """Everything after RTMPose, starting from true-anatomy keypoint labels.
+
+        For LEFT-handed players the labels are swapped first, so downstream
+        ``right_*`` measurements describe the racket arm (see capture_context).
+        """
+        analyzer = get_stroke_analyzer(stroke_type)
+        handedness = normalize_handedness(handedness)
+        camera_view = normalize_camera_view(camera_view)
+        if handedness == HANDEDNESS_LEFT:
+            raw_sequence = swap_left_right(raw_sequence)
+
         smoothed_sequence = preprocess_pose_sequence(
             raw_sequence,
             confidence_threshold=settings.pose_confidence_threshold,
@@ -185,7 +239,10 @@ class PoseService:
             width=video_width,
             height=video_height,
             confidence_threshold=settings.pose_confidence_threshold,
-            extra_warnings=estimator.tracker.warnings(),
+            extra_warnings=[
+                *(extra_warnings or []),
+                *capture_context_warnings(handedness, camera_view),
+            ],
         )
         angle_sequence = compute_angle_sequence(
             smoothed_sequence,
@@ -216,6 +273,8 @@ class PoseService:
             video_width=video_width,
             video_height=video_height,
             stroke_type=analyzer.stroke_type,
+            handedness=handedness,
+            camera_view=camera_view,
         )
 
     def finalize_analysis(
@@ -235,45 +294,8 @@ class PoseService:
         """
         input_path = kinematics.input_path
         output_path = kinematics.output_path
-
-        contact_event = _resolve_final_contact(
-            initial_phases=kinematics.initial_phases,
-            kinematic_contact=kinematics.kinematic_contact,
-            pose=kinematics.smoothed_sequence,
-            motion=kinematics.motion_sequence,
-            shuttle=shuttle,
-            racket=racket,
-        )
         analyzer = get_stroke_analyzer(kinematics.stroke_type)
-        if kinematics.kinematic_contact.kinematic_frame_index is not None:
-            final_phases = analyzer.detect_phases(
-                kinematics.smoothed_sequence,
-                kinematics.angle_sequence,
-                kinematics.motion_sequence,
-                forced_contact_frame_index=contact_event.frame_index,
-            )
-        else:
-            final_phases = kinematics.initial_phases
-
-        intermediate = IntermediateAnalysisSnapshot(
-            raw_pose=kinematics.raw_sequence,
-            initial_phases=kinematics.initial_phases,
-            kinematic_contact=kinematics.kinematic_contact,
-        )
-        final_state = build_final_analysis_state(
-            smoothed_pose=kinematics.smoothed_sequence,
-            angles=kinematics.angle_sequence,
-            motion=kinematics.motion_sequence,
-            video_quality=kinematics.quality_report,
-            phases=final_phases,
-            contact=contact_event,
-            video_fps=kinematics.video_fps,
-            video_width=kinematics.video_width,
-            video_height=kinematics.video_height,
-            input_path=input_path,
-            output_path=output_path,
-            intermediate=intermediate,
-        )
+        final_state = self.build_final_state(kinematics, shuttle=shuttle, racket=racket)
 
         analysis_id = _artifact_base_stem(output_path)
         snapshot = build_analysis_snapshot(final_state, analysis_id=analysis_id)
@@ -321,6 +343,8 @@ class PoseService:
             final_state,
             stroke_metrics,
             quality_confidence=float(final_state.video_quality.analysis_confidence),
+            handedness=profile_handedness(kinematics.handedness),
+            camera_view=profile_camera_view(kinematics.camera_view),
         )
         apply_provenance(
             technique_evaluation,
@@ -344,7 +368,8 @@ class PoseService:
             keyframes=keyframe_set,
             snapshot=snapshot,
             stroke_type=analyzer.stroke_type.value,
-            handedness=None,
+            handedness=kinematics.handedness,
+            camera_view=kinematics.camera_view,
         )
         coaching_report = generate_coaching_report_from_final(
             final_state,
@@ -366,10 +391,16 @@ class PoseService:
 
             mesh_video_path = mesh_video_path_for(output_path)
             mesh_json_path = mesh_json_path_for(output_path)
+            # Mesh fitting needs true anatomical labels, not racket-arm labels.
+            mesh_pose = (
+                swap_left_right(final_state.smoothed_pose)
+                if kinematics.handedness == HANDEDNESS_LEFT
+                else final_state.smoothed_pose
+            )
             mesh_status = start_mesh_job(
                 video_path=input_path,
                 pose_output=output_path,
-                pose_sequence=final_state.smoothed_pose,
+                pose_sequence=mesh_pose,
             )
 
         raw_json_path = pose_json_path_for(output_path)
@@ -529,6 +560,53 @@ class PoseService:
             mesh_status=mesh_status,
         )
 
+    def build_final_state(
+        self,
+        kinematics: PoseKinematics,
+        *,
+        shuttle: ShuttleTrajectory | None = None,
+        racket: RacketTrajectory | None = None,
+    ) -> FinalAnalysisState:
+        """ContactResolver → final contact → phase re-snap → FinalAnalysisState."""
+        contact_event = _resolve_final_contact(
+            initial_phases=kinematics.initial_phases,
+            kinematic_contact=kinematics.kinematic_contact,
+            pose=kinematics.smoothed_sequence,
+            motion=kinematics.motion_sequence,
+            shuttle=shuttle,
+            racket=racket,
+        )
+        analyzer = get_stroke_analyzer(kinematics.stroke_type)
+        if kinematics.kinematic_contact.kinematic_frame_index is not None:
+            final_phases = analyzer.detect_phases(
+                kinematics.smoothed_sequence,
+                kinematics.angle_sequence,
+                kinematics.motion_sequence,
+                forced_contact_frame_index=contact_event.frame_index,
+            )
+        else:
+            final_phases = kinematics.initial_phases
+
+        intermediate = IntermediateAnalysisSnapshot(
+            raw_pose=kinematics.raw_sequence,
+            initial_phases=kinematics.initial_phases,
+            kinematic_contact=kinematics.kinematic_contact,
+        )
+        return build_final_analysis_state(
+            smoothed_pose=kinematics.smoothed_sequence,
+            angles=kinematics.angle_sequence,
+            motion=kinematics.motion_sequence,
+            video_quality=kinematics.quality_report,
+            phases=final_phases,
+            contact=contact_event,
+            video_fps=kinematics.video_fps,
+            video_width=kinematics.video_width,
+            video_height=kinematics.video_height,
+            input_path=kinematics.input_path,
+            output_path=kinematics.output_path,
+            intermediate=intermediate,
+        )
+
     def analyze_video(
         self,
         input_path: Path,
@@ -539,6 +617,8 @@ class PoseService:
         shuttle: ShuttleTrajectory | None = None,
         racket: RacketTrajectory | None = None,
         stroke_type: str | StrokeType | None = None,
+        handedness: str = HANDEDNESS_UNKNOWN,
+        camera_view: str = CAMERA_VIEW_UNKNOWN,
     ) -> FinalizedAnalysis:
         """Full pose pipeline with optional precomputed shuttle/racket trajectories.
 
@@ -547,7 +627,11 @@ class PoseService:
         """
         del muscle_overlay  # retired path — ignored
         kinematics = self.compute_pose_kinematics(
-            input_path, output_path, stroke_type=stroke_type
+            input_path,
+            output_path,
+            stroke_type=stroke_type,
+            handedness=handedness,
+            camera_view=camera_view,
         )
         return self.finalize_analysis(
             kinematics,

@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 
+from app.processing.capture_context import CAPTURE_CONTEXT_CONFIDENCE_FACTORS
 from app.schemas.pose import Keypoint, PoseFrame, PoseSequence
 from app.schemas.video_quality import VideoQualityMetrics, VideoQualityReport
 
@@ -398,6 +399,10 @@ def _analysis_confidence(
         parts.append(max(0.0, min(1.0, metrics.fps / 30.0)))
 
     base = sum(parts) / len(parts) if parts else 0.2
-    penalty = 0.06 * len(warnings)
+    # Capture-context warnings carry their own explicit factors instead.
+    generic = [w for w in warnings if w not in CAPTURE_CONTEXT_CONFIDENCE_FACTORS]
+    penalty = 0.06 * len(generic)
     score = base * (1.0 - min(0.55, penalty))
+    for warning in warnings:
+        score *= CAPTURE_CONTEXT_CONFIDENCE_FACTORS.get(warning, 1.0)
     return float(max(0.05, min(0.98, score)))
