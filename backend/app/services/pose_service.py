@@ -155,6 +155,7 @@ class PoseService:
         """RTMPose → temporal → quality → angles/motion → initial phases → kinematic contact."""
         analyzer = get_stroke_analyzer(stroke_type)
         estimator = self.estimator
+        estimator.reset_tracking()
         raw_sequence = PoseSequence(video=output_path.name)
         video_fps, video_width, video_height = probe_video_metadata(input_path)
 
@@ -184,6 +185,7 @@ class PoseService:
             width=video_width,
             height=video_height,
             confidence_threshold=settings.pose_confidence_threshold,
+            extra_warnings=estimator.tracker.warnings(),
         )
         angle_sequence = compute_angle_sequence(
             smoothed_sequence,

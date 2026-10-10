@@ -71,10 +71,13 @@ def assess_video_quality(
     width: int | None = None,
     height: int | None = None,
     confidence_threshold: float = 0.5,
+    extra_warnings: Sequence[str] = (),
 ) -> VideoQualityReport:
     """Build a ``VideoQualityReport`` from raw (and optional smoothed) pose.
 
     ``smoothed_pose`` is used only to estimate the interpolated-keypoint fraction.
+    ``extra_warnings`` come from upstream stages (e.g. person selection) and
+    count toward the warning penalty like any other warning.
     """
     video = raw_pose.video
     frames = raw_pose.frames
@@ -143,6 +146,7 @@ def assess_video_quality(
         camera_stability=stability,
     )
     warnings = _collect_warnings(metrics)
+    warnings.extend(w for w in extra_warnings if w not in warnings)
     confidence = _analysis_confidence(metrics, warnings)
 
     return VideoQualityReport(
