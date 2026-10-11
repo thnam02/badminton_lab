@@ -56,6 +56,53 @@ ISSUE_TITLES = {
     "INSUFFICIENT_EVIDENCE": "Insufficient evidence",
 }
 
+CONTACT_ESTIMATED_NOTE = (
+    "Contact time is estimated from your arm speed. The shuttle wasn't tracked "
+    "at that moment, so it may be a few frames off."
+)
+
+MAX_LIMITATION_WARNINGS = 3
+
+# Pipeline warning code → plain-language sentence, highest priority first.
+# Codes mapped to None are never shown; unknown codes are dropped.
+WARNING_SENTENCES: dict[str, str | None] = {
+    "NO_POSE_DETECTED": "We couldn't detect a player in this video.",
+    "WRONG_PLAYER_POSSIBLE": (
+        "We may have followed the wrong player. Check that the skeleton stays on you."
+    ),
+    "MULTIPLE_SWINGS_DETECTED": "We found {n} swings and analysed the one at {time}.",
+    "LOW_RACKET_ARM_AT_CONTACT": (
+        "Your racket arm was hard to see at contact, so arm measurements may be less accurate."
+    ),
+    "CONTACT_UNSTABLE_TRACKING": (
+        "Body tracking jumped around near contact, so the contact moment may be off."
+    ),
+    "CONTACT_AMBIGUOUS_PEAKS": (
+        "Your arm sped up twice in quick succession, so the contact moment may be a few frames off."
+    ),
+    "CONTACT_SPIKE_PEAK": (
+        "The arm-speed peak used for contact was very brief, so the contact moment may be off."
+    ),
+    "LOW_POSE_CONFIDENCE": "Body tracking was uncertain, so some measurements may be less reliable.",
+    "LOW_RACKET_ARM_VISIBILITY": "Your racket arm was often hidden or out of view.",
+    "LOW_FULL_BODY_COVERAGE": "Parts of your body were out of frame. Keep your whole body in view.",
+    "HIGH_MISSING_KEYPOINTS": "Some body points couldn't be tracked in many frames.",
+    "HIGH_INTERPOLATED_KEYPOINTS": "Some body positions had to be filled in between frames.",
+    "CAMERA_VIEW_FRONT": (
+        "The video was filmed from the front, which makes some arm angles harder to measure."
+    ),
+    "CAMERA_VIEW_REAR": (
+        "The video was filmed from behind, which makes some arm angles harder to measure."
+    ),
+    "SMALL_PLAYER_SIZE": "You appear small in the frame. Filming closer will help.",
+    "UNSTABLE_CAMERA": "The camera moved during recording. A steady camera gives better results.",
+    "LOW_FPS": "The video frame rate is low, so fast movements may be missed.",
+    "LOW_RESOLUTION": "The video resolution is low, which limits tracking accuracy.",
+    "HANDEDNESS_UNKNOWN": "Handedness wasn't specified, so we assumed you play right-handed.",
+    "CONTACT_NOT_VERIFIED_BY_SHUTTLE": None,
+}
+_WARNING_PRIORITY = {code: i for i, code in enumerate(WARNING_SENTENCES)}
+
 
 def list_analyses(*, output_dir: Path | None = None, limit: int = 50) -> list[dict[str, Any]]:
     """Return recent analysis summaries (manifest + disk discovery)."""
@@ -367,21 +414,35 @@ def _normalize_contact(
         frame = metrics.get("estimated_contact_frame_index")
     contact_type = str(src.get("contact_type") or "KINEMATIC_ESTIMATE")
     tracked = contact_type.upper() in {"TRACKED", "TRACKED_CONTACT"}
+    # Artifacts written before shuttle verification existed: tracked ⇒ verified.
+    shuttle_verified = bool(src.get("shuttle_verified", tracked))
+    swings = [s for s in (src.get("swing_candidates") or []) if isinstance(s, dict)]
+    if not swings:
+        swings = [
+            s for s in ((evidence or {}).get("swing_candidates") or []) if isinstance(s, dict)
+        ]
+    swing_count = (evidence or {}).get("swing_count")
+    if swing_count is None and swings:
+        swing_count = len(swings)
+    chosen = next((s for s in swings if s.get("chosen")), None)
+    chosen_ts = (chosen or {}).get("timestamp")
+    if chosen_ts is None:
+        chosen_ts = timestamp
     return {
         "timestamp": float(timestamp) if timestamp is not None else None,
         "frame_index": int(frame) if frame is not None else None,
         "confidence": float(src.get("confidence") or 0.0),
         "contact_type": contact_type,
-        "label": "Detected contact" if tracked else "Estimated contact",
-        "notes": src.get("notes")
-        or (
-            None
-            if tracked
-            else (
-                "Contact timing was estimated from your movement because "
-                "shuttle/racket tracking was unavailable."
-            )
+        "label": (
+            "Detected contact (shuttle-verified)"
+            if shuttle_verified
+            else "Estimated contact (not verified by shuttle)"
         ),
+        "notes": None if shuttle_verified else CONTACT_ESTIMATED_NOTE,
+        "shuttle_verified": shuttle_verified,
+        "swing_count": int(swing_count) if swing_count is not None else None,
+        "chosen_swing_timestamp": float(chosen_ts) if chosen_ts is not None else None,
+        "warnings": [str(w) for w in (src.get("warnings") or [])],
         "available": timestamp is not None,
     }
 
@@ -654,7 +715,11 @@ def _normalize_confidence(
             {"id": "pose", "label": "Pose tracking", "level": _band(pose), "score": pose},
             {
                 "id": "contact",
-                "label": "Contact detection",
+                "label": (
+                    "Contact detection"
+                    if contact.get("shuttle_verified")
+                    else "Contact timing (estimated)"
+                ),
                 "level": _band(contact_c),
                 "score": contact_c,
             },
@@ -677,7 +742,7 @@ def _normalize_confidence(
                 "score": ref_c,
             },
         ],
-        "message": _confidence_message(overall, q),
+        "message": _confidence_message(overall, q, contact),
     }
 
 
@@ -721,19 +786,42 @@ def _limitations(
         )
     if not contact.get("available"):
         notes.append("We could not reliably assess contact position in this video.")
-    elif str(contact.get("contact_type") or "").upper() in {
-        "KINEMATIC",
-        "KINEMATIC_ESTIMATE",
-        "ESTIMATED",
-    }:
-        notes.append(
-            "Contact timing was estimated from your movement because "
-            "shuttle/racket tracking was unavailable."
-        )
-    if quality and quality.get("warnings"):
-        for w in quality.get("warnings") or []:
-            notes.append(str(w))
+    codes = [
+        *((quality or {}).get("warnings") or []),
+        *(contact.get("warnings") or []),
+    ]
+    for sentence in warning_sentences(codes, contact)[:MAX_LIMITATION_WARNINGS]:
+        if sentence not in notes:
+            notes.append(sentence)
     return notes
+
+
+def warning_sentences(codes: list[Any], contact: dict[str, Any]) -> list[str]:
+    """Plain-language sentences for known warning codes, highest priority first."""
+    known = sorted(
+        {str(c) for c in codes if str(c) in WARNING_SENTENCES},
+        key=lambda c: _WARNING_PRIORITY[c],
+    )
+    out: list[str] = []
+    for code in known:
+        template = WARNING_SENTENCES[code]
+        if template is None:
+            continue
+        if code == "MULTIPLE_SWINGS_DETECTED":
+            n = contact.get("swing_count")
+            when = contact.get("chosen_swing_timestamp")
+            if n is None or when is None:
+                continue
+            template = template.format(n=int(n), time=_format_timestamp(float(when)))
+        out.append(template)
+    return out
+
+
+def _format_timestamp(seconds: float) -> str:
+    """Same m:ss.ss format as the frontend formatTimestamp."""
+    s = max(0.0, seconds)
+    m = int(s // 60)
+    return f"{m}:{s - m * 60:05.2f}"
 
 
 def _overlay_modes(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -911,12 +999,14 @@ def _band(score: float) -> str:
     return "LOW"
 
 
-def _confidence_message(overall: float, quality: dict[str, Any]) -> str | None:
+def _confidence_message(
+    overall: float, quality: dict[str, Any], contact: dict[str, Any]
+) -> str | None:
     if overall >= 0.75:
         return None
-    reasons = quality.get("limitation_notes") or quality.get("warnings") or []
+    reasons = warning_sentences(list(quality.get("warnings") or []), contact)
     if reasons:
-        return str(reasons[0])
+        return reasons[0]
     if overall < 0.5:
         return (
             "Some findings may be less reliable because tracking confidence "

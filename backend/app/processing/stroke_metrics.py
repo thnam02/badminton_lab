@@ -77,6 +77,7 @@ def compute_stroke_metrics(
         estimated_contact_frame_index=contact_idx,
         estimated_contact_timestamp=contact_ts,
         phase_confidence=phases.confidence,
+        contact_confidence=float(contact.confidence) if contact is not None else None,
     )
 
     if contact_idx is None:

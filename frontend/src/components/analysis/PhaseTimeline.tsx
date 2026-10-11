@@ -8,6 +8,7 @@ type Props = {
   currentTime: number;
   onSeek: (seconds: number) => void;
   contactTimestamp?: number | null;
+  contactShuttleVerified?: boolean;
 };
 
 export function PhaseTimeline({
@@ -15,6 +16,7 @@ export function PhaseTimeline({
   currentTime,
   onSeek,
   contactTimestamp,
+  contactShuttleVerified = false,
 }: Props) {
   if (!phases.length) {
     return (
@@ -89,7 +91,7 @@ export function PhaseTimeline({
         {contactTimestamp != null && (
           <button
             type="button"
-            aria-label={`Seek to contact at ${formatTimestamp(contactTimestamp)}`}
+            aria-label={`Seek to ${contactShuttleVerified ? "" : "estimated "}contact at ${formatTimestamp(contactTimestamp)}`}
             className="absolute top-[-6px] z-30 h-3 w-3 -translate-x-1/2 rounded-full border-2 border-[var(--bg-elevated)] bg-[var(--accent)]"
             style={{
               left: `${((contactTimestamp - start) / span) * 100}%`,

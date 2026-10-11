@@ -26,6 +26,9 @@ type Props = {
   analysisId: string;
 };
 
+const CONTACT_ESTIMATED_NOTE =
+  "Contact time is estimated from your arm speed. The shuttle wasn't tracked at that moment, so it may be a few frames off.";
+
 export function AnalysisResultView({ analysisId }: Props) {
   const [data, setData] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,9 +116,10 @@ export function AnalysisResultView({ analysisId }: Props) {
           currentTime={currentTime}
           onSeek={(t) => seek(t, true)}
           contactTimestamp={data.contact.timestamp}
+          contactShuttleVerified={data.contact.shuttle_verified}
         />
-        {data.contact.notes && (
-          <p className="text-sm text-[var(--muted)]">{data.contact.notes}</p>
+        {data.contact.available && !data.contact.shuttle_verified && (
+          <p className="text-sm text-[var(--muted)]">{CONTACT_ESTIMATED_NOTE}</p>
         )}
       </section>
 
@@ -208,7 +212,11 @@ export function AnalysisResultView({ analysisId }: Props) {
             </div>
             <div>
               <dt>Contact</dt>
-              <dd>{data.contact.label}</dd>
+              <dd>
+                {data.contact.shuttle_verified
+                  ? "Detected contact (shuttle-verified)"
+                  : "Estimated contact (not verified by shuttle)"}
+              </dd>
             </div>
           </dl>
 

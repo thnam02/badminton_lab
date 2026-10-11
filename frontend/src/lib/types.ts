@@ -21,6 +21,11 @@ export type ContactEvent = {
   contact_type: string;
   label: string;
   notes?: string | null;
+  /** True only when shuttle detections confirm the contact moment. */
+  shuttle_verified: boolean;
+  swing_count?: number | null;
+  chosen_swing_timestamp?: number | null;
+  warnings?: string[];
   available: boolean;
 };
 

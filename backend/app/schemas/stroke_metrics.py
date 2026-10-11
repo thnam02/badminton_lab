@@ -22,6 +22,8 @@ class StrokeMetrics:
     contact_knee_angle_deg: float | None = None
     contact_shoulder_angle_deg: float | None = None
     contact_wrist_y_normalized: float | None = None
+    # Resolved contact confidence; None when metrics were built without a contact event.
+    contact_confidence: float | None = None
     # Peak right-wrist linear speed from motion peaks (normalized image units / second;
     # keypoints are typically in [0, 1] image space; not m/s or px/frame).
     peak_wrist_speed: float | None = None

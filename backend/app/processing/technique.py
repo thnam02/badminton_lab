@@ -256,6 +256,8 @@ def _measurement_confidence(
     parts = [float(metrics.phase_confidence), float(pose_confidence)]
     if quality_confidence is not None:
         parts.append(float(max(0.0, min(1.0, quality_confidence))))
+    if metrics.contact_confidence is not None:
+        parts.append(float(max(0.0, min(1.0, metrics.contact_confidence))))
     return float(sum(parts) / len(parts))
 
 

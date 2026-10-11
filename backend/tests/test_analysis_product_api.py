@@ -183,6 +183,90 @@ def test_aggregate_result_shape(tmp_path: Path) -> None:
     assert result["composite_scores"]["chain_score"] is None
 
 
+def _seed_contact_warnings(root: Path, analysis_id: str) -> None:
+    _write(
+        root / f"{analysis_id}_contact.json",
+        {
+            "contact_type": "KINEMATIC_ESTIMATE",
+            "confidence": 0.81,
+            "frame_index": 135,
+            "timestamp": 4.5,
+            "notes": "KINEMATIC_ESTIMATE from peak right-wrist speed.",
+            "shuttle_verified": False,
+            "warnings": ["MULTIPLE_SWINGS_DETECTED", "CONTACT_NOT_VERIFIED_BY_SHUTTLE"],
+            "swing_candidates": [
+                {"frame_index": 135, "timestamp": 4.5, "chosen": True},
+                {"frame_index": 23, "timestamp": 0.77, "chosen": False},
+            ],
+        },
+    )
+    _write(
+        root / f"{analysis_id}_pose_video_quality.json",
+        {
+            "analysis_confidence": 0.89,
+            "pose_confidence": 0.9,
+            "warnings": [
+                "HANDEDNESS_UNKNOWN",
+                "UNSTABLE_CAMERA",
+                "MULTIPLE_SWINGS_DETECTED",
+                "CONTACT_NOT_VERIFIED_BY_SHUTTLE",
+                "LOW_RACKET_ARM_AT_CONTACT",
+                "SOME_FUTURE_CODE",
+            ],
+        },
+    )
+
+
+def test_estimated_contact_plumbing_and_wording(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "est001")
+    _seed_contact_warnings(tmp_path, "est001")
+    result = get_analysis_result("est001", output_dir=tmp_path)
+    contact = result["contact"]
+    assert contact["shuttle_verified"] is False
+    assert contact["swing_count"] == 2
+    assert contact["chosen_swing_timestamp"] == pytest.approx(4.5)
+    assert contact["label"] == "Estimated contact (not verified by shuttle)"
+    assert contact["notes"] == (
+        "Contact time is estimated from your arm speed. The shuttle wasn't tracked "
+        "at that moment, so it may be a few frames off."
+    )
+    component = next(c for c in result["confidence"]["components"] if c["id"] == "contact")
+    assert component["label"] == "Contact timing (estimated)"
+
+
+def test_limitations_map_codes_to_sentences_by_priority(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "lim001")
+    _seed_contact_warnings(tmp_path, "lim001")
+    limitations = get_analysis_result("lim001", output_dir=tmp_path)["limitations"]
+    assert limitations == [
+        "We found 2 swings and analysed the one at 0:04.50.",
+        "Your racket arm was hard to see at contact, so arm measurements may be less accurate.",
+        "The camera moved during recording. A steady camera gives better results.",
+    ]
+    assert not any(note.isupper() or "_" in note for note in limitations)
+
+
+def test_shuttle_verified_contact_wording(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "ver001")
+    _write(
+        tmp_path / "ver001_contact.json",
+        {
+            "contact_type": "TRACKED_CONTACT",
+            "confidence": 0.9,
+            "frame_index": 66,
+            "timestamp": 2.2,
+            "shuttle_verified": True,
+        },
+    )
+    result = get_analysis_result("ver001", output_dir=tmp_path)
+    assert result["contact"]["label"] == "Detected contact (shuttle-verified)"
+    assert result["contact"]["notes"] is None
+    assert result["contact"]["swing_count"] is None
+    assert result["limitations"] == []
+    component = next(c for c in result["confidence"]["components"] if c["id"] == "contact")
+    assert component["label"] == "Contact detection"
+
+
 def test_composite_scores_surface_when_evidence_has_them(tmp_path: Path) -> None:
     _seed_analysis(tmp_path, "comp001")
     _write(

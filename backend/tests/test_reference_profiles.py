@@ -106,6 +106,27 @@ def test_percentile_in_range_prep_knee() -> None:
     assert issue.reference_range.min == pytest.approx(120.0)
 
 
+def test_smash_measurement_confidence_reads_contact_confidence() -> None:
+    def measurement(contact_confidence: float | None) -> float:
+        metrics = StrokeMetrics(
+            video="unit.mp4",
+            phase_confidence=0.8,
+            estimated_contact_frame_index=10,
+            contact_confidence=contact_confidence,
+        )
+        evaluation = evaluate_technique(
+            metrics,
+            profile=build_provisional_smash_right_side(),
+            quality_confidence=0.8,
+            pose_confidence=0.8,
+        )
+        return evaluation.evaluation_confidence.measurement_confidence
+
+    assert measurement(None) == pytest.approx(0.8)
+    assert measurement(0.4) == pytest.approx(0.7)
+    assert measurement(1.0) == pytest.approx(0.85)
+
+
 def test_value_inside_percentile_band_is_not_flagged() -> None:
     _, _, _, _, metrics = _build_pipeline()
     metrics.contact_elbow_angle_deg = 165.0
