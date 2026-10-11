@@ -160,9 +160,7 @@ def analyze_contact_peaks(
     clean = [c for c in candidates if not c.spike and not _box_jump(c)]
     chosen = clean[0] if clean else candidates[0]
 
-    others = [c for c in candidates if c is not chosen]
-    competitor = max(others, key=lambda c: c.speed) if others else None
-    ratio = competitor.speed / chosen.speed if competitor and chosen.speed > 0 else None
+    ratio = _competitor_ratio(chosen, candidates)
 
     warnings: list[str] = []
     if ratio is not None and ratio >= AMBIGUOUS_PEAK_RATIO:
@@ -198,20 +196,34 @@ def _identify_swings(
     for c in pool:
         if all(abs(c.timestamp - k.timestamp) >= SWING_MIN_SEPARATION_SECONDS for k in kept):
             kept.append(c)
-    swings = []
-    for c in kept:
-        others = [o.speed for o in candidates if o is not c]
-        ratio = max(others) / c.speed if others and c.speed > 0 else None
-        swings.append(
-            SwingCandidate(
-                frame_index=c.frame_index,
-                timestamp=c.timestamp,
-                speed=c.speed,
-                confidence=peak_confidence(c, ratio),
-                chosen=c is chosen,
-            )
+    swings = [
+        SwingCandidate(
+            frame_index=c.frame_index,
+            timestamp=c.timestamp,
+            speed=c.speed,
+            confidence=peak_confidence(c, _competitor_ratio(c, candidates)),
+            chosen=c is chosen,
         )
+        for c in kept
+    ]
     return sorted(swings, key=lambda s: s.frame_index)
+
+
+def _competitor_ratio(
+    peak: PeakCandidate, candidates: list[PeakCandidate]
+) -> float | None:
+    """Strongest competing peak within the same swing (closer than
+    ``SWING_MIN_SEPARATION_SECONDS``) relative to ``peak``; peaks further
+    away belong to other swings and do not compete."""
+    rivals = [
+        c.speed
+        for c in candidates
+        if c is not peak
+        and abs(c.timestamp - peak.timestamp) < SWING_MIN_SEPARATION_SECONDS
+    ]
+    if not rivals or peak.speed <= 0:
+        return None
+    return max(rivals) / peak.speed
 
 
 def peak_confidence(candidate: PeakCandidate, competitor_ratio: float | None) -> float:

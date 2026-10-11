@@ -102,11 +102,11 @@ def test_spike_does_not_outrank_a_real_swing():
     result = analyze_contact_peaks(_motion(speeds), _pose(120))
     assert result.chosen.frame_index == 90
     assert WARNING_CONTACT_SPIKE_PEAK not in result.warnings
-    # A higher competing peak still makes the choice ambiguous.
-    assert WARNING_CONTACT_AMBIGUOUS_PEAKS in result.warnings
+    # The spike is 2 s away: a different moment, not a competing peak.
+    assert WARNING_CONTACT_AMBIGUOUS_PEAKS not in result.warnings
 
 
-def test_two_similar_peaks_are_ambiguous():
+def test_two_clean_swings_two_seconds_apart_are_not_ambiguous():
     speeds = _with_baseline(
         [a + b for a, b in zip(_bump(120, 30, 1.5, 4.0), _bump(120, 90, 1.4, 4.0))]
     )
@@ -115,7 +115,21 @@ def test_two_similar_peaks_are_ambiguous():
     )
     result = analyze_contact_peaks(_motion(speeds), _pose(120))
     assert result.chosen.frame_index == 30
-    assert result.competitor_ratio == pytest.approx(1.4 / 1.5, abs=0.01)
+    assert result.competitor_ratio is None
+    assert WARNING_CONTACT_AMBIGUOUS_PEAKS not in result.warnings
+    assert result.confidence == pytest.approx(clean.confidence)
+
+
+def test_two_similar_peaks_within_one_swing_are_ambiguous():
+    speeds = _with_baseline(
+        [a + b for a, b in zip(_bump(120, 60, 1.5, 2.0), _bump(120, 69, 1.4, 2.0))]
+    )
+    clean = analyze_contact_peaks(
+        _motion(_with_baseline(_bump(120, 60, 1.5, 2.0))), _pose(120)
+    )
+    result = analyze_contact_peaks(_motion(speeds), _pose(120))
+    assert result.chosen.frame_index == 60
+    assert result.competitor_ratio == pytest.approx(1.4 / 1.5, abs=0.02)
     assert WARNING_CONTACT_AMBIGUOUS_PEAKS in result.warnings
     assert result.confidence < clean.confidence
 
