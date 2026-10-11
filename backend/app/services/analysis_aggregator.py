@@ -80,6 +80,10 @@ WARNING_SENTENCES: dict[str, str | None] = {
     "CONTACT_AMBIGUOUS_PEAKS": (
         "Your arm sped up twice in quick succession, so the contact moment may be a few frames off."
     ),
+    "CONTACT_PEAK_NOT_OVERHEAD": (
+        "Your hand wasn't above your shoulder at the analysed moment, so it may not be "
+        "the overhead hit."
+    ),
     "CONTACT_SPIKE_PEAK": (
         "The arm-speed peak used for contact was very brief, so the contact moment may be off."
     ),

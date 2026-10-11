@@ -36,16 +36,21 @@ SWING_MIN_SEPARATION_SECONDS = 1.0
 # A peak is an overhead swing only if the racket-arm wrist is above the
 # shoulder (smaller image y; y grows downward) within ±this many frames.
 SWING_OVERHEAD_WINDOW_FRAMES = 3
+# Multiplier on contact_peak_confidence when the chosen peak fails the
+# wrist-above-shoulder check.
+NOT_OVERHEAD_CONFIDENCE_FACTOR = 0.7  # unvalidated prior
 
 WARNING_CONTACT_AMBIGUOUS_PEAKS = "CONTACT_AMBIGUOUS_PEAKS"
 WARNING_CONTACT_SPIKE_PEAK = "CONTACT_SPIKE_PEAK"
 WARNING_CONTACT_UNSTABLE_TRACKING = "CONTACT_UNSTABLE_TRACKING"
 WARNING_MULTIPLE_SWINGS_DETECTED = "MULTIPLE_SWINGS_DETECTED"
+WARNING_CONTACT_PEAK_NOT_OVERHEAD = "CONTACT_PEAK_NOT_OVERHEAD"
 CONTACT_PEAK_WARNINGS = (
     WARNING_CONTACT_AMBIGUOUS_PEAKS,
     WARNING_CONTACT_SPIKE_PEAK,
     WARNING_CONTACT_UNSTABLE_TRACKING,
     WARNING_MULTIPLE_SWINGS_DETECTED,
+    WARNING_CONTACT_PEAK_NOT_OVERHEAD,
 )
 
 # contact_peak_confidence = weighted mean of separation / width / tracking.
@@ -174,6 +179,8 @@ def analyze_contact_peaks(
         warnings.append(WARNING_CONTACT_SPIKE_PEAK)
     if _box_jump(chosen) or chosen.mean_wrist_confidence < confidence_threshold:
         warnings.append(WARNING_CONTACT_UNSTABLE_TRACKING)
+    if not chosen.wrist_above_shoulder:
+        warnings.append(WARNING_CONTACT_PEAK_NOT_OVERHEAD)
     swings = _identify_swings(candidates, chosen)
     if len(swings) > 1:
         warnings.append(WARNING_MULTIPLE_SWINGS_DETECTED)
@@ -182,7 +189,7 @@ def analyze_contact_peaks(
         chosen=chosen,
         candidates=candidates,
         competitor_ratio=ratio,
-        confidence=peak_confidence(chosen, ratio),
+        confidence=_swing_confidence(chosen, candidates),
         warnings=warnings,
         swings=swings,
     )
@@ -213,12 +220,19 @@ def _identify_swings(
             frame_index=c.frame_index,
             timestamp=c.timestamp,
             speed=c.speed,
-            confidence=peak_confidence(c, _competitor_ratio(c, candidates)),
+            confidence=_swing_confidence(c, candidates),
             chosen=c is chosen,
         )
         for c in kept
     ]
     return sorted(swings, key=lambda s: s.frame_index)
+
+
+def _swing_confidence(peak: PeakCandidate, candidates: list[PeakCandidate]) -> float:
+    confidence = peak_confidence(peak, _competitor_ratio(peak, candidates))
+    if not peak.wrist_above_shoulder:
+        confidence *= NOT_OVERHEAD_CONFIDENCE_FACTOR
+    return confidence
 
 
 def _competitor_ratio(

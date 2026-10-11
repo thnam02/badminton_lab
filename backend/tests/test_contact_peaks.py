@@ -7,7 +7,9 @@ import math
 import pytest
 
 from app.processing.contact_peaks import (
+    NOT_OVERHEAD_CONFIDENCE_FACTOR,
     WARNING_CONTACT_AMBIGUOUS_PEAKS,
+    WARNING_CONTACT_PEAK_NOT_OVERHEAD,
     WARNING_CONTACT_SPIKE_PEAK,
     WARNING_CONTACT_UNSTABLE_TRACKING,
     WARNING_MULTIPLE_SWINGS_DETECTED,
@@ -234,6 +236,23 @@ def test_wrist_above_shoulder_uses_image_y_growing_downward():
     below = analyze_contact_peaks(_motion(speeds), _pose(90, wrist_y=lambda i: 0.5))
     assert above.chosen.wrist_above_shoulder is True
     assert below.chosen.wrist_above_shoulder is False
+
+
+def test_chosen_peak_not_overhead_is_kept_but_flagged():
+    speeds = _with_baseline(_bump(90, 50, 1.5, 4.0))
+    overhead = analyze_contact_peaks(_motion(speeds), _pose(90))
+    low = analyze_contact_peaks(
+        _motion(speeds), _pose(90, wrist_y=lambda i: _SHOULDER_Y + 0.1)
+    )
+    assert low.chosen.frame_index == 50
+    assert [s.frame_index for s in low.swings] == [50]
+    assert low.swings[0].chosen is True
+    assert WARNING_CONTACT_PEAK_NOT_OVERHEAD in low.warnings
+    assert WARNING_CONTACT_PEAK_NOT_OVERHEAD not in overhead.warnings
+    assert low.confidence == pytest.approx(
+        overhead.confidence * NOT_OVERHEAD_CONFIDENCE_FACTOR
+    )
+    assert low.swings[0].confidence == pytest.approx(low.confidence)
 
 
 def test_spike_is_not_counted_as_a_swing():
