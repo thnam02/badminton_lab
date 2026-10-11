@@ -29,6 +29,7 @@ from app.services.video_service import (
     technique_json_path_for,
     video_quality_json_path_for,
 )
+from app.services.warning_messages import warning_sentences
 
 # User-facing phase labels (backend ESTIMATED_CONTACT → Estimated contact).
 PHASE_LABELS = {
@@ -62,50 +63,6 @@ CONTACT_ESTIMATED_NOTE = (
 )
 
 MAX_LIMITATION_WARNINGS = 3
-
-# Pipeline warning code → plain-language sentence, highest priority first.
-# Codes mapped to None are never shown; unknown codes are dropped.
-WARNING_SENTENCES: dict[str, str | None] = {
-    "NO_POSE_DETECTED": "We couldn't detect a player in this video.",
-    "WRONG_PLAYER_POSSIBLE": (
-        "We may have followed the wrong player. Check that the skeleton stays on you."
-    ),
-    "MULTIPLE_SWINGS_DETECTED": "We found {n} swings and analysed the one at {time}.",
-    "LOW_RACKET_ARM_AT_CONTACT": (
-        "Your racket arm was hard to see at contact, so arm measurements may be less accurate."
-    ),
-    "CONTACT_UNSTABLE_TRACKING": (
-        "Body tracking jumped around near contact, so the contact moment may be off."
-    ),
-    "CONTACT_AMBIGUOUS_PEAKS": (
-        "Your arm sped up twice in quick succession, so the contact moment may be a few frames off."
-    ),
-    "CONTACT_PEAK_NOT_OVERHEAD": (
-        "Your hand wasn't above your shoulder at the analysed moment, so it may not be "
-        "the overhead hit."
-    ),
-    "CONTACT_SPIKE_PEAK": (
-        "The arm-speed peak used for contact was very brief, so the contact moment may be off."
-    ),
-    "LOW_POSE_CONFIDENCE": "Body tracking was uncertain, so some measurements may be less reliable.",
-    "LOW_RACKET_ARM_VISIBILITY": "Your racket arm was often hidden or out of view.",
-    "LOW_FULL_BODY_COVERAGE": "Parts of your body were out of frame. Keep your whole body in view.",
-    "HIGH_MISSING_KEYPOINTS": "Some body points couldn't be tracked in many frames.",
-    "HIGH_INTERPOLATED_KEYPOINTS": "Some body positions had to be filled in between frames.",
-    "CAMERA_VIEW_FRONT": (
-        "The video was filmed from the front, which makes some arm angles harder to measure."
-    ),
-    "CAMERA_VIEW_REAR": (
-        "The video was filmed from behind, which makes some arm angles harder to measure."
-    ),
-    "SMALL_PLAYER_SIZE": "You appear small in the frame. Filming closer will help.",
-    "UNSTABLE_CAMERA": "The camera moved during recording. A steady camera gives better results.",
-    "LOW_FPS": "The video frame rate is low, so fast movements may be missed.",
-    "LOW_RESOLUTION": "The video resolution is low, which limits tracking accuracy.",
-    "HANDEDNESS_UNKNOWN": "Handedness wasn't specified, so we assumed you play right-handed.",
-    "CONTACT_NOT_VERIFIED_BY_SHUTTLE": None,
-}
-_WARNING_PRIORITY = {code: i for i, code in enumerate(WARNING_SENTENCES)}
 
 
 def list_analyses(*, output_dir: Path | None = None, limit: int = 50) -> list[dict[str, Any]]:
@@ -798,34 +755,6 @@ def _limitations(
         if sentence not in notes:
             notes.append(sentence)
     return notes
-
-
-def warning_sentences(codes: list[Any], contact: dict[str, Any]) -> list[str]:
-    """Plain-language sentences for known warning codes, highest priority first."""
-    known = sorted(
-        {str(c) for c in codes if str(c) in WARNING_SENTENCES},
-        key=lambda c: _WARNING_PRIORITY[c],
-    )
-    out: list[str] = []
-    for code in known:
-        template = WARNING_SENTENCES[code]
-        if template is None:
-            continue
-        if code == "MULTIPLE_SWINGS_DETECTED":
-            n = contact.get("swing_count")
-            when = contact.get("chosen_swing_timestamp")
-            if n is None or when is None:
-                continue
-            template = template.format(n=int(n), time=_format_timestamp(float(when)))
-        out.append(template)
-    return out
-
-
-def _format_timestamp(seconds: float) -> str:
-    """Same m:ss.ss format as the frontend formatTimestamp."""
-    s = max(0.0, seconds)
-    m = int(s // 60)
-    return f"{m}:{s - m * 60:05.2f}"
 
 
 def _overlay_modes(meta: dict[str, Any] | None) -> list[dict[str, Any]]:

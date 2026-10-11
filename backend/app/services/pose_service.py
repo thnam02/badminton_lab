@@ -102,6 +102,7 @@ from app.services.video_service import (
     technique_json_path_for,
     video_quality_json_path_for,
 )
+from app.services.warning_messages import log_unmapped_warnings
 
 
 @dataclass(slots=True)
@@ -637,6 +638,7 @@ class PoseService:
         video_quality.warnings.extend(
             w for w in contact_event.warnings if w not in video_quality.warnings
         )
+        log_unmapped_warnings(video_quality.warnings, analysis=kinematics.output_path.stem)
         return build_final_analysis_state(
             smoothed_pose=kinematics.smoothed_sequence,
             angles=kinematics.angle_sequence,
