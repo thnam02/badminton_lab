@@ -33,6 +33,9 @@ AMBIGUOUS_PEAK_RATIO = 0.8
 SPIKE_MAX_WIDTH_FRAMES = 3
 # Peaks at least this far apart count as distinct swings.
 SWING_MIN_SEPARATION_SECONDS = 1.0
+# A peak is an overhead swing only if the racket-arm wrist is above the
+# shoulder (smaller image y; y grows downward) within ±this many frames.
+SWING_OVERHEAD_WINDOW_FRAMES = 3
 
 WARNING_CONTACT_AMBIGUOUS_PEAKS = "CONTACT_AMBIGUOUS_PEAKS"
 WARNING_CONTACT_SPIKE_PEAK = "CONTACT_SPIKE_PEAK"
@@ -63,6 +66,7 @@ class PeakCandidate:
     width_frames: int
     box_area_change: float | None
     mean_wrist_confidence: float
+    wrist_above_shoulder: bool = False
 
     @property
     def spike(self) -> bool:
@@ -77,6 +81,7 @@ class PeakCandidate:
             "width_frames": self.width_frames,
             "box_area_change": self.box_area_change,
             "mean_wrist_confidence": self.mean_wrist_confidence,
+            "wrist_above_shoulder": self.wrist_above_shoulder,
         }
 
 
@@ -188,9 +193,16 @@ def _identify_swings(
 ) -> list[SwingCandidate]:
     """Greedy by speed (chosen first): keep peaks at least
     ``SWING_MIN_SEPARATION_SECONDS`` from every kept peak. Spikes and box-jump
-    peaks are tracking glitches, not swings, and are skipped."""
+    peaks are tracking glitches, and peaks without the wrist above the
+    shoulder are not overhead swings; both are skipped. The chosen peak is
+    always listed because it is the swing being analysed."""
     pool = [chosen] + [
-        c for c in candidates if c is not chosen and not c.spike and not _box_jump(c)
+        c
+        for c in candidates
+        if c is not chosen
+        and not c.spike
+        and not _box_jump(c)
+        and c.wrist_above_shoulder
     ]
     kept: list[PeakCandidate] = []
     for c in pool:
@@ -291,6 +303,14 @@ def _candidate(
         for a, b in zip(areas, areas[1:])
         if a is not None and b is not None and max(a, b) > 0
     ]
+    shoulder = joint.replace("wrist", "shoulder")
+    overhead = any(
+        _visible_pair_above(raw_by.get(idx), joint, shoulder, confidence_threshold)
+        for idx in range(
+            center - SWING_OVERHEAD_WINDOW_FRAMES,
+            center + SWING_OVERHEAD_WINDOW_FRAMES + 1,
+        )
+    )
     return PeakCandidate(
         frame_index=int(center),
         timestamp=float(frames[i].timestamp),
@@ -299,7 +319,20 @@ def _candidate(
         width_frames=int(hi - lo + 1),
         box_area_change=float(max(changes)) if changes else None,
         mean_wrist_confidence=float(sum(wrist_confs) / len(wrist_confs)),
+        wrist_above_shoulder=overhead,
     )
+
+
+def _visible_pair_above(
+    frame: PoseFrame | None, upper: str, lower: str, threshold: float
+) -> bool:
+    if frame is None:
+        return False
+    a = frame.keypoints.get(upper)
+    b = frame.keypoints.get(lower)
+    if a is None or b is None or a.confidence < threshold or b.confidence < threshold:
+        return False
+    return a.y < b.y
 
 
 def _keypoint_box_area(frame: PoseFrame, threshold: float) -> float | None:

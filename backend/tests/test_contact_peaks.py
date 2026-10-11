@@ -57,7 +57,15 @@ def _motion(speeds: list[float]) -> MotionSequence:
     )
 
 
-def _pose(n: int, *, shrink: set[int] = frozenset(), wrist_conf: float = 0.9) -> PoseSequence:
+def _pose(
+    n: int,
+    *,
+    shrink: set[int] = frozenset(),
+    wrist_conf: float = 0.9,
+    wrist_y=None,
+) -> PoseSequence:
+    """Default wrist sits above the shoulder (y 0.30 vs 0.35; y grows down).
+    ``wrist_y(i)`` overrides the wrist height per frame."""
     frames = []
     for i in range(n):
         scale = 0.1 if i in shrink else 1.0
@@ -69,6 +77,9 @@ def _pose(n: int, *, shrink: set[int] = frozenset(), wrist_conf: float = 0.9) ->
             )
             for name, (x, y) in _BODY.items()
         }
+        if wrist_y is not None:
+            w = kps["right_wrist"]
+            kps["right_wrist"] = Keypoint(x=w.x, y=wrist_y(i), confidence=w.confidence)
         frames.append(PoseFrame(frame_index=i, timestamp=i / FPS, keypoints=kps))
     return PoseSequence(video="v.mp4", frames=frames)
 
@@ -178,6 +189,51 @@ def test_peaks_within_one_second_are_one_swing():
     assert len(result.candidates) == 2
     assert len(result.swings) == 1
     assert WARNING_MULTIPLE_SWINGS_DETECTED not in result.warnings
+
+
+_SHOULDER_Y = _BODY["right_shoulder"][1]
+
+
+def test_walking_peak_with_wrist_at_hip_is_not_a_swing():
+    # Swing at 110 (wrist overhead); arm swing while walking at 40 (wrist by the hip).
+    speeds = _two_bumps(150, 110, 40, ha=1.5, hb=0.8)
+    result = analyze_contact_peaks(
+        _motion(speeds),
+        _pose(150, wrist_y=lambda i: 0.25 if abs(i - 110) <= 10 else 0.6),
+    )
+    assert [s.frame_index for s in result.swings] == [110]
+    assert WARNING_MULTIPLE_SWINGS_DETECTED not in result.warnings
+
+
+def test_racket_raise_with_hand_below_shoulder_is_not_a_swing():
+    # Racket lifted in front of the chest: fast hand, but never above the shoulder.
+    speeds = _two_bumps(150, 110, 40, ha=1.5, hb=0.8)
+    result = analyze_contact_peaks(
+        _motion(speeds),
+        _pose(
+            150,
+            wrist_y=lambda i: 0.25 if abs(i - 110) <= 10 else _SHOULDER_Y + 0.05,
+        ),
+    )
+    assert [s.frame_index for s in result.swings] == [110]
+
+
+def test_overhead_swing_is_accepted():
+    speeds = _two_bumps(150, 110, 40, ha=1.5, hb=1.2)
+    result = analyze_contact_peaks(
+        _motion(speeds),
+        _pose(150, wrist_y=lambda i: 0.25 if abs(i - 40) <= 2 or abs(i - 110) <= 2 else 0.6),
+    )
+    assert [s.frame_index for s in result.swings] == [40, 110]
+    assert result.swings[0].frame_index == 40
+
+
+def test_wrist_above_shoulder_uses_image_y_growing_downward():
+    speeds = _with_baseline(_bump(90, 50, 1.5, 4.0))
+    above = analyze_contact_peaks(_motion(speeds), _pose(90, wrist_y=lambda i: 0.2))
+    below = analyze_contact_peaks(_motion(speeds), _pose(90, wrist_y=lambda i: 0.5))
+    assert above.chosen.wrist_above_shoulder is True
+    assert below.chosen.wrist_above_shoulder is False
 
 
 def test_spike_is_not_counted_as_a_swing():
