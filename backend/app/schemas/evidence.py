@@ -40,6 +40,8 @@ class ContactEvidence:
         "shuttle/racket evidence is unavailable or unreliable."
     )
     evidence: list[dict[str, Any]] = field(default_factory=list)
+    contact_peak_confidence: float | None = None
+    warnings: list[str] = field(default_factory=list)
 
     @classmethod
     def from_contact_event(cls, event: ContactEvent) -> ContactEvidence:
@@ -51,6 +53,8 @@ class ContactEvidence:
             kinematic_frame_index=event.kinematic_frame_index,
             notes=event.notes,
             evidence=[e.to_dict() for e in event.evidence],
+            contact_peak_confidence=event.contact_peak_confidence,
+            warnings=list(event.warnings),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -61,6 +65,8 @@ class ContactEvidence:
             "timestamp": self.timestamp,
             "kinematic_frame_index": self.kinematic_frame_index,
             "notes": self.notes,
+            "contact_peak_confidence": self.contact_peak_confidence,
+            "warnings": list(self.warnings),
         }
         if self.evidence:
             payload["evidence"] = list(self.evidence)

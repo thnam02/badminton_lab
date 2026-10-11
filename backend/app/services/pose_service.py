@@ -22,6 +22,7 @@ from app.processing.capture_context import (
     profile_handedness,
     swap_left_right,
 )
+from app.processing.contact_peaks import ContactPeakAnalysis, analyze_contact_peaks
 from app.processing.contact_resolver import resolve_contact
 from app.processing.keyframes import extract_keyframes_from_final
 from app.processing.motion import compute_motion_derivatives
@@ -35,7 +36,11 @@ from app.processing.video_quality import (
 from app.schemas.analysis_snapshot import build_analysis_snapshot
 from app.schemas.angles import AngleSequence
 from app.schemas.coaching import CoachingReport
-from app.schemas.contact import CONTACT_TYPE_KINEMATIC, ContactEvent
+from app.schemas.contact import (
+    CONTACT_TYPE_KINEMATIC,
+    ContactEvent,
+    ContactSignalEvidence,
+)
 from app.schemas.evidence import EvidencePackage
 from app.schemas.final_analysis import (
     FinalAnalysisState,
@@ -43,7 +48,7 @@ from app.schemas.final_analysis import (
     build_final_analysis_state,
 )
 from app.schemas.keyframes import KeyframeSet
-from app.schemas.motion import MotionSequence
+from app.schemas.motion import MotionSequence, PeakStats
 from app.schemas.phases import PhaseSequence
 from app.schemas.pose import PoseFrame, PoseSequence
 from app.schemas.provenance import (
@@ -120,6 +125,7 @@ class PoseKinematics:
     # right_* means racket arm (see app.processing.capture_context).
     handedness: str = HANDEDNESS_UNKNOWN
     camera_view: str = CAMERA_VIEW_UNKNOWN
+    contact_peaks: ContactPeakAnalysis | None = None
 
 
 @dataclass(slots=True)
@@ -257,6 +263,19 @@ class PoseService:
             angle_sequence,
             confidence_threshold=settings.pose_confidence_threshold,
         )
+        contact_peaks = analyze_contact_peaks(
+            motion_sequence,
+            raw_sequence,
+            confidence_threshold=settings.pose_confidence_threshold,
+        )
+        if contact_peaks.chosen is not None:
+            # Phases and peak-speed metrics anchor to the chosen contact peak,
+            # which is not always the clip's global wrist-speed maximum.
+            motion_sequence.peaks["right_wrist_speed"] = PeakStats(
+                value=contact_peaks.chosen.speed,
+                frame_index=contact_peaks.chosen.frame_index,
+                timestamp=contact_peaks.chosen.timestamp,
+            )
         initial_phases = analyzer.detect_phases(
             smoothed_sequence,
             angle_sequence,
@@ -279,6 +298,7 @@ class PoseService:
             stroke_type=analyzer.stroke_type,
             handedness=handedness,
             camera_view=camera_view,
+            contact_peaks=contact_peaks,
         )
 
     def finalize_analysis(
@@ -582,6 +602,7 @@ class PoseService:
             motion=kinematics.motion_sequence,
             shuttle=shuttle,
             racket=racket,
+            contact_peaks=kinematics.contact_peaks,
         )
         analyzer = get_stroke_analyzer(kinematics.stroke_type)
         if kinematics.kinematic_contact.kinematic_frame_index is not None:
@@ -606,6 +627,11 @@ class PoseService:
                 contact_event.frame_index,
                 confidence_threshold=settings.pose_confidence_threshold,
             ),
+        )
+        # Contact warnings are surfaced with quality warnings; their confidence
+        # cost is already carried by contact confidence, so no extra penalty.
+        video_quality.warnings.extend(
+            w for w in contact_event.warnings if w not in video_quality.warnings
         )
         return build_final_analysis_state(
             smoothed_pose=kinematics.smoothed_sequence,
@@ -685,6 +711,7 @@ def _resolve_final_contact(
     motion: MotionSequence,
     shuttle: ShuttleTrajectory | None,
     racket: RacketTrajectory | None,
+    contact_peaks: ContactPeakAnalysis | None = None,
 ) -> ContactEvent:
     """Single ContactResolver call that every downstream artifact must use."""
     kin_frame = kinematic_contact.kinematic_frame_index
@@ -697,16 +724,37 @@ def _resolve_final_contact(
             confidence=0.0,
             notes="No kinematic contact available.",
         )
-    return resolve_contact(
+    chosen = contact_peaks.chosen if contact_peaks is not None else None
+    peak_confidence = contact_peaks.confidence if chosen is not None else None
+    event = resolve_contact(
         kinematic_frame_index=kin_frame,
         kinematic_timestamp=kin_ts,
-        kinematic_confidence=float(initial_phases.confidence),
+        kinematic_confidence=float(initial_phases.confidence)
+        * (1.0 if peak_confidence is None else peak_confidence),
         pose=pose,
         motion=motion,
         shuttle=shuttle,
         racket=racket,
         hitting_hand=racket.hitting_hand if racket is not None else None,
     )
+    if chosen is not None:
+        event.contact_peak_confidence = peak_confidence
+        event.warnings = list(contact_peaks.warnings)
+        event.evidence.append(
+            ContactSignalEvidence(
+                name="contact_peak",
+                value=float(chosen.frame_index),
+                weight=0.0,
+                score=float(peak_confidence),
+                notes=(
+                    f"Wrist-speed peak {chosen.speed:.3f} at frame "
+                    f"{chosen.frame_index}; width {chosen.width_frames} frames; "
+                    f"{len(contact_peaks.candidates)} candidate peak(s); "
+                    f"competitor ratio {contact_peaks.competitor_ratio}."
+                ),
+            )
+        )
+    return event
 
 
 def _kinematic_contact_event(phases: PhaseSequence) -> ContactEvent:

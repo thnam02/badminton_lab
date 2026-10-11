@@ -270,4 +270,6 @@ def _copy_contact_event(contact: ContactEvent) -> ContactEvent:
         kinematic_frame_index=contact.kinematic_frame_index,
         kinematic_timestamp=contact.kinematic_timestamp,
         notes=contact.notes,
+        contact_peak_confidence=contact.contact_peak_confidence,
+        warnings=list(contact.warnings),
     )
