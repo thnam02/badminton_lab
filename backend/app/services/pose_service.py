@@ -23,7 +23,11 @@ from app.processing.capture_context import (
     swap_left_right,
 )
 from app.processing.contact_peaks import ContactPeakAnalysis, analyze_contact_peaks
-from app.processing.contact_resolver import resolve_contact
+from app.processing.contact_resolver import (
+    WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE,
+    resolve_contact,
+    shuttle_detected_near,
+)
 from app.processing.keyframes import extract_keyframes_from_final
 from app.processing.motion import compute_motion_derivatives
 from app.processing.strokes import get_stroke_analyzer
@@ -755,6 +759,9 @@ def _resolve_final_contact(
                 ),
             )
         )
+    event.shuttle_verified = shuttle_detected_near(shuttle, event.frame_index)
+    if not event.shuttle_verified:
+        event.warnings.append(WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE)
     return event
 
 

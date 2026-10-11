@@ -18,7 +18,8 @@ from app.schemas.contact import (
 # 1.2.0: camera_view field; handedness is user-declared (RIGHT/LEFT/UNKNOWN).
 # 1.3.0: swing_count / swing_candidates; contact carries
 #        contact_peak_confidence and warnings.
-EVIDENCE_VERSION = "1.3.0"
+# 1.4.0: contact.shuttle_verified.
+EVIDENCE_VERSION = "1.4.0"
 
 EVIDENCE_DEFAULT_NOTES = (
     "Assembled from already-computed analysis artifacts; "
@@ -44,6 +45,7 @@ class ContactEvidence:
     evidence: list[dict[str, Any]] = field(default_factory=list)
     contact_peak_confidence: float | None = None
     warnings: list[str] = field(default_factory=list)
+    shuttle_verified: bool = False
 
     @classmethod
     def from_contact_event(cls, event: ContactEvent) -> ContactEvidence:
@@ -57,6 +59,7 @@ class ContactEvidence:
             evidence=[e.to_dict() for e in event.evidence],
             contact_peak_confidence=event.contact_peak_confidence,
             warnings=list(event.warnings),
+            shuttle_verified=event.shuttle_verified,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -69,6 +72,7 @@ class ContactEvidence:
             "notes": self.notes,
             "contact_peak_confidence": self.contact_peak_confidence,
             "warnings": list(self.warnings),
+            "shuttle_verified": self.shuttle_verified,
         }
         if self.evidence:
             payload["evidence"] = list(self.evidence)

@@ -18,6 +18,33 @@ from app.schemas.racket import RacketTrajectory
 from app.schemas.shuttle import ShuttleTrajectory
 
 
+WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE = "CONTACT_NOT_VERIFIED_BY_SHUTTLE"
+
+
+def shuttle_detected_near(
+    shuttle: ShuttleTrajectory | None,
+    frame_index: int,
+    *,
+    radius: int | None = None,
+) -> bool:
+    """True when at least ``contact_min_visible_frames`` detected (visible,
+    non-interpolated) shuttle points fall within ``radius`` frames of
+    ``frame_index``."""
+    if shuttle is None:
+        return False
+    r = settings.contact_search_radius if radius is None else radius
+    detected = sum(
+        1
+        for p in shuttle.frames
+        if abs(p.frame_index - frame_index) <= r
+        and p.visible
+        and not p.interpolated
+        and p.x is not None
+        and p.y is not None
+    )
+    return detected >= settings.contact_min_visible_frames
+
+
 @dataclass(slots=True)
 class _CandidateScore:
     frame_index: int

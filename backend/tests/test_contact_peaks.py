@@ -13,7 +13,13 @@ from app.processing.contact_peaks import (
     WARNING_MULTIPLE_SWINGS_DETECTED,
     analyze_contact_peaks,
 )
+from app.processing.contact_resolver import (
+    WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE,
+    shuttle_detected_near,
+)
 from app.schemas.contact import ContactEvent
+from app.schemas.evidence import ContactEvidence
+from app.schemas.shuttle import ShuttlePoint, ShuttleTrajectory
 from app.schemas.keyframes import KeyframeSet
 from app.schemas.stroke_metrics import StrokeMetrics
 from app.schemas.motion import MotionFrame, MotionSequence
@@ -188,7 +194,7 @@ def test_evidence_reports_swings_and_chosen_frame():
         contact=contact,
     )
     payload = package.to_dict()
-    assert payload["evidence_version"] == "1.3.0"
+    assert payload["evidence_version"] == "1.4.0"
     assert payload["swing_count"] == 2
     assert payload["swing_candidates"] == swings
     assert "frame 110 was analysed" in payload["notes"]
@@ -217,4 +223,68 @@ def test_peak_confidence_feeds_contact_confidence(tmp_path):
     assert state.contact.confidence == pytest.approx(
         kin.initial_phases.confidence * peaks.confidence
     )
-    assert state.contact.warnings == peaks.warnings
+    assert state.contact.warnings == [
+        *peaks.warnings,
+        WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE,
+    ]
+
+
+def _shuttle(frames: range, *, interpolated: bool = False) -> ShuttleTrajectory:
+    return ShuttleTrajectory(
+        video="v.mp4",
+        backend="test",
+        fps=FPS,
+        width=720,
+        height=1280,
+        frames=[
+            ShuttlePoint(
+                frame_index=i,
+                timestamp=i / FPS,
+                x=0.5,
+                y=0.2,
+                visible=True,
+                confidence=0.9,
+                interpolated=interpolated,
+            )
+            for i in frames
+        ],
+    )
+
+
+def _fixture_contact(tmp_path, shuttle):
+    raw, meta = _load_fixture()
+    kin = pose_service.kinematics_from_raw_pose(
+        raw,
+        input_path=tmp_path / "clip.mp4",
+        output_path=tmp_path / "clip_pose.mp4",
+        stroke_type="FOREHAND_CLEAR",
+        handedness="RIGHT",
+        video_fps=meta["fps"],
+        video_width=meta["width"],
+        video_height=meta["height"],
+    )
+    return pose_service.build_final_state(kin, shuttle=shuttle)
+
+
+def test_contact_without_shuttle_is_not_verified(tmp_path):
+    state = _fixture_contact(tmp_path, None)
+    assert state.contact.shuttle_verified is False
+    assert WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE in state.contact.warnings
+    assert WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE in state.video_quality.warnings
+    evidence = ContactEvidence.from_contact_event(state.contact).to_dict()
+    assert evidence["shuttle_verified"] is False
+
+
+def test_shuttle_far_from_contact_or_interpolated_is_not_verified(tmp_path):
+    contact = _fixture_contact(tmp_path, None).contact.frame_index
+    assert not shuttle_detected_near(_shuttle(range(0, 10)), contact)
+    assert not shuttle_detected_near(
+        _shuttle(range(contact - 3, contact + 4), interpolated=True), contact
+    )
+
+
+def test_shuttle_near_contact_verifies_it(tmp_path):
+    contact = _fixture_contact(tmp_path, None).contact.frame_index
+    state = _fixture_contact(tmp_path, _shuttle(range(contact - 3, contact + 4)))
+    assert state.contact.shuttle_verified is True
+    assert WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE not in state.contact.warnings
