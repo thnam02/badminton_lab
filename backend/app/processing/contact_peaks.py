@@ -31,14 +31,18 @@ CONTACT_BOX_JUMP_RATIO = 0.5  # unvalidated prior
 
 AMBIGUOUS_PEAK_RATIO = 0.8
 SPIKE_MAX_WIDTH_FRAMES = 3
+# Peaks at least this far apart count as distinct swings.
+SWING_MIN_SEPARATION_SECONDS = 1.0
 
 WARNING_CONTACT_AMBIGUOUS_PEAKS = "CONTACT_AMBIGUOUS_PEAKS"
 WARNING_CONTACT_SPIKE_PEAK = "CONTACT_SPIKE_PEAK"
 WARNING_CONTACT_UNSTABLE_TRACKING = "CONTACT_UNSTABLE_TRACKING"
+WARNING_MULTIPLE_SWINGS_DETECTED = "MULTIPLE_SWINGS_DETECTED"
 CONTACT_PEAK_WARNINGS = (
     WARNING_CONTACT_AMBIGUOUS_PEAKS,
     WARNING_CONTACT_SPIKE_PEAK,
     WARNING_CONTACT_UNSTABLE_TRACKING,
+    WARNING_MULTIPLE_SWINGS_DETECTED,
 )
 
 # contact_peak_confidence = weighted mean of separation / width / tracking.
@@ -77,12 +81,32 @@ class PeakCandidate:
 
 
 @dataclass(slots=True)
+class SwingCandidate:
+    frame_index: int
+    timestamp: float
+    speed: float
+    confidence: float
+    chosen: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "frame_index": self.frame_index,
+            "timestamp": self.timestamp,
+            "speed": self.speed,
+            "confidence": self.confidence,
+            "chosen": self.chosen,
+        }
+
+
+@dataclass(slots=True)
 class ContactPeakAnalysis:
     chosen: PeakCandidate | None
     candidates: list[PeakCandidate] = field(default_factory=list)
     competitor_ratio: float | None = None
     confidence: float = 0.0
     warnings: list[str] = field(default_factory=list)
+    # Distinct swings in time order; only the chosen one is analysed.
+    swings: list[SwingCandidate] = field(default_factory=list)
 
 
 def analyze_contact_peaks(
@@ -147,6 +171,9 @@ def analyze_contact_peaks(
         warnings.append(WARNING_CONTACT_SPIKE_PEAK)
     if _box_jump(chosen) or chosen.mean_wrist_confidence < confidence_threshold:
         warnings.append(WARNING_CONTACT_UNSTABLE_TRACKING)
+    swings = _identify_swings(candidates, chosen)
+    if len(swings) > 1:
+        warnings.append(WARNING_MULTIPLE_SWINGS_DETECTED)
 
     return ContactPeakAnalysis(
         chosen=chosen,
@@ -154,7 +181,37 @@ def analyze_contact_peaks(
         competitor_ratio=ratio,
         confidence=peak_confidence(chosen, ratio),
         warnings=warnings,
+        swings=swings,
     )
+
+
+def _identify_swings(
+    candidates: list[PeakCandidate], chosen: PeakCandidate
+) -> list[SwingCandidate]:
+    """Greedy by speed (chosen first): keep peaks at least
+    ``SWING_MIN_SEPARATION_SECONDS`` from every kept peak. Spikes and box-jump
+    peaks are tracking glitches, not swings, and are skipped."""
+    pool = [chosen] + [
+        c for c in candidates if c is not chosen and not c.spike and not _box_jump(c)
+    ]
+    kept: list[PeakCandidate] = []
+    for c in pool:
+        if all(abs(c.timestamp - k.timestamp) >= SWING_MIN_SEPARATION_SECONDS for k in kept):
+            kept.append(c)
+    swings = []
+    for c in kept:
+        others = [o.speed for o in candidates if o is not c]
+        ratio = max(others) / c.speed if others and c.speed > 0 else None
+        swings.append(
+            SwingCandidate(
+                frame_index=c.frame_index,
+                timestamp=c.timestamp,
+                speed=c.speed,
+                confidence=peak_confidence(c, ratio),
+                chosen=c is chosen,
+            )
+        )
+    return sorted(swings, key=lambda s: s.frame_index)
 
 
 def peak_confidence(candidate: PeakCandidate, competitor_ratio: float | None) -> float:

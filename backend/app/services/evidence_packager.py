@@ -144,6 +144,7 @@ class EvidencePackager:
         )
         metrics_dict = metrics.to_dict()
         composite = compute_composite_scores(metrics_dict)
+        swings = list(contact.swing_candidates) if isinstance(contact, ContactEvent) else []
         return EvidencePackage(
             evidence_version=evidence_version,
             video=video,
@@ -160,8 +161,10 @@ class EvidencePackager:
             keyframes=[kf.to_dict() for kf in keyframes.keyframes],
             composite_scores=composite,
             camera_view=camera_view,
+            swing_count=len(swings) if swings else None,
+            swing_candidates=swings,
             keyframes_output_dir=keyframes.output_dir or None,
-            **_handedness_notes(handedness),
+            notes=_evidence_notes(handedness, swings),
         )
 
 
@@ -215,10 +218,19 @@ def package_evidence(
     )
 
 
-def _handedness_notes(handedness: str | None) -> dict[str, str]:
-    if str(handedness or "").upper() != HANDEDNESS_LEFT:
-        return {}
-    return {"notes": f"{EVIDENCE_DEFAULT_NOTES} {RACKET_ARM_NOTE}"}
+def _evidence_notes(handedness: str | None, swings: list[dict[str, Any]]) -> str:
+    parts = [EVIDENCE_DEFAULT_NOTES]
+    if str(handedness or "").upper() == HANDEDNESS_LEFT:
+        parts.append(RACKET_ARM_NOTE)
+    if len(swings) > 1:
+        chosen = next((s for s in swings if s.get("chosen")), None)
+        others = [s["frame_index"] for s in swings if not s.get("chosen")]
+        parts.append(
+            f"{len(swings)} swings detected; only the swing with contact at "
+            f"frame {chosen['frame_index'] if chosen else 'unknown'} was analysed "
+            f"(other swing peaks at frames {', '.join(str(f) for f in others)})."
+        )
+    return " ".join(parts)
 
 
 def _resolve_contact_evidence(

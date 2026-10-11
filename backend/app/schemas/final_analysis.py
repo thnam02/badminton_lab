@@ -272,4 +272,5 @@ def _copy_contact_event(contact: ContactEvent) -> ContactEvent:
         notes=contact.notes,
         contact_peak_confidence=contact.contact_peak_confidence,
         warnings=list(contact.warnings),
+        swing_candidates=list(contact.swing_candidates),
     )

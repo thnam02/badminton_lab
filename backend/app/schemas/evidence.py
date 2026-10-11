@@ -16,7 +16,9 @@ from app.schemas.contact import (
 
 # Bump when the coaching-facing evidence shape changes.
 # 1.2.0: camera_view field; handedness is user-declared (RIGHT/LEFT/UNKNOWN).
-EVIDENCE_VERSION = "1.2.0"
+# 1.3.0: swing_count / swing_candidates; contact carries
+#        contact_peak_confidence and warnings.
+EVIDENCE_VERSION = "1.3.0"
 
 EVIDENCE_DEFAULT_NOTES = (
     "Assembled from already-computed analysis artifacts; "
@@ -97,6 +99,9 @@ class EvidencePackage:
     keyframes: list[dict[str, Any]]
     composite_scores: dict[str, Any] = field(default_factory=dict)
     camera_view: str | None = None
+    # Distinct swings found in the clip; only the chosen one is analysed.
+    swing_count: int | None = None
+    swing_candidates: list[dict[str, Any]] = field(default_factory=list)
     keyframes_output_dir: str | None = None
     notes: str = EVIDENCE_DEFAULT_NOTES
     extra: dict[str, Any] = field(default_factory=dict)
@@ -124,6 +129,8 @@ class EvidencePackage:
             "technique_confidence": self.technique_confidence,
             "keyframes": self.keyframes,
             "composite_scores": self.composite_scores,
+            "swing_count": self.swing_count,
+            "swing_candidates": list(self.swing_candidates),
             "keyframes_output_dir": self.keyframes_output_dir,
             "notes": self.notes,
         }

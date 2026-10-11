@@ -740,6 +740,7 @@ def _resolve_final_contact(
     if chosen is not None:
         event.contact_peak_confidence = peak_confidence
         event.warnings = list(contact_peaks.warnings)
+        event.swing_candidates = [s.to_dict() for s in contact_peaks.swings]
         event.evidence.append(
             ContactSignalEvidence(
                 name="contact_peak",
