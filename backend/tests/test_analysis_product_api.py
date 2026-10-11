@@ -246,6 +246,26 @@ def test_limitations_map_codes_to_sentences_by_priority(tmp_path: Path) -> None:
     assert not any(note.isupper() or "_" in note for note in limitations)
 
 
+def test_limitations_cap_includes_non_warning_notes(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "cap001")
+    _seed_contact_warnings(tmp_path, "cap001")
+    _write(
+        tmp_path / "cap001_contact.json",
+        {"contact_type": "KINEMATIC_ESTIMATE", "confidence": 0.0},
+    )
+    for name in ("phases", "stroke_metrics"):
+        (tmp_path / f"cap001_pose_{name}.json").unlink()
+    quality = json.loads((tmp_path / "cap001_pose_video_quality.json").read_text())
+    quality["analysis_confidence"] = 0.3
+    _write(tmp_path / "cap001_pose_video_quality.json", quality)
+    limitations = get_analysis_result("cap001", output_dir=tmp_path)["limitations"]
+    assert limitations == [
+        "Your racket arm was hard to see at contact, so arm measurements may be less accurate.",
+        "We could not reliably assess contact position in this video.",
+        "The camera moved during recording. A steady camera gives better results.",
+    ]
+
+
 def test_shuttle_verified_contact_wording(tmp_path: Path) -> None:
     _seed_analysis(tmp_path, "ver001")
     _write(

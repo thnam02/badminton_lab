@@ -9,8 +9,12 @@ type Props = {
   limitations?: string[];
 };
 
+/** Limitations arrive highest priority first; only the top few are shown. */
+export const MAX_LIMITATIONS = 3;
+
 export function ConfidenceSummaryPanel({ confidence, limitations }: Props) {
   const [open, setOpen] = useState(false);
+  const shown = (limitations ?? []).slice(0, MAX_LIMITATIONS);
 
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
@@ -56,9 +60,12 @@ export function ConfidenceSummaryPanel({ confidence, limitations }: Props) {
         </ul>
       )}
 
-      {limitations && limitations.length > 0 && (
-        <ul className="mt-4 space-y-1 border-t border-[var(--border)] pt-3 text-sm text-[var(--muted)]">
-          {limitations.map((note) => (
+      {shown.length > 0 && (
+        <ul
+          aria-label="Limitations"
+          className="mt-4 space-y-1 border-t border-[var(--border)] pt-3 text-sm text-[var(--muted)]"
+        >
+          {shown.map((note) => (
             <li key={note}>{note}</li>
           ))}
         </ul>

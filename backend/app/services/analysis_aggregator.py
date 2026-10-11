@@ -62,7 +62,8 @@ CONTACT_ESTIMATED_NOTE = (
     "at that moment, so it may be a few frames off."
 )
 
-MAX_LIMITATION_WARNINGS = 3
+# Limitations are ordered highest priority first; only the top few are shown.
+MAX_LIMITATIONS = 3
 
 
 def list_analyses(*, output_dir: Path | None = None, limit: int = 50) -> list[dict[str, Any]]:
@@ -751,10 +752,10 @@ def _limitations(
         *((quality or {}).get("warnings") or []),
         *(contact.get("warnings") or []),
     ]
-    for sentence in warning_sentences(codes, contact)[:MAX_LIMITATION_WARNINGS]:
+    for sentence in warning_sentences(codes, contact):
         if sentence not in notes:
             notes.append(sentence)
-    return notes
+    return notes[:MAX_LIMITATIONS]
 
 
 def _overlay_modes(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
