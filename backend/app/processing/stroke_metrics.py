@@ -111,6 +111,10 @@ def compute_stroke_metrics(
     metrics.preparation_knee_angle_deg = prep_knee
     if prep_knee is not None and metrics.contact_knee_angle_deg is not None:
         metrics.knee_contribution_deg = metrics.contact_knee_angle_deg - prep_knee
+    metrics.preparation_elbow_angle_deg = _phase_mean_angle(
+        phases, angle_by, SmashPhase.PREPARATION, "elbow"
+    )
+    apply_swing_window_fields(metrics, pose_by, motion_by, phases, contact_idx)
 
     metrics.peak_elbow_omega_offset_frames = _peak_elbow_omega_offset(motion_by, contact_idx)
     metrics.peak_shoulder_omega_offset_frames = _peak_omega_offset(
@@ -280,6 +284,76 @@ def _peak_omega_offset(
     if best_idx is None:
         return None
     return int(best_idx - contact_idx)
+
+
+def swing_window(phases: PhaseSequence, contact_idx: int) -> tuple[int, int]:
+    """Frame span of the analysed swing: backswing start → follow-through end.
+
+    Falls back to acceleration start, then to the contact frame, when earlier
+    phases are missing.
+    """
+    back = _first_segment(phases, SmashPhase.BACKSWING)
+    accel = _first_segment(phases, SmashPhase.ACCELERATION)
+    follow = _first_segment(phases, SmashPhase.FOLLOW_THROUGH)
+    start = (
+        back.start_frame_index
+        if back is not None
+        else accel.start_frame_index
+        if accel is not None
+        else contact_idx
+    )
+    end = follow.end_frame_index if follow is not None else contact_idx
+    return min(start, contact_idx), max(end, contact_idx)
+
+
+def _peak_omega_offset_in_window(
+    motion_by: dict,
+    contact_idx: int,
+    *,
+    attr: str,
+    start: int,
+    end: int,
+) -> int | None:
+    window = {idx: mf for idx, mf in motion_by.items() if start <= idx <= end}
+    return _peak_omega_offset(window, contact_idx, attr=attr)
+
+
+def _keypoint_y(pose_by: dict, frame_index: int | None, joint: str) -> float | None:
+    if frame_index is None:
+        return None
+    frame = pose_by.get(frame_index)
+    kp = frame.keypoints.get(joint) if frame is not None else None
+    if kp is None or not math.isfinite(kp.y):
+        return None
+    return float(kp.y)
+
+
+def apply_swing_window_fields(
+    metrics,
+    pose_by: dict,
+    motion_by: dict,
+    phases: PhaseSequence,
+    contact_idx: int,
+) -> None:
+    """Fill swing-window peak offsets and contact / backswing-end posture y values."""
+    start, end = swing_window(phases, contact_idx)
+    metrics.swing_peak_elbow_omega_offset_frames = _peak_omega_offset_in_window(
+        motion_by, contact_idx, attr="right_elbow_angular_velocity", start=start, end=end
+    )
+    metrics.swing_peak_shoulder_omega_offset_frames = _peak_omega_offset_in_window(
+        motion_by,
+        contact_idx,
+        attr="right_shoulder_angular_velocity",
+        start=start,
+        end=end,
+    )
+    metrics.contact_nose_y_normalized = _keypoint_y(pose_by, contact_idx, "nose")
+    back = _first_segment(phases, SmashPhase.BACKSWING)
+    back_end = back.end_frame_index if back is not None else None
+    metrics.backswing_end_wrist_y_normalized = _keypoint_y(pose_by, back_end, "right_wrist")
+    metrics.backswing_end_shoulder_y_normalized = _keypoint_y(
+        pose_by, back_end, "right_shoulder"
+    )
 
 
 def _apply_kinetic_chain_fields(metrics, motion: MotionSequence) -> None:

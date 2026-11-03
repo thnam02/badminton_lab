@@ -31,6 +31,7 @@ class StrokeMetrics:
     # Knee contribution: knee extension from preparation to contact (degrees).
     knee_contribution_deg: float | None = None
     preparation_knee_angle_deg: float | None = None
+    preparation_elbow_angle_deg: float | None = None
 
     # Acceleration timing: frames from peak |elbow ω| to estimated contact.
     # Negative → peak before contact; positive → peak after contact.
@@ -44,6 +45,15 @@ class StrokeMetrics:
     kinetic_chain_shoulder_elbow_gap_frames: int | None = None
     # e.g. "hip_shoulder_elbow" when all three peaks exist.
     kinetic_chain_order: str | None = None
+    # Peak |ω| offsets searched only inside the analysed swing
+    # (backswing start → follow-through end), unlike the whole-clip offsets above.
+    swing_peak_elbow_omega_offset_frames: int | None = None
+    swing_peak_shoulder_omega_offset_frames: int | None = None
+    # Normalized image y (grows downward) of nose at contact and of the racket-arm
+    # wrist / shoulder on the last backswing frame.
+    contact_nose_y_normalized: float | None = None
+    backswing_end_wrist_y_normalized: float | None = None
+    backswing_end_shoulder_y_normalized: float | None = None
     # Accel phase length / (prep start → contact) frame span; dimensionless fraction in [0, 1].
     acceleration_phase_fraction: float | None = None
     # Peak |shoulder-line vs hip-line| angle (deg) in prep/backswing — 2D X-factor proxy.

@@ -86,6 +86,7 @@ def compute_clear_metrics(
     from app.processing.stroke_metrics import (
         _apply_kinetic_chain_fields,
         _peak_omega_offset,
+        apply_swing_window_fields,
     )
 
     metrics.peak_shoulder_omega_offset_frames = _peak_omega_offset(
@@ -102,6 +103,14 @@ def compute_clear_metrics(
     metrics.preparation_knee_angle_deg = _phase_mean_angle(
         phases, angle_by, SmashPhase.PREPARATION, "knee"
     )
+    if (
+        metrics.preparation_knee_angle_deg is not None
+        and metrics.contact_knee_angle_deg is not None
+    ):
+        metrics.knee_contribution_deg = (
+            metrics.contact_knee_angle_deg - metrics.preparation_knee_angle_deg
+        )
+    apply_swing_window_fields(metrics, pose_by, motion_by, phases, contact_idx)
     metrics.backswing_min_elbow_angle_deg = _phase_extreme_angle(
         phases, angle_by, SmashPhase.BACKSWING, "elbow", mode="min"
     )

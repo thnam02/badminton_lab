@@ -21,6 +21,8 @@ class ForehandClearMetrics:
     # Preparation
     preparation_elbow_angle_deg: float | None = None
     preparation_knee_angle_deg: float | None = None
+    # Knee extension from preparation to contact (degrees).
+    knee_contribution_deg: float | None = None
 
     # Backswing / cocking
     backswing_min_elbow_angle_deg: float | None = None
@@ -37,6 +39,12 @@ class ForehandClearMetrics:
     kinetic_chain_hip_shoulder_gap_frames: int | None = None
     kinetic_chain_shoulder_elbow_gap_frames: int | None = None
     kinetic_chain_order: str | None = None
+    # Swing-window peak offsets and posture y values (see StrokeMetrics).
+    swing_peak_elbow_omega_offset_frames: int | None = None
+    swing_peak_shoulder_omega_offset_frames: int | None = None
+    contact_nose_y_normalized: float | None = None
+    backswing_end_wrist_y_normalized: float | None = None
+    backswing_end_shoulder_y_normalized: float | None = None
     # Accel phase length / (prep start → contact) frame span; dimensionless [0, 1].
     acceleration_phase_fraction: float | None = None
     # Peak |shoulder-line vs hip-line| angle (deg) in prep/backswing — 2D X-factor proxy.

@@ -100,3 +100,118 @@ def test_missing_phases_yield_null_metrics() -> None:
     assert metrics.follow_through.wrist_speed_at_end is None
     assert "scoring" not in metrics.to_dict()
     assert "feedback" not in metrics.to_dict()
+
+
+def _swing_fixture():
+    """30 frames: prep 0–9, backswing 10–19, accel 20–24, contact 25, follow 26–29.
+
+    The whole-clip |elbow ω| peak sits in preparation (frame 2); inside the swing
+    window the elbow peaks at 24 and the shoulder at 22.
+    """
+    from app.schemas.angles import AngleFrame
+    from app.schemas.motion import MotionFrame
+    from app.schemas.phases import PhaseSegment
+    from app.schemas.pose import Keypoint, PoseFrame, PoseSequence
+
+    fps = 30.0
+    n = 30
+    contact = 25
+    pose = PoseSequence(video="swing.mp4")
+    angles = AngleSequence(video="swing.mp4")
+    motion = MotionSequence(video="swing.mp4")
+    for i in range(n):
+        ts = i / fps
+        wrist_y = 0.30 if i == 19 else 0.50
+        pose.append(
+            PoseFrame(
+                frame_index=i,
+                timestamp=ts,
+                keypoints={
+                    "nose": Keypoint(x=0.5, y=0.40, confidence=0.9),
+                    "right_wrist": Keypoint(x=0.6, y=wrist_y if i != contact else 0.35, confidence=0.9),
+                    "right_shoulder": Keypoint(x=0.55, y=0.45, confidence=0.9),
+                },
+            )
+        )
+        angles.append(
+            AngleFrame(
+                frame_index=i,
+                timestamp=ts,
+                right_elbow=100.0 if i < 10 else 150.0,
+                right_knee=140.0 if i < 10 else 150.0,
+                right_shoulder=90.0,
+            )
+        )
+        elbow_w = {2: 900.0, 24: 500.0}.get(i, 50.0)
+        shoulder_w = {3: 800.0, 22: 400.0}.get(i, 40.0)
+        motion.append(
+            MotionFrame(
+                frame_index=i,
+                timestamp=ts,
+                right_wrist_speed=2.0 if i == contact else 0.5,
+                right_elbow_angular_velocity=elbow_w,
+                right_shoulder_angular_velocity=shoulder_w,
+            )
+        )
+
+    def seg(phase, a, b):
+        return PhaseSegment(
+            phase=phase,
+            start_frame_index=a,
+            end_frame_index=b,
+            start_timestamp=a / fps,
+            end_timestamp=b / fps,
+            confidence=0.9,
+        )
+
+    phases = PhaseSequence(
+        video="swing.mp4",
+        segments=[
+            seg(SmashPhase.PREPARATION, 0, 9),
+            seg(SmashPhase.BACKSWING, 10, 19),
+            seg(SmashPhase.ACCELERATION, 20, 24),
+            seg(SmashPhase.ESTIMATED_CONTACT, contact, contact),
+            seg(SmashPhase.FOLLOW_THROUGH, 26, 29),
+        ],
+        estimated_contact_frame_index=contact,
+        estimated_contact_timestamp=contact / fps,
+        confidence=0.9,
+    )
+    return pose, angles, motion, phases, contact
+
+
+def test_swing_window_peak_offsets_ignore_preparation_peaks() -> None:
+    from app.processing.stroke_metrics import compute_stroke_metrics
+
+    pose, angles, motion, phases, _ = _swing_fixture()
+    m = compute_stroke_metrics(pose, angles, motion, phases)
+
+    assert m.peak_elbow_omega_offset_frames == -23  # whole-clip search unchanged
+    assert m.swing_peak_elbow_omega_offset_frames == -1
+    assert m.swing_peak_shoulder_omega_offset_frames == -3
+
+
+def test_posture_y_fields_at_contact_and_backswing_end() -> None:
+    from app.processing.stroke_metrics import compute_stroke_metrics
+
+    pose, angles, motion, phases, _ = _swing_fixture()
+    m = compute_stroke_metrics(pose, angles, motion, phases)
+
+    assert m.contact_nose_y_normalized == pytest.approx(0.40)
+    assert m.contact_wrist_y_normalized == pytest.approx(0.35)
+    assert m.backswing_end_wrist_y_normalized == pytest.approx(0.30)
+    assert m.backswing_end_shoulder_y_normalized == pytest.approx(0.45)
+    assert m.preparation_elbow_angle_deg == pytest.approx(100.0)
+
+
+def test_clear_metrics_gain_swing_fields_and_knee_contribution() -> None:
+    from app.processing.strokes.clear.metrics import compute_clear_metrics
+
+    pose, angles, motion, phases, _ = _swing_fixture()
+    m = compute_clear_metrics(pose, angles, motion, phases)
+
+    assert m.knee_contribution_deg == pytest.approx(10.0)
+    assert m.swing_peak_elbow_omega_offset_frames == -1
+    assert m.swing_peak_shoulder_omega_offset_frames == -3
+    assert m.contact_nose_y_normalized == pytest.approx(0.40)
+    assert m.backswing_end_wrist_y_normalized == pytest.approx(0.30)
