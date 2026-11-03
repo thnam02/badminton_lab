@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from app.ai.prompts import SYSTEM_INSTRUCTIONS, build_user_prompt
-from app.ai.issue_selection import select_top_issues
+from app.ai.issue_selection import is_tentative, select_top_issues
 from app.ai.schema_models import CoachingReportModel
 from app.config import settings
 from app.schemas.coaching import (
@@ -29,6 +29,12 @@ from app.schemas.final_analysis import FinalAnalysisState
 from app.schemas.provenance import AnalysisSnapshot
 
 logger = logging.getLogger(__name__)
+
+
+TENTATIVE_CAVEAT = (
+    "Issues marked tentative use unvalidated thresholds and a provisional "
+    "reference; treat them as hints to check, not confirmed faults."
+)
 
 
 class CoachingConfigError(RuntimeError):
@@ -193,12 +199,16 @@ def build_skipped_report(evidence: EvidencePackage, *, reason: str) -> CoachingR
 def build_fallback_report(evidence: EvidencePackage, *, reason: str) -> CoachingReport:
     """Deterministic fallback: surface top technique issues without LLM prose."""
     prioritized: list[PrioritizedIssue] = []
+    any_tentative = False
     for idx, issue in enumerate(evidence.technique_issues[:3]):
         code = str(issue.get("code", "UNKNOWN"))
         description = str(
             issue.get("description")
             or "See deterministic technique evaluation for details."
         )
+        if is_tentative(issue):
+            any_tentative = True
+            description = f"Possible issue (tentative hint, not a definite fault): {description}"
         prioritized.append(
             PrioritizedIssue(
                 issue_code=code,
@@ -219,6 +229,7 @@ def build_fallback_report(evidence: EvidencePackage, *, reason: str) -> Coaching
         caveats=[
             reason,
             "Fallback report does not invent drills or visual interpretations.",
+            *([TENTATIVE_CAVEAT] if any_tentative else []),
         ],
         model=None,
         evidence_version=evidence.evidence_version,

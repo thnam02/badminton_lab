@@ -22,12 +22,24 @@ STATUS_ORDER: dict[str, int] = {
     "MINOR": 1,
 }
 
+HINT_TIER = 2
+
+
+def is_tentative(issue: dict[str, Any]) -> bool:
+    """Tier 2 hints and issues judged against an unvalidated reference."""
+    if "tentative" in issue:
+        return bool(issue["tentative"])
+    return issue.get("tier") == HINT_TIER or issue.get("reference_validated") is False
+
 
 def select_top_issues(
     technique_issues: list[dict[str, Any]],
     max_issues: int = 3,
 ) -> list[dict[str, Any]]:
-    """Rank deterministically so the LLM explains findings rather than choosing them."""
+    """Rank deterministically so the LLM explains findings rather than choosing them.
+
+    Tier 1 (principle) issues always rank ahead of Tier 2 hints.
+    """
     reliable = [
         i
         for i in technique_issues
@@ -36,10 +48,11 @@ def select_top_issues(
         not in {"INSUFFICIENT_EVIDENCE", "NO_ISSUE"}
     ]
 
-    def _rank(issue: dict[str, Any]) -> tuple[int, int, float]:
+    def _rank(issue: dict[str, Any]) -> tuple[int, int, int, float]:
         status = str(issue.get("status") or "").upper()
         severity = str(issue.get("severity") or "").upper()
         return (
+            0 if issue.get("tier") == HINT_TIER else 1,
             STATUS_ORDER.get(status, 0),
             SEVERITY_ORDER.get(severity, 0),
             float(issue.get("combined_confidence") or issue.get("confidence") or 0.0),

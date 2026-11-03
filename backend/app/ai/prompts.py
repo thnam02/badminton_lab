@@ -38,6 +38,14 @@ HARD RULES (must follow):
 12. Any technique_issues entry with uncertain=true or status="INSUFFICIENT_EVIDENCE"
     must not appear as a confirmed finding. Mention it only inside caveats, or
     omit it from prioritized_issues and strengths entirely.
+13. Issues with tier=2, reference_validated=false or tentative=true are TENTATIVE
+    HINTS, not definite faults: thresholds are unvalidated priors and the
+    reference profile is provisional. Phrase them as possibilities ("may",
+    "worth checking", "could indicate"), never as a confirmed error, and add a
+    caveat that the rule is not yet validated against coach-labelled data.
+    tier=2 hints are 2D angle cues from a side-on view — always weaker than tier=1.
+14. evidence.display_metrics are context only. Never present them as faults,
+    and never derive a technique issue from them.
 
 Output must match the provided structured schema exactly.
 """
@@ -56,6 +64,8 @@ def build_user_prompt(evidence: dict[str, Any], *, keyframe_count: int) -> str:
         "- Lists evidence-supported strengths\n"
         "- Suggests practical drills\n"
         "- Adds caveats for uncertainty / visual conflicts\n"
+        "- Words tentative issues (tier 2, reference_validated=false) as hints, "
+        "not definite faults\n"
         "- Does not invent shuttle outcome claims absent from the evidence\n\n"
         f"EvidencePackage JSON:\n{payload}\n"
     )
