@@ -19,7 +19,9 @@ from app.schemas.contact import (
 # 1.3.0: swing_count / swing_candidates; contact carries
 #        contact_peak_confidence and warnings.
 # 1.4.0: contact.shuttle_verified.
-EVIDENCE_VERSION = "1.4.0"
+# 1.5.0: tiered rules — technique_issues carry tier / reference_validated /
+#        unvalidated_prior / tentative / source_metrics; Tier 3 display_metrics.
+EVIDENCE_VERSION = "1.5.0"
 
 EVIDENCE_DEFAULT_NOTES = (
     "Assembled from already-computed analysis artifacts; "
@@ -102,6 +104,8 @@ class EvidencePackage:
     technique_confidence: float
     keyframes: list[dict[str, Any]]
     composite_scores: dict[str, Any] = field(default_factory=dict)
+    # Tier 3 metrics shown for context only; never technique issues.
+    display_metrics: list[dict[str, Any]] = field(default_factory=list)
     camera_view: str | None = None
     # Distinct swings found in the clip; only the chosen one is analysed.
     swing_count: int | None = None
@@ -133,6 +137,7 @@ class EvidencePackage:
             "technique_confidence": self.technique_confidence,
             "keyframes": self.keyframes,
             "composite_scores": self.composite_scores,
+            "display_metrics": list(self.display_metrics),
             "swing_count": self.swing_count,
             "swing_candidates": list(self.swing_candidates),
             "keyframes_output_dir": self.keyframes_output_dir,

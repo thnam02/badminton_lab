@@ -12,6 +12,18 @@ from typing import Any
 
 from app.processing.capture_context import HANDEDNESS_LEFT, RACKET_ARM_NOTE
 from app.processing.composite_scores import compute_composite_scores
+from app.processing.technique_rules_config import (
+    BENT_ELBOW_AT_CONTACT,
+    KINETIC_CHAIN_ORDER,
+    LATE_ELBOW_ACCELERATION,
+    LIMITED_LEG_DRIVE,
+    LOW_CONTACT_POINT,
+    LOW_RACKET_PREPARATION,
+    STIFF_PREPARATION_KNEE,
+    TIER_DISPLAY,
+    TIER_DISPLAY_METRICS,
+    TIER_HINT,
+)
 from app.schemas.contact import ContactEvent
 from app.schemas.evidence import (
     CONTACT_TYPE_KINEMATIC,
@@ -51,7 +63,65 @@ ISSUE_PRIMARY_METRIC: dict[str, str] = {
     "POOR_PROXIMAL_DISTAL_TIMING": "peak_elbow_omega_offset_frames",
     "RESTRICTED_FOLLOW_THROUGH": "follow_through_speed_ratio",
     "SLOW_RECOVERY": "recovery_frame_count",
+    # Tiered rules (measured_value is the metric itself)
+    LATE_ELBOW_ACCELERATION: "swing_peak_elbow_omega_offset_frames",
+    BENT_ELBOW_AT_CONTACT: "contact_elbow_angle_deg",
+    LIMITED_LEG_DRIVE: "knee_contribution_deg",
+    STIFF_PREPARATION_KNEE: "preparation_knee_angle_deg",
 }
+
+# Tiered rules whose measured_value is a difference of two metrics.
+ISSUE_DERIVED_METRICS: dict[str, tuple[str, str]] = {
+    KINETIC_CHAIN_ORDER: (
+        "swing_peak_shoulder_omega_offset_frames",
+        "swing_peak_elbow_omega_offset_frames",
+    ),
+    LOW_CONTACT_POINT: ("contact_wrist_y_normalized", "contact_nose_y_normalized"),
+    LOW_RACKET_PREPARATION: (
+        "backswing_end_wrist_y_normalized",
+        "backswing_end_shoulder_y_normalized",
+    ),
+}
+
+
+def issue_source_metrics(issue: TechniqueIssue) -> list[str]:
+    """Metric fields an issue's measured_value is computed from."""
+    derived = ISSUE_DERIVED_METRICS.get(issue.code)
+    if derived is not None:
+        return list(derived)
+    primary = issue_source_metric(issue)
+    return [primary] if primary else []
+
+
+def is_tentative_issue(issue: TechniqueIssue) -> bool:
+    """Tier 2 hints and issues judged against an unvalidated reference."""
+    return issue.tier == TIER_HINT or not issue.reference_validated
+
+
+def _packaged_issue(issue: TechniqueIssue) -> dict[str, Any]:
+    payload = issue.to_dict()
+    payload["tentative"] = is_tentative_issue(issue)
+    payload["source_metrics"] = issue_source_metrics(issue)
+    return payload
+
+
+def build_display_metrics(metrics_dict: dict[str, Any]) -> list[dict[str, Any]]:
+    """Tier 3 metrics present in ``metrics_dict`` (display only)."""
+    out: list[dict[str, Any]] = []
+    for metric_id, label, unit in TIER_DISPLAY_METRICS:
+        value = metrics_dict.get(metric_id)
+        if value is None:
+            continue
+        out.append(
+            {
+                "metric_id": metric_id,
+                "label": label,
+                "unit": unit,
+                "value": value,
+                "tier": TIER_DISPLAY,
+            }
+        )
+    return out
 
 
 def issue_source_metric(issue: TechniqueIssue) -> str:
@@ -156,10 +226,11 @@ class EvidencePackager:
             phase_confidence=float(phases.confidence),
             contact=contact_evidence,
             metrics=metrics_dict,
-            technique_issues=[issue.to_dict() for issue in technique.issues],
+            technique_issues=[_packaged_issue(issue) for issue in technique.issues],
             technique_confidence=float(technique.confidence),
             keyframes=[kf.to_dict() for kf in keyframes.keyframes],
             composite_scores=composite,
+            display_metrics=build_display_metrics(metrics_dict),
             camera_view=camera_view,
             swing_count=len(swings) if swings else None,
             swing_candidates=swings,
