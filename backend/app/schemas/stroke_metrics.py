@@ -56,8 +56,12 @@ class StrokeMetrics:
     backswing_end_shoulder_y_normalized: float | None = None
     # Accel phase length / (prep start → contact) frame span; dimensionless fraction in [0, 1].
     acceleration_phase_fraction: float | None = None
-    # Peak |shoulder-line vs hip-line| angle (deg) in prep/backswing — 2D X-factor proxy.
+    # Peak shoulder-line vs hip-line angle (deg, [0, 90]) in prep/backswing — 2D X-factor proxy.
     peak_trunk_rotation_deg: float | None = None
+    # Peak |trunk rotation angular velocity| (deg/s) inside the analysed swing, and
+    # its frame offset from contact (negative = before contact).
+    peak_trunk_rotation_velocity_deg_s: float | None = None
+    swing_peak_trunk_rotation_velocity_offset_frames: int | None = None
 
     # Follow-through: speed retention and duration after contact.
     follow_through_speed_ratio: float | None = None

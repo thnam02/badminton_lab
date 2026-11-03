@@ -355,6 +355,16 @@ def apply_swing_window_fields(
         pose_by, back_end, "right_shoulder"
     )
 
+    from app.processing.trunk_rotation import peak_trunk_rotation_velocity_in_window
+
+    trunk_omega, trunk_frame = peak_trunk_rotation_velocity_in_window(
+        pose_by.values(), start, end
+    )
+    metrics.peak_trunk_rotation_velocity_deg_s = trunk_omega
+    metrics.swing_peak_trunk_rotation_velocity_offset_frames = (
+        int(trunk_frame - contact_idx) if trunk_frame is not None else None
+    )
+
 
 def _apply_kinetic_chain_fields(metrics, motion: MotionSequence) -> None:
     """Fill proximal→distal peak gaps and order from motion peaks."""

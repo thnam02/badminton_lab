@@ -47,8 +47,10 @@ class ForehandClearMetrics:
     backswing_end_shoulder_y_normalized: float | None = None
     # Accel phase length / (prep start → contact) frame span; dimensionless [0, 1].
     acceleration_phase_fraction: float | None = None
-    # Peak |shoulder-line vs hip-line| angle (deg) in prep/backswing — 2D X-factor proxy.
+    # Peak shoulder-line vs hip-line angle (deg, [0, 90]) in prep/backswing — 2D X-factor proxy.
     peak_trunk_rotation_deg: float | None = None
+    peak_trunk_rotation_velocity_deg_s: float | None = None
+    swing_peak_trunk_rotation_velocity_offset_frames: int | None = None
 
     # Contact
     contact_elbow_angle_deg: float | None = None
