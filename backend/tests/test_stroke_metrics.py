@@ -249,3 +249,36 @@ def test_knee_contribution_none_without_loading_phase() -> None:
     m = compute_stroke_metrics(pose, angles, motion, phases)
     assert m.loading_min_knee_angle_deg is None
     assert m.knee_contribution_deg is None
+
+
+def test_elbow_extension_peak_ignores_flexion_and_arm_elevation_lead() -> None:
+    from dataclasses import replace
+
+    from app.processing.stroke_metrics import compute_stroke_metrics
+
+    pose, angles, motion, phases, _ = _swing_fixture()
+    # Strong flexion (negative ω) at frame 21 must not count as the extension peak.
+    motion.frames[:] = [
+        replace(f, right_elbow_angular_velocity=-1000.0) if f.frame_index == 21 else f
+        for f in motion.frames
+    ]
+    m = compute_stroke_metrics(pose, angles, motion, phases)
+    assert m.swing_peak_elbow_omega_offset_frames == -4  # |ω| peak is the flexion
+    assert m.swing_peak_elbow_extension_offset_frames == -1
+    # Shoulder |ω| peak at -3, elbow |ω| peak at -4 → elbow leads by 1 frame.
+    assert m.swing_elbow_lead_over_shoulder_frames == 1
+
+
+def test_contact_window_uses_highest_wrist_within_two_frames() -> None:
+    from app.processing.stroke_metrics import compute_stroke_metrics
+    from app.schemas.pose import Keypoint
+
+    pose, angles, motion, phases, contact = _swing_fixture()
+    for frame in pose.frames:
+        if frame.frame_index == contact - 2:
+            frame.keypoints["right_wrist"] = Keypoint(x=0.6, y=0.20, confidence=0.9)
+        if frame.frame_index == contact - 3:
+            frame.keypoints["right_wrist"] = Keypoint(x=0.6, y=0.05, confidence=0.9)
+    m = compute_stroke_metrics(pose, angles, motion, phases)
+    assert m.contact_wrist_y_normalized == pytest.approx(0.35)
+    assert m.contact_window_min_wrist_y_normalized == pytest.approx(0.20)

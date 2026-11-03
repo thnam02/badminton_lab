@@ -92,7 +92,7 @@ export function issueTitleFromCode(code?: string | null): string {
     POOR_PROXIMAL_DISTAL_TIMING: "Your arm sequence is out of sync",
     RESTRICTED_FOLLOW_THROUGH: "Finish the clear more freely",
     SLOW_RECOVERY: "Get ready for the next shot sooner",
-    KINETIC_CHAIN_ORDER: "Your arm may be leading the shoulder",
+    KINETIC_CHAIN_ORDER: "Your arm may be leading your body turn",
     LOW_CONTACT_POINT: "Contact may be below head height",
     LATE_ELBOW_ACCELERATION: "Your elbow may be accelerating late",
     LOW_RACKET_PREPARATION: "Racket preparation may be low",

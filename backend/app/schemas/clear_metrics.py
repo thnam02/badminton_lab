@@ -43,7 +43,10 @@ class ForehandClearMetrics:
     # Swing-window peak offsets and posture y values (see StrokeMetrics).
     swing_peak_elbow_omega_offset_frames: int | None = None
     swing_peak_shoulder_omega_offset_frames: int | None = None
+    swing_elbow_lead_over_shoulder_frames: int | None = None
+    swing_peak_elbow_extension_offset_frames: int | None = None
     contact_nose_y_normalized: float | None = None
+    contact_window_min_wrist_y_normalized: float | None = None
     backswing_end_wrist_y_normalized: float | None = None
     backswing_end_shoulder_y_normalized: float | None = None
     # Accel phase length / (prep start → contact) frame span; dimensionless [0, 1].

@@ -51,9 +51,15 @@ class StrokeMetrics:
     # (backswing start → follow-through end), unlike the whole-clip offsets above.
     swing_peak_elbow_omega_offset_frames: int | None = None
     swing_peak_shoulder_omega_offset_frames: int | None = None
+    # Arm-elevation timing: frames the elbow |ω| peak leads the shoulder |ω| peak.
+    swing_elbow_lead_over_shoulder_frames: int | None = None
+    # Peak positive elbow ω (extension) offset from contact, inside the swing.
+    swing_peak_elbow_extension_offset_frames: int | None = None
     # Normalized image y (grows downward) of nose at contact and of the racket-arm
     # wrist / shoulder on the last backswing frame.
     contact_nose_y_normalized: float | None = None
+    # Highest racket-arm wrist position (smallest y) within ±N frames of contact.
+    contact_window_min_wrist_y_normalized: float | None = None
     backswing_end_wrist_y_normalized: float | None = None
     backswing_end_shoulder_y_normalized: float | None = None
     # Accel phase length / (prep start → contact) frame span; dimensionless fraction in [0, 1].

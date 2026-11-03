@@ -31,7 +31,7 @@ describe("TechniqueIssueCard tiered rules", () => {
     render(<TechniqueIssueCard issue={issue()} variant="main" />);
     expect(screen.getByText("Contact may be below head height")).toBeTruthy();
     expect(screen.getByText("Tentative hint")).toBeTruthy();
-    expect(screen.getByText("hand below head height at contact")).toBeTruthy();
+    expect(screen.getByText("hand stayed below head height around contact")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "View evidence" }));
     expect(screen.getByText("Tier 1 (principle)")).toBeTruthy();
   });

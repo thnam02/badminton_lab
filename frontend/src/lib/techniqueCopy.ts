@@ -114,13 +114,13 @@ const ISSUE_COPY: Record<string, IssueCoachingCopy> = {
       "Land soft, bring the racket back to ready, and find your base quickly.",
   },
   KINETIC_CHAIN_ORDER: {
-    title: "Your arm may be leading the shoulder",
+    title: "Your arm may be leading your body turn",
     whatHappened:
-      "In this swing your elbow seemed to reach its fastest speed before your shoulder did.",
+      "In this swing your elbow seemed to straighten fastest before your trunk turned fastest.",
     whyItMatters:
-      "Power usually builds from the body outward: shoulder first, then elbow, then hand. Starting with the arm can cost speed.",
+      "Power usually builds from the body outward: trunk turn first, then the arm. Starting with the arm can cost speed.",
     coachingFocus:
-      "Start the swing by turning the shoulder, and let the elbow and hand follow.",
+      "Start the swing by turning your chest toward the net, and let the arm follow.",
   },
   LOW_CONTACT_POINT: {
     title: "Contact may be below head height",
@@ -267,11 +267,11 @@ export function formatPlayerMeasurement(
   if (code === "KINETIC_CHAIN_ORDER") {
     const frames = Number(value);
     if (fps && fps > 0) {
-      return `elbow peaked about ${Math.round((frames / fps) * 1000)} ms before the shoulder`;
+      return `elbow extension peaked about ${Math.round((frames / fps) * 1000)} ms before the trunk turn`;
     }
-    return "elbow peaked before the shoulder";
+    return "elbow extension peaked before the trunk turn";
   }
-  if (code === "LOW_CONTACT_POINT") return "hand below head height at contact";
+  if (code === "LOW_CONTACT_POINT") return "hand stayed below head height around contact";
   if (code === "LOW_RACKET_PREPARATION") {
     return "hand below shoulder height at the end of the backswing";
   }

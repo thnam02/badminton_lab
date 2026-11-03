@@ -227,7 +227,10 @@ def _tiered_package(**overrides):
     values = dict(
         swing_peak_elbow_omega_offset_frames=4,
         swing_peak_shoulder_omega_offset_frames=8,
+        swing_peak_elbow_extension_offset_frames=4,
+        swing_peak_trunk_rotation_velocity_offset_frames=8,
         contact_wrist_y_normalized=0.50,
+        contact_window_min_wrist_y_normalized=0.50,
         contact_nose_y_normalized=0.40,
         backswing_end_wrist_y_normalized=0.55,
         backswing_end_shoulder_y_normalized=0.45,

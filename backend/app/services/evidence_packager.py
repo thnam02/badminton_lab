@@ -73,10 +73,10 @@ ISSUE_PRIMARY_METRIC: dict[str, str] = {
 # Tiered rules whose measured_value is a difference of two metrics.
 ISSUE_DERIVED_METRICS: dict[str, tuple[str, str]] = {
     KINETIC_CHAIN_ORDER: (
-        "swing_peak_shoulder_omega_offset_frames",
-        "swing_peak_elbow_omega_offset_frames",
+        "swing_peak_trunk_rotation_velocity_offset_frames",
+        "swing_peak_elbow_extension_offset_frames",
     ),
-    LOW_CONTACT_POINT: ("contact_wrist_y_normalized", "contact_nose_y_normalized"),
+    LOW_CONTACT_POINT: ("contact_window_min_wrist_y_normalized", "contact_nose_y_normalized"),
     LOW_RACKET_PREPARATION: (
         "backswing_end_wrist_y_normalized",
         "backswing_end_shoulder_y_normalized",

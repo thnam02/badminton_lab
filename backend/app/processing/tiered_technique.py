@@ -16,6 +16,7 @@ from app.processing.technique import _evaluation_confidence, _profile_reference_
 from app.processing.technique_config import reference_profile_from_settings
 from app.processing.technique_rules_config import (
     BENT_ELBOW_AT_CONTACT,
+    CONTACT_WRIST_WINDOW_FRAMES,
     KINETIC_CHAIN_ORDER,
     LATE_ELBOW_ACCELERATION,
     LIMITED_LEG_DRIVE,
@@ -205,29 +206,7 @@ def tier1_findings(metrics, cfg: TieredRulesConfig) -> list[_Finding]:
     out: list[_Finding] = []
 
     elbow_off = getattr(metrics, "swing_peak_elbow_omega_offset_frames", None)
-    shoulder_off = getattr(metrics, "swing_peak_shoulder_omega_offset_frames", None)
-    if elbow_off is not None and shoulder_off is not None:
-        elbow_lead = float(shoulder_off - elbow_off)
-        if elbow_lead > cfg.chain_elbow_lead_max_frames:
-            out.append(
-                _Finding(
-                    code=KINETIC_CHAIN_ORDER,
-                    phase=SmashPhase.ACCELERATION,
-                    measured=elbow_lead,
-                    unit="frames",
-                    metric_name="swing_elbow_lead_over_shoulder_frames",
-                    reference_range=ReferenceRange(
-                        min=None, max=float(cfg.chain_elbow_lead_max_frames)
-                    ),
-                    base_status=cfg.kinetic_chain_order_status,
-                    description=(
-                        f"Elbow angular velocity peaked {elbow_lead:.0f} frames before "
-                        "the shoulder peak (expected shoulder first)."
-                    ),
-                )
-            )
-
-    wrist_y = getattr(metrics, "contact_wrist_y_normalized", None)
+    wrist_y = getattr(metrics, "contact_window_min_wrist_y_normalized", None)
     nose_y = getattr(metrics, "contact_nose_y_normalized", None)
     if wrist_y is not None and nose_y is not None:
         below = float(wrist_y - nose_y)
@@ -238,12 +217,15 @@ def tier1_findings(metrics, cfg: TieredRulesConfig) -> list[_Finding]:
                     phase=SmashPhase.ESTIMATED_CONTACT,
                     measured=below,
                     unit="normalized_y",
-                    metric_name="contact_wrist_minus_nose_y",
+                    metric_name="contact_window_wrist_minus_nose_y",
                     reference_range=ReferenceRange(
                         min=None, max=float(cfg.contact_wrist_below_nose_margin)
                     ),
                     base_status=cfg.low_contact_point_status,
-                    description="Racket-arm wrist was below the nose at estimated contact.",
+                    description=(
+                        "Racket-arm wrist stayed below the nose around estimated contact "
+                        f"(highest point within ±{CONTACT_WRIST_WINDOW_FRAMES} frames)."
+                    ),
                 )
             )
 
@@ -290,6 +272,30 @@ def tier1_findings(metrics, cfg: TieredRulesConfig) -> list[_Finding]:
 
 def tier2_findings(metrics, cfg: TieredRulesConfig, *, stroke: str) -> list[_Finding]:
     out: list[_Finding] = []
+
+    elbow_ext_off = getattr(metrics, "swing_peak_elbow_extension_offset_frames", None)
+    trunk_off = getattr(metrics, "swing_peak_trunk_rotation_velocity_offset_frames", None)
+    if elbow_ext_off is not None and trunk_off is not None:
+        elbow_lead = float(trunk_off - elbow_ext_off)
+        if elbow_lead > cfg.chain_elbow_lead_max_frames:
+            out.append(
+                _Finding(
+                    code=KINETIC_CHAIN_ORDER,
+                    phase=SmashPhase.ACCELERATION,
+                    measured=elbow_lead,
+                    unit="frames",
+                    metric_name="swing_elbow_extension_lead_over_trunk_frames",
+                    reference_range=ReferenceRange(
+                        min=None, max=float(cfg.chain_elbow_lead_max_frames)
+                    ),
+                    base_status=cfg.kinetic_chain_order_status,
+                    description=(
+                        f"Elbow extension peaked {elbow_lead:.0f} frames before trunk "
+                        "rotation peaked (expected trunk first)."
+                    ),
+                )
+            )
+
     min_elbow = (
         cfg.clear_min_contact_elbow_deg
         if stroke == STROKE_CLEAR

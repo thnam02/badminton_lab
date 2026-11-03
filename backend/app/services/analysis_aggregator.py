@@ -55,7 +55,7 @@ ISSUE_TITLES = {
     "RESTRICTED_FOLLOW_THROUGH": "Restricted follow-through",
     "SLOW_RECOVERY": "Slow recovery",
     "INSUFFICIENT_EVIDENCE": "Insufficient evidence",
-    # Tiered rules (tiered_rules_v1); retired codes above stay for history views.
+    # Tiered rules; retired codes above stay for history views.
     "KINETIC_CHAIN_ORDER": "Arm sequence order",
     "LOW_CONTACT_POINT": "Low contact point",
     "LATE_ELBOW_ACCELERATION": "Late elbow acceleration",

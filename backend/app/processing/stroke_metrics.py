@@ -359,6 +359,28 @@ def _peak_omega_offset_in_window(
     return _peak_omega_offset(window, contact_idx, attr=attr)
 
 
+def _peak_positive_offset_in_window(
+    motion_by: dict,
+    contact_idx: int,
+    *,
+    attr: str,
+    start: int,
+    end: int,
+) -> int | None:
+    """Offset of the largest positive value (e.g. elbow extension) in [start, end]."""
+    best_idx: int | None = None
+    best = 0.0
+    for idx, mf in motion_by.items():
+        if not start <= idx <= end:
+            continue
+        value = getattr(mf, attr, None)
+        if value is None or not math.isfinite(value) or value <= best:
+            continue
+        best = value
+        best_idx = idx
+    return None if best_idx is None else int(best_idx - contact_idx)
+
+
 def _keypoint_y(pose_by: dict, frame_index: int | None, joint: str) -> float | None:
     if frame_index is None:
         return None
@@ -388,7 +410,31 @@ def apply_swing_window_fields(
         start=start,
         end=end,
     )
+    if (
+        metrics.swing_peak_elbow_omega_offset_frames is not None
+        and metrics.swing_peak_shoulder_omega_offset_frames is not None
+    ):
+        metrics.swing_elbow_lead_over_shoulder_frames = int(
+            metrics.swing_peak_shoulder_omega_offset_frames
+            - metrics.swing_peak_elbow_omega_offset_frames
+        )
+    # Elbow extension = interior elbow angle increasing (positive ω).
+    metrics.swing_peak_elbow_extension_offset_frames = _peak_positive_offset_in_window(
+        motion_by, contact_idx, attr="right_elbow_angular_velocity", start=start, end=end
+    )
     metrics.contact_nose_y_normalized = _keypoint_y(pose_by, contact_idx, "nose")
+    from app.processing.technique_rules_config import CONTACT_WRIST_WINDOW_FRAMES
+
+    wrist_ys = [
+        y
+        for idx in range(
+            contact_idx - CONTACT_WRIST_WINDOW_FRAMES,
+            contact_idx + CONTACT_WRIST_WINDOW_FRAMES + 1,
+        )
+        if (y := _keypoint_y(pose_by, idx, "right_wrist")) is not None
+    ]
+    # Smallest image y = highest wrist position.
+    metrics.contact_window_min_wrist_y_normalized = min(wrist_ys) if wrist_ys else None
     back = _first_segment(phases, SmashPhase.BACKSWING)
     back_end = back.end_frame_index if back is not None else None
     metrics.backswing_end_wrist_y_normalized = _keypoint_y(pose_by, back_end, "right_wrist")

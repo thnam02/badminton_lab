@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-TIERED_RULES_VERSION = "tiered_rules_v1"
+TIERED_RULES_VERSION = "tiered_rules_v2"
 
 TIER_PRINCIPLE = 1
 TIER_HINT = 2
@@ -30,7 +30,8 @@ LIMITED_LEG_DRIVE = "LIMITED_LEG_DRIVE"
 STIFF_PREPARATION_KNEE = "STIFF_PREPARATION_KNEE"
 
 TIER_BY_CODE: dict[str, int] = {
-    KINETIC_CHAIN_ORDER: TIER_PRINCIPLE,
+    # Tier 2 until trunk-before-elbow timing is validated.
+    KINETIC_CHAIN_ORDER: TIER_HINT,
     LOW_CONTACT_POINT: TIER_PRINCIPLE,
     LATE_ELBOW_ACCELERATION: TIER_PRINCIPLE,
     LOW_RACKET_PREPARATION: TIER_PRINCIPLE,
@@ -42,14 +43,17 @@ TIER_BY_CODE: dict[str, int] = {
 # Tier 2 rules run only for this declared camera view.
 TIER_HINT_CAMERA_VIEW = "SIDE"
 
+# LOW_CONTACT_POINT uses the highest wrist within ±N frames of contact.
+CONTACT_WRIST_WINDOW_FRAMES = 2  # unvalidated prior
+
 
 @dataclass(frozen=True, slots=True)
 class TieredRulesConfig:
-    # Tier 1: flag when the elbow |ω| peak precedes the shoulder peak by more
-    # than this many frames (swing window).
+    # Tier 2: flag when the peak elbow-extension ω precedes the peak trunk-rotation
+    # ω by more than this many frames (swing window).
     chain_elbow_lead_max_frames: int = 1  # unvalidated prior
-    # Tier 1: flag when contact wrist y exceeds nose y by more than this margin
-    # (normalized image y grows downward, so larger y = lower).
+    # Tier 1: flag when the highest wrist y near contact exceeds nose y by more
+    # than this margin (normalized image y grows downward, so larger y = lower).
     contact_wrist_below_nose_margin: float = 0.0  # unvalidated prior
     # Tier 1: flag when the elbow |ω| peak is more than this many frames after contact.
     late_elbow_peak_max_frames: int = 2  # unvalidated prior
@@ -63,7 +67,7 @@ class TieredRulesConfig:
     max_preparation_knee_deg: float = 170.0  # unvalidated prior
 
     # Base status when a rule fires (before the severity cap).
-    kinetic_chain_order_status: str = "MODERATE"  # unvalidated prior
+    kinetic_chain_order_status: str = "MINOR"  # unvalidated prior
     low_contact_point_status: str = "MODERATE"  # unvalidated prior
     late_elbow_acceleration_status: str = "MINOR"
     low_racket_preparation_status: str = "MINOR"
@@ -84,6 +88,11 @@ TIER_DISPLAY_METRICS: tuple[tuple[str, str, str], ...] = (
     ("preparation_elbow_angle_deg", "Preparation elbow angle", "deg"),
     ("follow_through_speed_ratio", "Follow-through speed ratio", ""),
     ("peak_wrist_speed", "Peak wrist speed", ""),
+    (
+        "swing_elbow_lead_over_shoulder_frames",
+        "Arm-elevation timing (elbow peak lead over shoulder)",
+        "frames",
+    ),
 )
 
 
