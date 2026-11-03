@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from app.processing.strokes.clear.evaluator import evaluate_clear_from_final
 from app.processing.strokes.clear.metrics import compute_clear_metrics_from_final
 from app.processing.strokes.clear.phases import detect_clear_phases
+from app.processing.tiered_technique import evaluate_tiered_from_final
 from app.schemas.angles import AngleSequence
 from app.schemas.clear_metrics import ForehandClearMetrics
 from app.schemas.final_analysis import FinalAnalysisState
@@ -49,9 +49,10 @@ class ForehandClearAnalyzer:
         camera_view: str | None = None,
         skill_level: str | None = None,
     ) -> TechniqueEvaluation:
-        return evaluate_clear_from_final(
+        return evaluate_tiered_from_final(
             state,
             metrics,
+            stroke_type="FOREHAND_CLEAR",
             quality_confidence=quality_confidence,
             pose_confidence=pose_confidence,
             handedness=handedness,

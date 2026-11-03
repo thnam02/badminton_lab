@@ -21,6 +21,7 @@ from app.schemas.technique_calibration import (
 TECHNIQUE_RULE_VERSION_REFERENCE = "reference_distribution_v2"
 TECHNIQUE_RULE_VERSION_FALLBACK = "provisional_fallback_v1"
 TECHNIQUE_RULE_VERSION_LEGACY = "legacy_hardcoded_v1"
+TECHNIQUE_RULE_VERSION_TIERED = "tiered_rules_v1"
 
 
 class IssueSeverity(str, Enum):
@@ -81,6 +82,12 @@ class TechniqueIssue:
     status_reason: str = ""
     # Continuous adverse strength in [0, 1]; complements discrete status buckets.
     severity_score: float = 0.0
+    # Tiered rules: 1 principle-based, 2 hint; None for retired rule paths.
+    tier: int | None = None
+    # True only when the selected profile is VALIDATED and not provisional.
+    reference_validated: bool = False
+    # Threshold is an unvalidated prior (not fitted to coach-labelled data).
+    unvalidated_prior: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -115,6 +122,9 @@ class TechniqueIssue:
             "severity_calibration_version": self.severity_calibration_version,
             "decision_mode": self.decision_mode,
             "uncertain": self.uncertain,
+            "tier": self.tier,
+            "reference_validated": self.reference_validated,
+            "unvalidated_prior": self.unvalidated_prior,
         }
         if self.reference_evidence is not None:
             payload["reference_evidence"] = self.reference_evidence.to_dict()

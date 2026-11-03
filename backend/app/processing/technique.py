@@ -1,5 +1,8 @@
 """Technique evaluation against selected ReferenceProfile distributions.
 
+Retired from the production analyzers (which use ``tiered_technique``); kept
+for reference-distribution A/B validation tooling and its tests.
+
 Uses C2/versioned profile percentiles with C4 calibrated severity/confidence.
 Hard-coded settings thresholds apply only when selection returns
 ``match_level=none``. Legacy hard-coded rules remain in ``technique_legacy`` (C5).

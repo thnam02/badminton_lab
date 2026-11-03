@@ -1,4 +1,8 @@
-"""Forehand clear technique evaluation (provisional reference distributions)."""
+"""Forehand clear technique evaluation (provisional reference distributions).
+
+Retired from the production clear analyzer (which uses ``tiered_technique``);
+kept for reference-distribution validation tooling and its tests.
+"""
 
 from __future__ import annotations
 
