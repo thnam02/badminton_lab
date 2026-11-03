@@ -347,3 +347,82 @@ def test_compare_compatible(tmp_path: Path) -> None:
     assert "Elbow contact" in labels
     elbow = next(r for r in cmp["rows"] if r["label"] == "Elbow contact")
     assert elbow["change"] in {"Improved", "Changed", "Similar"}
+
+
+def _seed_tiered(root: Path, analysis_id: str) -> None:
+    _seed_analysis(root, analysis_id)
+    _write(
+        root / f"{analysis_id}_pose_technique.json",
+        {
+            "video": f"{analysis_id}_pose.mp4",
+            "confidence": 0.8,
+            "reference_profile_id": "clear_right_side_provisional_v1",
+            "rule_version": "tiered_rules_v1",
+            "issues": [
+                {
+                    "code": "KINETIC_CHAIN_ORDER",
+                    "phase": "ACCELERATION",
+                    "severity": "MEDIUM",
+                    "status": "MODERATE",
+                    "confidence": 0.8,
+                    "combined_confidence": 0.8,
+                    "measured_value": 4.0,
+                    "unit": "frames",
+                    "reference_range": {"min": None, "max": 1.0},
+                    "tier": 1,
+                    "reference_validated": False,
+                    "unvalidated_prior": True,
+                },
+                {
+                    "code": "BENT_ELBOW_AT_CONTACT",
+                    "phase": "ESTIMATED_CONTACT",
+                    "severity": "LOW",
+                    "status": "MINOR",
+                    "confidence": 0.8,
+                    "combined_confidence": 0.8,
+                    "measured_value": 133.0,
+                    "unit": "deg",
+                    "reference_range": {"min": 140.0, "max": 180.0},
+                    "tier": 2,
+                    "reference_validated": True,
+                    "unvalidated_prior": True,
+                },
+            ],
+        },
+    )
+    _write(
+        root / f"{analysis_id}_pose_evidence.json",
+        {
+            "evidence_version": "1.5.0",
+            "display_metrics": [
+                {"metric_id": "contact_shoulder_angle_deg", "label": "Shoulder angle at contact", "unit": "deg", "value": 119.6, "tier": 3},
+                {"metric_id": "peak_wrist_speed", "label": "Peak wrist speed", "unit": "", "value": None, "tier": 3},
+            ],
+        },
+    )
+
+
+def test_tiered_issues_surface_tier_and_tentative(tmp_path: Path) -> None:
+    _seed_tiered(tmp_path, "tier111")
+    result = get_analysis_result("tier111", output_dir=tmp_path)
+    by_code = {i["code"]: i for i in result["issues"]}
+    chain = by_code["KINETIC_CHAIN_ORDER"]
+    assert chain["title"] == "Arm sequence order"
+    assert chain["tier"] == 1
+    assert chain["reference_validated"] is False
+    assert chain["tentative"] is True
+    hint = by_code["BENT_ELBOW_AT_CONTACT"]
+    assert hint["tier"] == 2
+    assert hint["tentative"] is True
+    # Thresholds are not reference-group distributions.
+    assert result["reference_comparisons"] == []
+    assert result["display_metrics"] == [
+        {"id": "contact_shoulder_angle_deg", "label": "Shoulder angle at contact", "value": 119.6, "unit": "deg"}
+    ]
+
+
+def test_legacy_issues_are_not_tentative(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "old111")
+    result = get_analysis_result("old111", output_dir=tmp_path)
+    assert all(i["tentative"] is False and i["tier"] is None for i in result["issues"])
+    assert result["display_metrics"] == []

@@ -55,6 +55,14 @@ ISSUE_TITLES = {
     "RESTRICTED_FOLLOW_THROUGH": "Restricted follow-through",
     "SLOW_RECOVERY": "Slow recovery",
     "INSUFFICIENT_EVIDENCE": "Insufficient evidence",
+    # Tiered rules (tiered_rules_v1); retired codes above stay for history views.
+    "KINETIC_CHAIN_ORDER": "Arm sequence order",
+    "LOW_CONTACT_POINT": "Low contact point",
+    "LATE_ELBOW_ACCELERATION": "Late elbow acceleration",
+    "LOW_RACKET_PREPARATION": "Low racket preparation",
+    "BENT_ELBOW_AT_CONTACT": "Bent elbow at contact",
+    "LIMITED_LEG_DRIVE": "Limited leg drive",
+    "STIFF_PREPARATION_KNEE": "Little knee bend in preparation",
 }
 
 CONTACT_ESTIMATED_NOTE = (
@@ -174,6 +182,7 @@ def get_analysis_result(
         ],
         "findings": [i for i in issues_norm if i.get("is_finding")],
         "metrics": metrics_norm,
+        "display_metrics": _normalize_display_metrics(evidence),
         "composite_scores": composite_scores,
         "reference_comparisons": references,
         "coaching": coaching_norm,
@@ -475,6 +484,33 @@ def _normalize_issues(
                 "combined_confidence": raw.get("combined_confidence"),
                 "rule_version": raw.get("rule_version"),
                 "severity_calibration_version": raw.get("severity_calibration_version"),
+                "tier": raw.get("tier"),
+                "reference_validated": raw.get("reference_validated"),
+                "unvalidated_prior": bool(raw.get("unvalidated_prior")),
+                "tentative": _is_tentative_issue(raw),
+            }
+        )
+    return out
+
+
+def _is_tentative_issue(raw: dict[str, Any]) -> bool:
+    """Tier 2 hints and tiered issues judged against an unvalidated reference."""
+    if raw.get("tier") is None:
+        return False
+    return raw.get("tier") == 2 or raw.get("reference_validated") is not True
+
+
+def _normalize_display_metrics(evidence: dict[str, Any] | None) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for item in (evidence or {}).get("display_metrics") or []:
+        if not isinstance(item, dict) or item.get("value") is None:
+            continue
+        out.append(
+            {
+                "id": str(item.get("metric_id") or ""),
+                "label": str(item.get("label") or item.get("metric_id") or ""),
+                "value": item["value"],
+                "unit": str(item.get("unit") or ""),
             }
         )
     return out
@@ -534,6 +570,9 @@ def _reference_comparisons(
     out: list[dict[str, Any]] = []
     for issue in issues:
         if issue.get("measured_value") is None:
+            continue
+        # Tiered rules use fixed thresholds, not a reference-group distribution.
+        if issue.get("tier") is not None:
             continue
         if issue.get("reference_median") is None and issue.get("reference_low") is None:
             continue

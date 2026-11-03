@@ -92,6 +92,13 @@ export function issueTitleFromCode(code?: string | null): string {
     POOR_PROXIMAL_DISTAL_TIMING: "Your arm sequence is out of sync",
     RESTRICTED_FOLLOW_THROUGH: "Finish the clear more freely",
     SLOW_RECOVERY: "Get ready for the next shot sooner",
+    KINETIC_CHAIN_ORDER: "Your arm may be leading the shoulder",
+    LOW_CONTACT_POINT: "Contact may be below head height",
+    LATE_ELBOW_ACCELERATION: "Your elbow may be accelerating late",
+    LOW_RACKET_PREPARATION: "Racket preparation may be low",
+    BENT_ELBOW_AT_CONTACT: "Your elbow may be quite bent at contact",
+    LIMITED_LEG_DRIVE: "You may be using little leg drive",
+    STIFF_PREPARATION_KNEE: "Your knees may be quite straight in preparation",
     INSUFFICIENT_EVIDENCE: "Unable to assess reliably",
   };
   if (!code) return "Finding";

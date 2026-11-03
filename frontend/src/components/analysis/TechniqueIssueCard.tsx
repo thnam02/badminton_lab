@@ -10,6 +10,7 @@ import {
   formatPlayerMeasurement,
   phaseChipLabel,
   playerIssueTitle,
+  TENTATIVE_HINT_NOTE,
 } from "@/lib/techniqueCopy";
 import type { TechniqueIssueView } from "@/lib/types";
 
@@ -122,6 +123,7 @@ function MainFocusCard({
           <p className="text-sm text-[var(--muted)]">
             {phaseChipLabel(issue.phase_label)} · {findingSeverityLabel(issue)}
           </p>
+          {issue.tentative && <TentativeBadge />}
         </div>
         <ActionRow
           issue={issue}
@@ -187,6 +189,7 @@ function CompactFindingCard({
           <p className="mt-1 text-xs text-[var(--muted)]">
             {phaseChipLabel(issue.phase_label)} · {findingSeverityLabel(issue)}
           </p>
+          {issue.tentative && <TentativeBadge />}
         </div>
         <span className="mt-0.5 shrink-0 text-xs font-medium text-[var(--accent)]">
           {open ? "Hide" : "Details"}
@@ -221,6 +224,17 @@ function CompactFindingCard({
         </div>
       )}
     </article>
+  );
+}
+
+function TentativeBadge() {
+  return (
+    <span
+      className="mt-1 inline-block rounded-full border border-dashed border-[var(--border)] px-2 py-0.5 text-[0.7rem] font-medium text-[var(--muted)]"
+      title={TENTATIVE_HINT_NOTE}
+    >
+      Tentative hint
+    </span>
   );
 }
 
@@ -296,6 +310,9 @@ function EvidencePanel({ issue }: { issue: TechniqueIssueView }) {
       <p className="font-semibold uppercase tracking-wide text-[var(--muted)]">
         Measurement evidence
       </p>
+      {issue.tentative && (
+        <p className="mt-2 text-[var(--fg)]">{TENTATIVE_HINT_NOTE}</p>
+      )}
       <dl className="mt-2 grid gap-2 sm:grid-cols-2">
         <div>
           <dt>Measured value</dt>
@@ -303,6 +320,14 @@ function EvidencePanel({ issue }: { issue: TechniqueIssueView }) {
             {formatEvidenceValue(issue.measured_value, issue.unit)}
           </dd>
         </div>
+        {issue.tier != null && (
+          <div>
+            <dt>Rule tier</dt>
+            <dd className="text-[var(--fg)]">
+              {issue.tier === 1 ? "Tier 1 (principle)" : "Tier 2 (side-view hint)"}
+            </dd>
+          </div>
+        )}
         <div>
           <dt>Reference median</dt>
           <dd className="font-mono text-[var(--fg)]">

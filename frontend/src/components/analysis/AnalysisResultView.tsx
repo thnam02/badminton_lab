@@ -222,7 +222,7 @@ export function AnalysisResultView({ analysisId }: Props) {
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-[var(--fg)]">Metrics</h3>
-            <MetricsPanel metrics={data.metrics} />
+            <MetricsPanel metrics={data.metrics} displayMetrics={data.display_metrics} />
           </div>
 
           <div className="space-y-3">

@@ -55,7 +55,14 @@ export type TechniqueIssueView = {
   video_quality_confidence?: number | null;
   reference_confidence?: number | null;
   combined_confidence?: number | null;
+  /** 1 = principle rule, 2 = side-view angle hint; null for retired rules. */
+  tier?: number | null;
+  reference_validated?: boolean | null;
+  /** Tier 2 hint or judged against an unvalidated reference. */
+  tentative?: boolean;
 };
+
+export type DisplayMetric = { id: string; label: string; value: number; unit: string };
 
 export type ReferenceComparisonData = {
   metric_id?: string;
@@ -161,6 +168,8 @@ export type AnalysisResult = {
   findings: TechniqueIssueView[];
   insufficient_evidence: TechniqueIssueView[];
   metrics: { id: string; label: string; value: number; unit: string }[];
+  /** Tier 3: shown for context only, never a technique issue. */
+  display_metrics?: DisplayMetric[];
   composite_scores?: CompositeScoresView | null;
   reference_comparisons: ReferenceComparisonData[];
   coaching: CoachingReportView;
