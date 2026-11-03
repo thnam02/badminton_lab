@@ -21,8 +21,9 @@ class ForehandClearMetrics:
     # Preparation
     preparation_elbow_angle_deg: float | None = None
     preparation_knee_angle_deg: float | None = None
-    # Knee extension from preparation to contact (degrees).
+    # Contact knee angle minus the deepest knee bend while loading (degrees).
     knee_contribution_deg: float | None = None
+    loading_min_knee_angle_deg: float | None = None
 
     # Backswing / cocking
     backswing_min_elbow_angle_deg: float | None = None

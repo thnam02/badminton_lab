@@ -28,8 +28,10 @@ class StrokeMetrics:
     # keypoints are typically in [0, 1] image space; not m/s or px/frame).
     peak_wrist_speed: float | None = None
 
-    # Knee contribution: knee extension from preparation to contact (degrees).
+    # Knee contribution: contact knee angle minus the deepest knee bend while
+    # loading (backswing start → frame before contact), degrees.
     knee_contribution_deg: float | None = None
+    loading_min_knee_angle_deg: float | None = None
     preparation_knee_angle_deg: float | None = None
     preparation_elbow_angle_deg: float | None = None
 

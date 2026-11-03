@@ -322,7 +322,7 @@ def tier2_findings(metrics, cfg: TieredRulesConfig, *, stroke: str) -> list[_Fin
                 reference_range=ReferenceRange(min=float(cfg.min_leg_drive_deg), max=None),
                 base_status=cfg.tier_hint_status,
                 description=(
-                    "Knee extension from preparation to contact was below "
+                    "Knee extension from the deepest loading bend to contact was below "
                     f"{cfg.min_leg_drive_deg:.0f}°."
                 ),
             )

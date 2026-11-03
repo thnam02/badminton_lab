@@ -161,7 +161,7 @@ const ISSUE_COPY: Record<string, IssueCoachingCopy> = {
   LIMITED_LEG_DRIVE: {
     title: "You may be using little leg drive",
     whatHappened:
-      "From the side view your knees straightened very little between preparation and contact.",
+      "From the side view your knees straightened very little from your deepest bend to contact.",
     whyItMatters:
       "Pushing up through the legs helps start the swing and adds to its power.",
     coachingFocus:

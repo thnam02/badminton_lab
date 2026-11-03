@@ -210,8 +210,42 @@ def test_clear_metrics_gain_swing_fields_and_knee_contribution() -> None:
     pose, angles, motion, phases, _ = _swing_fixture()
     m = compute_clear_metrics(pose, angles, motion, phases)
 
-    assert m.knee_contribution_deg == pytest.approx(10.0)
+    # Knee is flat at 150 from backswing through contact: no extension from loading.
+    assert m.knee_contribution_deg == pytest.approx(0.0)
     assert m.swing_peak_elbow_omega_offset_frames == -1
     assert m.swing_peak_shoulder_omega_offset_frames == -3
     assert m.contact_nose_y_normalized == pytest.approx(0.40)
     assert m.backswing_end_wrist_y_normalized == pytest.approx(0.30)
+
+
+@pytest.mark.parametrize("stroke", ["smash", "clear"])
+def test_knee_contribution_uses_deepest_loading_bend(stroke: str) -> None:
+    from dataclasses import replace
+
+    from app.processing.stroke_metrics import compute_stroke_metrics
+    from app.processing.strokes.clear.metrics import compute_clear_metrics
+
+    pose, angles, motion, phases, contact = _swing_fixture()
+    # Prep knee 140 (standing), deepest bend 115 at frame 22 (acceleration), contact 160.
+    knee = {i: 140.0 if i < 10 else 150.0 for i in range(30)}
+    knee.update({18: 130.0, 22: 115.0, contact: 160.0})
+    angles.frames[:] = [replace(f, right_knee=knee[f.frame_index]) for f in angles.frames]
+    compute = compute_stroke_metrics if stroke == "smash" else compute_clear_metrics
+    m = compute(pose, angles, motion, phases)
+
+    assert m.preparation_knee_angle_deg == pytest.approx(140.0)
+    assert m.loading_min_knee_angle_deg == pytest.approx(115.0)
+    assert m.knee_contribution_deg == pytest.approx(45.0)
+
+
+def test_knee_contribution_none_without_loading_phase() -> None:
+    from app.processing.stroke_metrics import compute_stroke_metrics
+
+    pose, angles, motion, phases, _ = _swing_fixture()
+    phases.segments[:] = [
+        s for s in phases.segments
+        if s.phase not in (SmashPhase.BACKSWING, SmashPhase.ACCELERATION)
+    ]
+    m = compute_stroke_metrics(pose, angles, motion, phases)
+    assert m.loading_min_knee_angle_deg is None
+    assert m.knee_contribution_deg is None

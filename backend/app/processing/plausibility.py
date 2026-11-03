@@ -28,14 +28,14 @@ GATED_METRICS: dict[str, str] = {
     "backswing_min_elbow_angle_deg": "elbow",
     "contact_knee_angle_deg": "knee",
     "preparation_knee_angle_deg": "knee",
-    "backswing_min_knee_angle_deg": "knee",
+    "loading_min_knee_angle_deg": "knee",
     "contact_shoulder_angle_deg": "shoulder",
     "peak_trunk_rotation_deg": "trunk_rotation",
 }
 
 # Derived metric → inputs; dropped when any input is implausible.
 DERIVED_METRICS: dict[str, tuple[str, ...]] = {
-    "knee_contribution_deg": ("contact_knee_angle_deg", "preparation_knee_angle_deg"),
+    "knee_contribution_deg": ("contact_knee_angle_deg", "loading_min_knee_angle_deg"),
 }
 
 

@@ -107,10 +107,10 @@ def compute_stroke_metrics(
     elif contact_motion is not None:
         metrics.peak_wrist_speed = contact_motion.right_wrist_speed
 
-    prep_knee = _phase_mean_angle(phases, angle_by, SmashPhase.PREPARATION, "knee")
-    metrics.preparation_knee_angle_deg = prep_knee
-    if prep_knee is not None and metrics.contact_knee_angle_deg is not None:
-        metrics.knee_contribution_deg = metrics.contact_knee_angle_deg - prep_knee
+    metrics.preparation_knee_angle_deg = _phase_mean_angle(
+        phases, angle_by, SmashPhase.PREPARATION, "knee"
+    )
+    apply_leg_drive_fields(metrics, angle_by, phases, contact_idx)
     metrics.preparation_elbow_angle_deg = _phase_mean_angle(
         phases, angle_by, SmashPhase.PREPARATION, "elbow"
     )
@@ -287,6 +287,44 @@ def _peak_omega_offset(
     if best_idx is None:
         return None
     return int(best_idx - contact_idx)
+
+
+def loading_window(phases: PhaseSequence, contact_idx: int) -> tuple[int, int] | None:
+    """Backswing start → frame before contact (backswing + acceleration).
+
+    The deepest knee bend that the leg drive extends from can fall late in
+    loading, after the wrist has started to accelerate.
+    """
+    back = _first_segment(phases, SmashPhase.BACKSWING)
+    accel = _first_segment(phases, SmashPhase.ACCELERATION)
+    start_seg = back if back is not None else accel
+    if start_seg is None or start_seg.start_frame_index >= contact_idx:
+        return None
+    return start_seg.start_frame_index, contact_idx - 1
+
+
+def apply_leg_drive_fields(
+    metrics,
+    angle_by: dict,
+    phases: PhaseSequence,
+    contact_idx: int,
+) -> None:
+    """Knee contribution = contact knee angle − deepest knee bend while loading."""
+    window = loading_window(phases, contact_idx)
+    knees: list[float] = []
+    if window is not None:
+        for idx in range(window[0], window[1] + 1):
+            af = angle_by.get(idx)
+            val = af.right_knee if af is not None else None
+            if val is not None and math.isfinite(val):
+                knees.append(float(val))
+    metrics.loading_min_knee_angle_deg = min(knees) if knees else None
+    if metrics.loading_min_knee_angle_deg is not None and metrics.contact_knee_angle_deg is not None:
+        metrics.knee_contribution_deg = (
+            metrics.contact_knee_angle_deg - metrics.loading_min_knee_angle_deg
+        )
+    else:
+        metrics.knee_contribution_deg = None
 
 
 def swing_window(phases: PhaseSequence, contact_idx: int) -> tuple[int, int]:
