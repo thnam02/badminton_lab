@@ -283,7 +283,7 @@ def test_evidence_reports_swings_and_chosen_frame():
         contact=contact,
     )
     payload = package.to_dict()
-    assert payload["evidence_version"] == "1.5.0"
+    assert payload["evidence_version"] == "1.6.0"
     assert payload["swing_count"] == 2
     assert payload["swing_candidates"] == swings
     assert "frame 110 was analysed" in payload["notes"]

@@ -23,6 +23,10 @@ WARNING_SENTENCES: dict[str, str] = {
     "LOW_RACKET_ARM_AT_CONTACT": (
         "Your racket arm was hard to see at contact, so arm measurements may be less accurate."
     ),
+    "IMPLAUSIBLE_MEASUREMENT": (
+        "Some joint angles came out physically impossible (likely a tracking error), "
+        "so we left them out of the assessment."
+    ),
     "CONTACT_UNSTABLE_TRACKING": (
         "Body tracking jumped around near contact, so the contact moment may be off."
     ),

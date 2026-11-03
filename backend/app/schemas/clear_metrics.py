@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +67,10 @@ class ForehandClearMetrics:
     # Recovery
     recovery_frame_count: int | None = None
     recovery_duration_s: float | None = None
+
+    # Values removed by the plausibility gate (see app.processing.plausibility).
+    implausible_measurements: list[dict[str, Any]] = field(default_factory=list)
+    measurement_warnings: list[str] = field(default_factory=list)
 
     # Provenance
     analysis_id: str = ""

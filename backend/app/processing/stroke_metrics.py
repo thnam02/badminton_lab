@@ -134,6 +134,9 @@ def compute_stroke_metrics(
     metrics.follow_through_speed_ratio = follow_ratio
     metrics.follow_through_frame_count = follow_frames
 
+    from app.processing.plausibility import apply_plausibility_gate
+
+    apply_plausibility_gate(metrics)
     return metrics
 
 

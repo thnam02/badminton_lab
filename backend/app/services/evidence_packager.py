@@ -231,6 +231,8 @@ class EvidencePackager:
             keyframes=[kf.to_dict() for kf in keyframes.keyframes],
             composite_scores=composite,
             display_metrics=build_display_metrics(metrics_dict),
+            implausible_measurements=list(getattr(metrics, "implausible_measurements", [])),
+            measurement_warnings=list(getattr(metrics, "measurement_warnings", [])),
             camera_view=camera_view,
             swing_count=len(swings) if swings else None,
             swing_candidates=swings,

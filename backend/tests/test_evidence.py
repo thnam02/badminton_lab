@@ -257,7 +257,7 @@ def _tiered_package(**overrides):
 
 def test_tiered_issues_carry_tier_and_tentative_flags() -> None:
     _, technique, package = _tiered_package()
-    assert package.evidence_version == "1.5.0"
+    assert package.evidence_version == "1.6.0"
     packaged = {i["code"]: i for i in package.technique_issues}
     assert set(packaged) == {i.code for i in technique.issues}
     assert len(packaged) == 7
@@ -295,3 +295,23 @@ def test_display_metrics_are_tier3_and_never_issues() -> None:
     issue_metrics = {f for i in package.technique_issues for f in i["source_metrics"]}
     assert not issue_metrics & set(display)
     assert package.to_dict()["display_metrics"] == package.display_metrics
+
+
+def test_evidence_records_implausible_measurements() -> None:
+    from app.processing.plausibility import apply_plausibility_gate
+
+    _, _, _, phases, metrics = _build_pipeline()
+    metrics.contact_elbow_angle_deg = 7.2
+    apply_plausibility_gate(metrics)
+    technique = evaluate_technique(metrics, profile=build_provisional_smash_right_side())
+    package = package_evidence(
+        video_quality=_quality(),
+        phases=phases,
+        metrics=metrics,
+        technique=technique,
+        keyframes=_keyframes(),
+    )
+    payload = package.to_dict()
+    assert payload["measurement_warnings"] == ["IMPLAUSIBLE_MEASUREMENT"]
+    assert payload["implausible_measurements"][0]["metric"] == "contact_elbow_angle_deg"
+    assert payload["metrics"]["contact_elbow_angle_deg"] is None

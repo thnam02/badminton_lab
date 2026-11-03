@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +66,10 @@ class StrokeMetrics:
     # Follow-through: speed retention and duration after contact.
     follow_through_speed_ratio: float | None = None
     follow_through_frame_count: int | None = None
+
+    # Values removed by the plausibility gate (see app.processing.plausibility).
+    implausible_measurements: list[dict[str, Any]] = field(default_factory=list)
+    measurement_warnings: list[str] = field(default_factory=list)
 
     analysis_id: str = ""
     snapshot_id: str = ""

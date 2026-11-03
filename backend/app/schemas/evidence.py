@@ -21,7 +21,8 @@ from app.schemas.contact import (
 # 1.4.0: contact.shuttle_verified.
 # 1.5.0: tiered rules — technique_issues carry tier / reference_validated /
 #        unvalidated_prior / tentative / source_metrics; Tier 3 display_metrics.
-EVIDENCE_VERSION = "1.5.0"
+# 1.6.0: implausible_measurements / measurement_warnings (plausibility gate).
+EVIDENCE_VERSION = "1.6.0"
 
 EVIDENCE_DEFAULT_NOTES = (
     "Assembled from already-computed analysis artifacts; "
@@ -106,6 +107,9 @@ class EvidencePackage:
     composite_scores: dict[str, Any] = field(default_factory=dict)
     # Tier 3 metrics shown for context only; never technique issues.
     display_metrics: list[dict[str, Any]] = field(default_factory=list)
+    # Metric values excluded as physiologically implausible (tracking errors).
+    implausible_measurements: list[dict[str, Any]] = field(default_factory=list)
+    measurement_warnings: list[str] = field(default_factory=list)
     camera_view: str | None = None
     # Distinct swings found in the clip; only the chosen one is analysed.
     swing_count: int | None = None
@@ -138,6 +142,8 @@ class EvidencePackage:
             "keyframes": self.keyframes,
             "composite_scores": self.composite_scores,
             "display_metrics": list(self.display_metrics),
+            "implausible_measurements": list(self.implausible_measurements),
+            "measurement_warnings": list(self.measurement_warnings),
             "swing_count": self.swing_count,
             "swing_candidates": list(self.swing_candidates),
             "keyframes_output_dir": self.keyframes_output_dir,

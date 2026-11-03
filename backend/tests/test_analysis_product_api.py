@@ -426,3 +426,17 @@ def test_legacy_issues_are_not_tentative(tmp_path: Path) -> None:
     result = get_analysis_result("old111", output_dir=tmp_path)
     assert all(i["tentative"] is False and i["tier"] is None for i in result["issues"])
     assert result["display_metrics"] == []
+
+
+def test_implausible_measurement_warning_becomes_limitation(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "imp111")
+    _write(
+        tmp_path / "imp111_pose_evidence.json",
+        {
+            "evidence_version": "1.6.0",
+            "measurement_warnings": ["IMPLAUSIBLE_MEASUREMENT"],
+            "implausible_measurements": [{"metric": "contact_elbow_angle_deg", "value": 7.2}],
+        },
+    )
+    result = get_analysis_result("imp111", output_dir=tmp_path)
+    assert any("physically impossible" in note for note in result["limitations"])

@@ -139,6 +139,9 @@ def compute_clear_metrics(
             max(0.0, rec_seg.end_timestamp - rec_seg.start_timestamp)
         )
 
+    from app.processing.plausibility import apply_plausibility_gate
+
+    apply_plausibility_gate(metrics)
     return metrics
 
 

@@ -46,6 +46,9 @@ HARD RULES (must follow):
     tier=2 hints are 2D angle cues from a side-on view — always weaker than tier=1.
 14. evidence.display_metrics are context only. Never present them as faults,
     and never derive a technique issue from them.
+15. evidence.implausible_measurements were excluded as tracking errors. Never
+    quote their values or coach from them; you may mention in caveats that some
+    measurements were unreliable.
 
 Output must match the provided structured schema exactly.
 """

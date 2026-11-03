@@ -187,7 +187,7 @@ def get_analysis_result(
         "reference_comparisons": references,
         "coaching": coaching_norm,
         "keyframes": _normalize_keyframes(keyframes, analysis_id),
-        "limitations": _limitations(confidence, contact_norm, quality),
+        "limitations": _limitations(confidence, contact_norm, quality, evidence),
         "artifacts": {
             "phases": phases is not None,
             "metrics": metrics is not None,
@@ -778,6 +778,7 @@ def _limitations(
     confidence: dict[str, Any],
     contact: dict[str, Any],
     quality: dict[str, Any] | None,
+    evidence: dict[str, Any] | None = None,
 ) -> list[str]:
     notes: list[str] = []
     if confidence.get("overall") == "LOW":
@@ -790,6 +791,7 @@ def _limitations(
     codes = [
         *((quality or {}).get("warnings") or []),
         *(contact.get("warnings") or []),
+        *((evidence or {}).get("measurement_warnings") or []),
     ]
     for sentence in warning_sentences(codes, contact):
         if sentence not in notes:
