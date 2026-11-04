@@ -49,6 +49,11 @@ HARD RULES (must follow):
 15. evidence.implausible_measurements were excluded as tracking errors. Never
     quote their values or coach from them; you may mention in caveats that some
     measurements were unreliable.
+16. If evidence.camera_view is not SIDE, the tier-2 checks (elbow bend at
+    contact, leg drive, preparation knee bend) were NOT run. Never say the
+    stroke has no issues or no faults; say those aspects were not assessed from
+    this camera angle and suggest filming from the side, at hip height, with the
+    whole body in view.
 
 Output must match the provided structured schema exactly.
 """

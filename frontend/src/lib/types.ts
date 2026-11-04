@@ -71,6 +71,15 @@ export type DisplayMetric = {
   note?: string | null;
 };
 
+/** Which checks ran: side-view-only (Tier 2) checks are skipped for other views. */
+export type AssessmentScope = {
+  camera_view: string;
+  limited_view: boolean;
+  limited_view_message?: string | null;
+  tier2_skipped: boolean;
+  not_assessed: { code: string; title: string }[];
+};
+
 export type ReferenceComparisonData = {
   metric_id?: string;
   title?: string;
@@ -177,6 +186,7 @@ export type AnalysisResult = {
   metrics: { id: string; label: string; value: number; unit: string }[];
   /** Tier 3: shown for context only, never a technique issue. */
   display_metrics?: DisplayMetric[];
+  assessment_scope?: AssessmentScope | null;
   composite_scores?: CompositeScoresView | null;
   reference_comparisons: ReferenceComparisonData[];
   coaching: CoachingReportView;

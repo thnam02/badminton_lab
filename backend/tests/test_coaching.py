@@ -290,3 +290,10 @@ def test_fallback_marks_tentative_issues_as_hints() -> None:
     assert any("tentative" in c for c in report.caveats)
     # Issue without tier metadata is unchanged.
     assert not report.prioritized_issues[1].explanation.startswith("Possible issue")
+
+
+def test_prompt_forbids_no_issue_claims_for_limited_views() -> None:
+    text = SYSTEM_INSTRUCTIONS.lower()
+    assert "camera_view is not side" in text
+    assert "never say the" in text and "no issues" in text
+    assert "not assessed from" in text

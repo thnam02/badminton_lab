@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnalysisHeader } from "@/components/analysis/AnalysisHeader";
+import {
+  LimitedViewNotice,
+  TechniqueCheckSummary,
+} from "@/components/analysis/AssessmentScope";
 import { CoachingFocus } from "@/components/analysis/CoachingFocus";
 import { CompositeScoresPanel } from "@/components/analysis/CompositeScoresPanel";
 import { ConfidenceSummaryPanel } from "@/components/analysis/ConfidenceSummary";
@@ -99,10 +103,12 @@ export function AnalysisResultView({ analysisId }: Props) {
   const { main, other } = splitMainAndOther(findings);
   const preferCoachingHero = Boolean(data.coaching?.available && data.coaching.main_focus);
   const fps = estimateFpsFromPhases(data.phases);
+  const limitedView = Boolean(data.assessment_scope?.limited_view);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6">
       <AnalysisHeader analysis={data} />
+      <LimitedViewNotice scope={data.assessment_scope} />
 
       <section className="space-y-4">
         <VideoPlayer
@@ -129,6 +135,7 @@ export function AnalysisResultView({ analysisId }: Props) {
         <CoachingFocus
           coaching={data.coaching}
           onSeek={(t) => seek(t, true)}
+          limitedView={limitedView}
         />
       ) : main ? (
         <section className="space-y-3">
@@ -147,8 +154,11 @@ export function AnalysisResultView({ analysisId }: Props) {
         <CoachingFocus
           coaching={data.coaching}
           onSeek={(t) => seek(t, true)}
+          limitedView={limitedView}
         />
       )}
+
+      <TechniqueCheckSummary scope={data.assessment_scope} findingsCount={findings.length} />
 
       <SecondaryFindings
         other={preferCoachingHero ? findings.filter((f) => f.code !== data.coaching.main_focus?.issue_code) : other}

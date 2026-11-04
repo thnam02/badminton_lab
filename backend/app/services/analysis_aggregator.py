@@ -11,6 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from app.config import settings
+from app.processing.technique_rules_config import (
+    TIER_BY_CODE,
+    TIER_HINT,
+    TIER_HINT_CAMERA_VIEW,
+)
 from app.services.analysis_index import (
     AnalysisIndexEntry,
     load_index,
@@ -68,6 +73,11 @@ ISSUE_TITLES = {
 CONTACT_ESTIMATED_NOTE = (
     "Contact time is estimated from your arm speed. The shuttle wasn't tracked "
     "at that moment, so it may be a few frames off."
+)
+
+LIMITED_VIEW_MESSAGE = (
+    "This camera angle allows only limited analysis. Film from the side, at hip "
+    "height, with your whole body in view, for a full technique assessment."
 )
 
 # Limitations are ordered highest priority first; only the top few are shown.
@@ -182,6 +192,7 @@ def get_analysis_result(
         ],
         "findings": [i for i in issues_norm if i.get("is_finding")],
         "metrics": metrics_norm,
+        "assessment_scope": _assessment_scope(evidence, technique),
         "display_metrics": _normalize_display_metrics(evidence),
         "composite_scores": composite_scores,
         "reference_comparisons": references,
@@ -498,6 +509,31 @@ def _is_tentative_issue(raw: dict[str, Any]) -> bool:
     if raw.get("tier") is None:
         return False
     return raw.get("tier") == 2 or raw.get("reference_validated") is not True
+
+
+def _assessment_scope(
+    evidence: dict[str, Any] | None, technique: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Which checks ran: Tier 2 hints run only for side-on views (tiered rules)."""
+    view = str((evidence or {}).get("camera_view") or "UNKNOWN").upper()
+    tiered = str((technique or {}).get("rule_version") or "").startswith("tiered_rules")
+    limited = tiered and view != TIER_HINT_CAMERA_VIEW
+    not_assessed = (
+        [
+            {"code": code, "title": ISSUE_TITLES.get(code, code)}
+            for code, tier in TIER_BY_CODE.items()
+            if tier == TIER_HINT
+        ]
+        if limited
+        else []
+    )
+    return {
+        "camera_view": view,
+        "limited_view": limited,
+        "limited_view_message": LIMITED_VIEW_MESSAGE if limited else None,
+        "tier2_skipped": limited,
+        "not_assessed": not_assessed,
+    }
 
 
 def _normalize_display_metrics(evidence: dict[str, Any] | None) -> list[dict[str, Any]]:

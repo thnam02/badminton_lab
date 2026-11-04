@@ -446,3 +446,47 @@ def test_implausible_measurement_warning_becomes_limitation(tmp_path: Path) -> N
     )
     result = get_analysis_result("imp111", output_dir=tmp_path)
     assert any("physically impossible" in note for note in result["limitations"])
+
+
+def _seed_view(root: Path, analysis_id: str, view: str | None) -> None:
+    _seed_tiered(root, analysis_id)
+    tech_path = root / f"{analysis_id}_pose_technique.json"
+    tech = json.loads(tech_path.read_text())
+    tech["rule_version"] = "tiered_rules_v3"
+    tech["issues"] = []
+    _write(tech_path, tech)
+    _write(
+        root / f"{analysis_id}_pose_evidence.json",
+        {"evidence_version": "1.6.0", "camera_view": view},
+    )
+
+
+@pytest.mark.parametrize("view", ["FRONT", "REAR", "UNKNOWN", None])
+def test_limited_view_scope_lists_skipped_tier2_checks(tmp_path: Path, view) -> None:
+    _seed_view(tmp_path, "lim111", view)
+    scope = get_analysis_result("lim111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["limited_view"] is True
+    assert scope["tier2_skipped"] is True
+    assert scope["limited_view_message"] == (
+        "This camera angle allows only limited analysis. Film from the side, at hip "
+        "height, with your whole body in view, for a full technique assessment."
+    )
+    assert {c["code"] for c in scope["not_assessed"]} == {
+        "BENT_ELBOW_AT_CONTACT",
+        "LIMITED_LEG_DRIVE",
+        "STIFF_PREPARATION_KNEE",
+    }
+
+
+def test_side_view_scope_is_full(tmp_path: Path) -> None:
+    _seed_view(tmp_path, "side111", "SIDE")
+    scope = get_analysis_result("side111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["limited_view"] is False
+    assert scope["limited_view_message"] is None
+    assert scope["not_assessed"] == []
+
+
+def test_legacy_rule_analyses_are_not_marked_limited(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "leg111")
+    scope = get_analysis_result("leg111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["limited_view"] is False

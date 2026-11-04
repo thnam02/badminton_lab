@@ -50,10 +50,13 @@ const HANDEDNESS_OPTIONS: { value: Handedness; label: string }[] = [
 
 const CAMERA_VIEW_OPTIONS: { value: CameraView; label: string }[] = [
   { value: "UNKNOWN", label: "Not sure" },
-  { value: "SIDE", label: "Side" },
+  { value: "SIDE", label: "Side (recommended)" },
   { value: "FRONT", label: "Front" },
   { value: "REAR", label: "Behind" },
 ];
+
+const CAMERA_VIEW_GUIDANCE =
+  "Film from the side, at hip height, with your whole body in view. Front, behind or \"Not sure\" allow only limited analysis.";
 
 export default function AnalyzePage() {
   const router = useRouter();
@@ -203,7 +206,7 @@ export default function AnalyzePage() {
         <ul className="mt-4 space-y-2 text-sm text-[var(--fg)]">
           <li>✓ Keep your full body visible</li>
           <li>✓ Use a static camera</li>
-          <li>✓ Rear-side or side 45° view</li>
+          <li>✓ Side view at hip height (recommended)</li>
           <li>✓ 60 FPS recommended</li>
           <li>✓ Good lighting</li>
         </ul>
@@ -228,20 +231,33 @@ export default function AnalyzePage() {
               ))}
             </select>
           </label>
-          <label className="block text-sm">
-            <span className="font-medium">Camera view</span>
-            <select
-              value={cameraView}
-              onChange={(e) => setCameraView(e.target.value as CameraView)}
-              className="mt-1 block w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm"
-            >
-              {CAMERA_VIEW_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="text-sm">
+            <label className="block">
+              <span className="font-medium">Camera view</span>{" "}
+              <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
+                Side recommended
+              </span>
+              <select
+                value={cameraView}
+                onChange={(e) => setCameraView(e.target.value as CameraView)}
+                aria-describedby="camera-view-guidance"
+                className={`mt-1 block w-full rounded-md border bg-[var(--bg)] px-3 py-2 text-sm ${
+                  cameraView === "SIDE"
+                    ? "border-[var(--accent)]"
+                    : "border-[var(--border)]"
+                }`}
+              >
+                {CAMERA_VIEW_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p id="camera-view-guidance" className="mt-1 text-xs text-[var(--muted)]">
+              {CAMERA_VIEW_GUIDANCE}
+            </p>
+          </div>
         </div>
         <button
           type="button"
