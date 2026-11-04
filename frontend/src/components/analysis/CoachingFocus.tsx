@@ -7,11 +7,11 @@ import type { CoachingReportView } from "@/lib/types";
 type Props = {
   coaching: CoachingReportView;
   onSeek?: (seconds: number) => void;
-  /** Side-view-only checks were skipped: never imply the stroke has no issues. */
-  limitedView?: boolean;
+  /** Set when some checks did not run: replaces any "no focus" wording. */
+  assessmentGapNote?: string;
 };
 
-export function CoachingFocus({ coaching, onSeek, limitedView }: Props) {
+export function CoachingFocus({ coaching, onSeek, assessmentGapNote }: Props) {
   const [whyOpen, setWhyOpen] = useState(false);
 
   if (!coaching.available) {
@@ -97,9 +97,8 @@ export function CoachingFocus({ coaching, onSeek, limitedView }: Props) {
         ) : (
           <p className="mt-2 text-sm text-[var(--muted)]">
             {coaching.summary ||
-              (limitedView
-                ? "Not assessed from this camera angle."
-                : "No primary coaching focus for this stroke.")}
+              assessmentGapNote ||
+              "No primary coaching focus for this stroke."}
           </p>
         )}
       </div>

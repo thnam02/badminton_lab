@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnalysisHeader } from "@/components/analysis/AnalysisHeader";
 import {
+  assessmentGapNote,
   LimitedViewNotice,
   TechniqueCheckSummary,
 } from "@/components/analysis/AssessmentScope";
@@ -103,7 +104,7 @@ export function AnalysisResultView({ analysisId }: Props) {
   const { main, other } = splitMainAndOther(findings);
   const preferCoachingHero = Boolean(data.coaching?.available && data.coaching.main_focus);
   const fps = estimateFpsFromPhases(data.phases);
-  const limitedView = Boolean(data.assessment_scope?.limited_view);
+  const gapNote = assessmentGapNote(data.assessment_scope);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6">
@@ -135,7 +136,7 @@ export function AnalysisResultView({ analysisId }: Props) {
         <CoachingFocus
           coaching={data.coaching}
           onSeek={(t) => seek(t, true)}
-          limitedView={limitedView}
+          assessmentGapNote={gapNote}
         />
       ) : main ? (
         <section className="space-y-3">
@@ -154,7 +155,7 @@ export function AnalysisResultView({ analysisId }: Props) {
         <CoachingFocus
           coaching={data.coaching}
           onSeek={(t) => seek(t, true)}
-          limitedView={limitedView}
+          assessmentGapNote={gapNote}
         />
       )}
 

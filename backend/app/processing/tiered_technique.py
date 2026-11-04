@@ -21,8 +21,11 @@ from app.processing.technique_rules_config import (
     LIMITED_LEG_DRIVE,
     LOW_CONTACT_POINT,
     LOW_RACKET_PREPARATION,
+    RULE_CHECK_LABELS,
+    RULE_INPUTS,
     STIFF_PREPARATION_KNEE,
     TIER_BY_CODE,
+    TIER_HINT,
     TIER_HINT_CAMERA_VIEW,
     TIER_PRINCIPLE,
     TieredRulesConfig,
@@ -165,8 +168,9 @@ def evaluate_tiered(
         config=calib,
     )
 
+    side_view = str(camera_view or "").upper() == TIER_HINT_CAMERA_VIEW
     findings = list(tier1_findings(metrics, cfg))
-    if str(camera_view or "").upper() == TIER_HINT_CAMERA_VIEW:
+    if side_view:
         findings.extend(tier2_findings(metrics, cfg, stroke=stroke))
 
     profile_id = selected.profile_id if selected is not None else ""
@@ -198,7 +202,47 @@ def evaluate_tiered(
         rule_version=TECHNIQUE_RULE_VERSION_TIERED,
         severity_calibration_version=calib.version,
         evaluation_confidence=eval_conf,
+        rule_coverage=rule_coverage(metrics, issues, side_view=side_view),
     )
+
+
+COVERAGE_CHECKED = "checked"
+COVERAGE_NOT_CHECKED = "not_checked"
+COVERAGE_NOT_APPLICABLE = "not_applicable"
+
+REASON_IMPLAUSIBLE = "implausible"
+REASON_MISSING = "missing"
+REASON_LOW_CONFIDENCE = "low_confidence"
+REASON_CAMERA_VIEW = "camera_view"
+
+
+def rule_coverage(
+    metrics,
+    issues: list[TechniqueIssue],
+    *,
+    side_view: bool,
+) -> list[dict]:
+    """Whether each tiered rule actually ran on this clip, and why not if not."""
+    implausible = {
+        d.get("metric") for d in getattr(metrics, "implausible_measurements", []) or []
+    }
+    status_by_code = {i.code: i.status for i in issues}
+    out: list[dict] = []
+    for code, tier in TIER_BY_CODE.items():
+        inputs = RULE_INPUTS.get(code, ())
+        entry = {"code": code, "tier": tier, "label": RULE_CHECK_LABELS.get(code, code)}
+        if tier == TIER_HINT and not side_view:
+            entry.update(status=COVERAGE_NOT_APPLICABLE, reason=REASON_CAMERA_VIEW)
+        elif any(name in implausible for name in inputs):
+            entry.update(status=COVERAGE_NOT_CHECKED, reason=REASON_IMPLAUSIBLE)
+        elif any(getattr(metrics, name, None) is None for name in inputs):
+            entry.update(status=COVERAGE_NOT_CHECKED, reason=REASON_MISSING)
+        elif status_by_code.get(code) == IssueStatus.INSUFFICIENT_EVIDENCE.value:
+            entry.update(status=COVERAGE_NOT_CHECKED, reason=REASON_LOW_CONFIDENCE)
+        else:
+            entry.update(status=COVERAGE_CHECKED, reason=None)
+        out.append(entry)
+    return out
 
 
 def tier1_findings(metrics, cfg: TieredRulesConfig) -> list[_Finding]:

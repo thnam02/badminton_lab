@@ -256,3 +256,35 @@ def test_production_analyzers_use_tiered_rules(tmp_path: Path):
         technique = analyzer.evaluate(state, metrics, camera_view="SIDE")
         assert technique.rule_version == TECHNIQUE_RULE_VERSION_TIERED
         assert not {i.code for i in technique.issues} & RETIRED_CODES
+
+
+def _coverage(evaluation) -> dict[str, tuple[str, str | None]]:
+    return {c["code"]: (c["status"], c["reason"]) for c in evaluation.rule_coverage}
+
+
+def test_rule_coverage_all_checked_for_clean_side_view():
+    cov = _coverage(_eval(_clean(), camera_view="SIDE"))
+    assert len(cov) == 6
+    assert all(status == "checked" for status, _ in cov.values())
+
+
+def test_rule_coverage_marks_tier2_not_applicable_off_side():
+    cov = _coverage(_eval(_clean(), camera_view=None))
+    assert cov[BENT_ELBOW_AT_CONTACT] == ("not_applicable", "camera_view")
+    assert cov[LOW_CONTACT_POINT] == ("checked", None)
+
+
+def test_rule_coverage_reports_implausible_and_missing_inputs():
+    m = _clean(contact_elbow_angle_deg=None, contact_nose_y_normalized=None)
+    m.implausible_measurements = [{"metric": "contact_elbow_angle_deg", "value": 7.2}]
+    cov = _coverage(_eval(m, camera_view="SIDE"))
+    assert cov[BENT_ELBOW_AT_CONTACT] == ("not_checked", "implausible")
+    assert cov[LOW_CONTACT_POINT] == ("not_checked", "missing")
+    assert cov[LIMITED_LEG_DRIVE] == ("checked", None)
+
+
+def test_rule_coverage_counts_insufficient_evidence_as_not_checked():
+    m = _clean(phase_confidence=0.1, contact_confidence=0.1, contact_window_min_wrist_y_normalized=0.5)
+    evaluation = _eval(m, quality_confidence=0.1, pose_confidence=0.1)
+    assert _coverage(evaluation)[LOW_CONTACT_POINT] == ("not_checked", "low_confidence")
+    assert evaluation.to_dict()["rule_coverage"] == evaluation.rule_coverage

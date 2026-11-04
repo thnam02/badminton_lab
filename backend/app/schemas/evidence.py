@@ -23,7 +23,8 @@ from app.schemas.contact import (
 #        unvalidated_prior / tentative / source_metrics; Tier 3 display_metrics.
 # 1.6.0: implausible_measurements / measurement_warnings (plausibility gate).
 # 1.7.0: composite_scores.chain_score is always null with chain_unavailable_reason.
-EVIDENCE_VERSION = "1.7.0"
+# 1.8.0: rule_coverage (which tiered rules ran, and why not).
+EVIDENCE_VERSION = "1.8.0"
 
 EVIDENCE_DEFAULT_NOTES = (
     "Assembled from already-computed analysis artifacts; "
@@ -111,6 +112,7 @@ class EvidencePackage:
     # Metric values excluded as physiologically implausible (tracking errors).
     implausible_measurements: list[dict[str, Any]] = field(default_factory=list)
     measurement_warnings: list[str] = field(default_factory=list)
+    rule_coverage: list[dict[str, Any]] = field(default_factory=list)
     camera_view: str | None = None
     # Distinct swings found in the clip; only the chosen one is analysed.
     swing_count: int | None = None
@@ -145,6 +147,7 @@ class EvidencePackage:
             "display_metrics": list(self.display_metrics),
             "implausible_measurements": list(self.implausible_measurements),
             "measurement_warnings": list(self.measurement_warnings),
+            "rule_coverage": list(self.rule_coverage),
             "swing_count": self.swing_count,
             "swing_candidates": list(self.swing_candidates),
             "keyframes_output_dir": self.keyframes_output_dir,

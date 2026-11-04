@@ -534,13 +534,43 @@ def _assessment_scope(
         if limited
         else []
     )
+    coverage = [c for c in (technique or {}).get("rule_coverage") or [] if isinstance(c, dict)]
+    applicable = [c for c in coverage if c.get("status") != "not_applicable"]
+    unchecked = [
+        {
+            "code": c.get("code"),
+            "label": c.get("label") or c.get("code"),
+            "reason": _unchecked_reason(c),
+        }
+        for c in applicable
+        if c.get("status") != "checked"
+    ]
     return {
         "camera_view": view,
         "limited_view": limited,
         "limited_view_message": LIMITED_VIEW_MESSAGE if limited else None,
         "tier2_skipped": limited,
         "not_assessed": not_assessed,
+        # Older analyses have no coverage record: completeness is unknown.
+        "coverage_known": bool(coverage),
+        "checked_count": len(applicable) - len(unchecked),
+        "applicable_count": len(applicable),
+        "unchecked": unchecked,
+        "complete": bool(coverage) and not unchecked,
     }
+
+
+UNCHECKED_REASONS = {
+    "implausible": "{label} could not be measured reliably",
+    "missing": "{label} could not be measured (body points not tracked)",
+    "low_confidence": "{label}: measurement confidence was too low",
+}
+
+
+def _unchecked_reason(entry: dict[str, Any]) -> str:
+    label = str(entry.get("label") or entry.get("code") or "This item")
+    template = UNCHECKED_REASONS.get(str(entry.get("reason")), "{label} could not be checked")
+    return template.format(label=label)
 
 
 def _normalize_display_metrics(evidence: dict[str, Any] | None) -> list[dict[str, Any]]:

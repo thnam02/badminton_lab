@@ -297,3 +297,10 @@ def test_prompt_forbids_no_issue_claims_for_limited_views() -> None:
     assert "camera_view is not side" in text
     assert "never say the" in text and "no issues" in text
     assert "not assessed from" in text
+
+
+def test_prompt_forbids_no_issue_claims_for_partial_assessment() -> None:
+    text = SYSTEM_INSTRUCTIONS.lower()
+    assert "rule_coverage" in text
+    assert 'status="not_checked"' in text
+    assert "assessment\n    is partial" in text or "assessment is partial" in text.replace("\n    ", " ")

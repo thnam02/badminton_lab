@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult } from "@/lib/types";
 import { AnalysisResultView } from "./AnalysisResultView";
+import clipESide from "./__fixtures__/clipE_side.json";
 
 const fetchAnalysis = vi.fn<(id: string) => Promise<AnalysisResult>>();
 
@@ -94,6 +95,11 @@ function withScope(view: "SIDE" | "FRONT"): AnalysisResult {
       limited_view: limited,
       limited_view_message: limited ? LIMITED_MESSAGE : null,
       tier2_skipped: limited,
+      coverage_known: true,
+      checked_count: limited ? 3 : 6,
+      applicable_count: limited ? 3 : 6,
+      unchecked: [],
+      complete: true,
       not_assessed: limited
         ? [
             { code: "BENT_ELBOW_AT_CONTACT", title: "Bent elbow at contact" },
@@ -128,6 +134,32 @@ describe("AnalysisResultView camera-angle scope", () => {
     expect(screen.queryByText(/no technique issues/i)).toBeNull();
     expect(screen.queryByText(/no primary coaching focus/i)).toBeNull();
     expect(screen.getByText("Not assessed from this camera angle.")).toBeTruthy();
+  });
+
+  it("clip E under SIDE shows a partial assessment, not 'no issues'", async () => {
+    // Real aggregator output: E's contact elbow (7.2°) was excluded as implausible.
+    fetchAnalysis.mockResolvedValue(clipESide as unknown as AnalysisResult);
+    render(<AnalysisResultView analysisId="E_813bee5f" />);
+    const section = await screen.findByRole("region", { name: "Checked 5 of 6 items" });
+    expect(section.textContent).toContain(
+      "Elbow angle at contact could not be measured reliably"
+    );
+    expect(screen.queryByText("No technique issues found")).toBeNull();
+    expect(screen.queryByText(/no primary coaching focus/i)).toBeNull();
+    expect(screen.queryByText(/Not assessed from this camera angle/)).toBeNull();
+  });
+
+  it("does not claim no issues when coverage is unknown", async () => {
+    const result = withScope("SIDE");
+    result.assessment_scope = {
+      ...result.assessment_scope!,
+      coverage_known: false,
+      complete: false,
+    };
+    fetchAnalysis.mockResolvedValue(result);
+    render(<AnalysisResultView analysisId="abc123" />);
+    await screen.findByText("Technical details");
+    expect(screen.queryByText("No technique issues found")).toBeNull();
   });
 });
 

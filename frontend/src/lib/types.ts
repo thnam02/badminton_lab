@@ -78,6 +78,14 @@ export type AssessmentScope = {
   limited_view_message?: string | null;
   tier2_skipped: boolean;
   not_assessed: { code: string; title: string }[];
+  /** False for analyses recorded before rule coverage existed. */
+  coverage_known?: boolean;
+  checked_count?: number;
+  applicable_count?: number;
+  /** Applicable rules that could not run, with a short user-facing reason. */
+  unchecked?: { code: string; label: string; reason: string }[];
+  /** True only when every applicable rule ran. */
+  complete?: boolean;
 };
 
 export type ReferenceComparisonData = {

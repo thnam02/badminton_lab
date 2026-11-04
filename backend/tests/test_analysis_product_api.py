@@ -499,3 +499,30 @@ def test_legacy_rule_analyses_are_not_marked_limited(tmp_path: Path) -> None:
     _seed_analysis(tmp_path, "leg111")
     scope = get_analysis_result("leg111", output_dir=tmp_path)["assessment_scope"]
     assert scope["limited_view"] is False
+
+
+def test_scope_reports_partial_coverage_with_reasons(tmp_path: Path) -> None:
+    _seed_view(tmp_path, "part111", "SIDE")
+    tech_path = tmp_path / "part111_pose_technique.json"
+    tech = json.loads(tech_path.read_text())
+    tech["rule_coverage"] = [
+        {"code": "LOW_CONTACT_POINT", "tier": 1, "label": "Contact height", "status": "checked", "reason": None},
+        {"code": "LOW_RACKET_PREPARATION", "tier": 1, "label": "Racket preparation height", "status": "not_checked", "reason": "missing"},
+        {"code": "BENT_ELBOW_AT_CONTACT", "tier": 2, "label": "Elbow angle at contact", "status": "not_checked", "reason": "implausible"},
+        {"code": "LIMITED_LEG_DRIVE", "tier": 2, "label": "Leg drive", "status": "checked", "reason": None},
+    ]
+    _write(tech_path, tech)
+    scope = get_analysis_result("part111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["coverage_known"] is True
+    assert scope["complete"] is False
+    assert (scope["checked_count"], scope["applicable_count"]) == (2, 4)
+    reasons = {u["code"]: u["reason"] for u in scope["unchecked"]}
+    assert reasons["BENT_ELBOW_AT_CONTACT"] == "Elbow angle at contact could not be measured reliably"
+    assert reasons["LOW_RACKET_PREPARATION"].startswith("Racket preparation height could not be measured")
+
+
+def test_scope_without_coverage_is_not_complete(tmp_path: Path) -> None:
+    _seed_view(tmp_path, "nocov111", "SIDE")
+    scope = get_analysis_result("nocov111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["coverage_known"] is False
+    assert scope["complete"] is False

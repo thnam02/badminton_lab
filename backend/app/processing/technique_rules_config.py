@@ -40,6 +40,30 @@ TIER_BY_CODE: dict[str, int] = {
     STIFF_PREPARATION_KNEE: TIER_HINT,
 }
 
+# Metric fields each rule needs; a rule whose inputs are missing or excluded
+# by the plausibility gate is reported as not checked.
+RULE_INPUTS: dict[str, tuple[str, ...]] = {
+    LOW_CONTACT_POINT: ("contact_window_min_wrist_y_normalized", "contact_nose_y_normalized"),
+    LATE_ELBOW_ACCELERATION: ("swing_peak_elbow_omega_offset_frames",),
+    LOW_RACKET_PREPARATION: (
+        "backswing_end_wrist_y_normalized",
+        "backswing_end_shoulder_y_normalized",
+    ),
+    BENT_ELBOW_AT_CONTACT: ("contact_elbow_angle_deg",),
+    LIMITED_LEG_DRIVE: ("knee_contribution_deg",),
+    STIFF_PREPARATION_KNEE: ("preparation_knee_angle_deg",),
+}
+
+# What each rule checks, for "not checked" explanations.
+RULE_CHECK_LABELS: dict[str, str] = {
+    LOW_CONTACT_POINT: "Contact height",
+    LATE_ELBOW_ACCELERATION: "Elbow acceleration timing",
+    LOW_RACKET_PREPARATION: "Racket preparation height",
+    BENT_ELBOW_AT_CONTACT: "Elbow angle at contact",
+    LIMITED_LEG_DRIVE: "Leg drive",
+    STIFF_PREPARATION_KNEE: "Preparation knee bend",
+}
+
 # Tier 2 rules run only for this declared camera view.
 TIER_HINT_CAMERA_VIEW = "SIDE"
 

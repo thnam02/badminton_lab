@@ -1,0 +1,385 @@
+{
+  "analysis_id": "E_813bee5f",
+  "created_at": "2026-11-04T07:00:00+00:00",
+  "stroke_type": "Forehand Smash",
+  "stroke_type_raw": "FOREHAND_SMASH",
+  "handedness": "Right-handed",
+  "handedness_raw": "RIGHT",
+  "camera_view": "SIDE",
+  "reference_profile_id": "smash_right_side_provisional_v1",
+  "snapshot_id": "snap_976b6f4b8063e966",
+  "analysis_status": "COMPLETE",
+  "coaching_status": "SKIPPED",
+  "mesh_status": "NONE",
+  "video": {
+    "pose_video_url": "/outputs/E_813bee5f_pose.mp4",
+    "available": true,
+    "overlay_modes": [
+      {
+        "id": "analysis",
+        "label": "Analysis overlay",
+        "available": true,
+        "default": true,
+        "toggleable": false,
+        "note": "Skeleton and phase cues are baked into the analysis video."
+      }
+    ]
+  },
+  "confidence": {
+    "overall": "HIGH",
+    "overall_score": 0.7972147173935077,
+    "components": [
+      {
+        "id": "pose",
+        "label": "Pose tracking",
+        "level": "HIGH",
+        "score": 0.7972147173935077
+      },
+      {
+        "id": "contact",
+        "label": "Contact timing (estimated)",
+        "level": "HIGH",
+        "score": 0.8181563028174157
+      },
+      {
+        "id": "video",
+        "label": "Video quality",
+        "level": "HIGH",
+        "score": 0.7972147173935077
+      },
+      {
+        "id": "phase",
+        "label": "Phase detection",
+        "level": "HIGH",
+        "score": 0.9171944789438867
+      },
+      {
+        "id": "reference",
+        "label": "Reference match",
+        "level": "HIGH",
+        "score": 0.8376868293341571
+      }
+    ],
+    "message": null
+  },
+  "phases": [
+    {
+      "id": "PREPARATION",
+      "label": "Preparation",
+      "start_timestamp": 0.0,
+      "end_timestamp": 7.5,
+      "start_frame_index": 0,
+      "end_frame_index": 225,
+      "confidence": 0.6878958592079151,
+      "is_contact_event": false,
+      "seek_timestamp": 0.0
+    },
+    {
+      "id": "BACKSWING",
+      "label": "Backswing",
+      "start_timestamp": 7.533333333333333,
+      "end_timestamp": 7.666666666666667,
+      "start_frame_index": 226,
+      "end_frame_index": 230,
+      "confidence": 0.7337555831551095,
+      "is_contact_event": false,
+      "seek_timestamp": 7.533333333333333
+    },
+    {
+      "id": "ACCELERATION",
+      "label": "Acceleration",
+      "start_timestamp": 7.7,
+      "end_timestamp": 7.8,
+      "start_frame_index": 231,
+      "end_frame_index": 234,
+      "confidence": 0.825475031049498,
+      "is_contact_event": false,
+      "seek_timestamp": 7.7
+    },
+    {
+      "id": "ESTIMATED_CONTACT",
+      "label": "Estimated contact",
+      "start_timestamp": 7.833333333333333,
+      "end_timestamp": 7.833333333333333,
+      "start_frame_index": 235,
+      "end_frame_index": 235,
+      "confidence": 0.9171944789438867,
+      "is_contact_event": true,
+      "seek_timestamp": 7.833333333333333
+    },
+    {
+      "id": "FOLLOW_THROUGH",
+      "label": "Follow-through",
+      "start_timestamp": 7.866666666666666,
+      "end_timestamp": 8.066666666666666,
+      "start_frame_index": 236,
+      "end_frame_index": 242,
+      "confidence": 0.7796153071023036,
+      "is_contact_event": false,
+      "seek_timestamp": 7.866666666666666
+    }
+  ],
+  "contact": {
+    "timestamp": 7.833333333333333,
+    "frame_index": 235,
+    "confidence": 0.8181563028174157,
+    "contact_type": "KINEMATIC_ESTIMATE",
+    "label": "Estimated contact (not verified by shuttle)",
+    "notes": "Contact time is estimated from your arm speed. The shuttle wasn't tracked at that moment, so it may be a few frames off.",
+    "shuttle_verified": false,
+    "swing_count": 4,
+    "chosen_swing_timestamp": 7.833333333333333,
+    "warnings": [
+      "MULTIPLE_SWINGS_DETECTED",
+      "CONTACT_NOT_VERIFIED_BY_SHUTTLE"
+    ],
+    "available": true
+  },
+  "issues": [],
+  "insufficient_evidence": [],
+  "findings": [],
+  "metrics": [
+    {
+      "id": "contact_knee_angle_deg",
+      "label": "Knee at contact",
+      "value": 160.78343695917968,
+      "unit": "deg"
+    },
+    {
+      "id": "contact_shoulder_angle_deg",
+      "label": "Shoulder at contact",
+      "value": 56.679770028322466,
+      "unit": "deg"
+    },
+    {
+      "id": "knee_contribution_deg",
+      "label": "Knee contribution",
+      "value": 15.11540002065172,
+      "unit": "deg"
+    },
+    {
+      "id": "preparation_elbow_angle_deg",
+      "label": "Preparation elbow",
+      "value": 97.7267502706161,
+      "unit": "deg"
+    },
+    {
+      "id": "preparation_knee_angle_deg",
+      "label": "Preparation knee",
+      "value": 157.79523464260436,
+      "unit": "deg"
+    },
+    {
+      "id": "peak_wrist_speed",
+      "label": "Peak wrist speed",
+      "value": 0.8964009888335189,
+      "unit": ""
+    },
+    {
+      "id": "peak_elbow_omega_offset_frames",
+      "label": "Elbow peak timing offset",
+      "value": 0,
+      "unit": "frames"
+    },
+    {
+      "id": "peak_shoulder_omega_offset_frames",
+      "label": "Shoulder peak timing offset",
+      "value": 0,
+      "unit": "frames"
+    },
+    {
+      "id": "peak_hip_omega_offset_frames",
+      "label": "Hip peak timing offset",
+      "value": -64,
+      "unit": "frames"
+    },
+    {
+      "id": "kinetic_chain_hip_shoulder_gap_frames",
+      "label": "Hip\u2192shoulder peak gap",
+      "value": 64,
+      "unit": "frames"
+    },
+    {
+      "id": "kinetic_chain_shoulder_elbow_gap_frames",
+      "label": "Shoulder\u2192elbow peak gap",
+      "value": 0,
+      "unit": "frames"
+    },
+    {
+      "id": "follow_through_speed_ratio",
+      "label": "Follow-through speed retention",
+      "value": 0.9613771742361928,
+      "unit": ""
+    },
+    {
+      "id": "acceleration_phase_fraction",
+      "label": "Acceleration phase fraction",
+      "value": 0.01694915254237288,
+      "unit": ""
+    },
+    {
+      "id": "contact_wrist_y_normalized",
+      "label": "Contact wrist height",
+      "value": 0.457818966820127,
+      "unit": ""
+    },
+    {
+      "id": "phase_confidence",
+      "label": "Phase confidence",
+      "value": 0.9171944789438867,
+      "unit": ""
+    }
+  ],
+  "assessment_scope": {
+    "camera_view": "SIDE",
+    "limited_view": false,
+    "limited_view_message": null,
+    "tier2_skipped": false,
+    "not_assessed": [],
+    "coverage_known": true,
+    "checked_count": 5,
+    "applicable_count": 6,
+    "unchecked": [
+      {
+        "code": "BENT_ELBOW_AT_CONTACT",
+        "label": "Elbow angle at contact",
+        "reason": "Elbow angle at contact could not be measured reliably"
+      }
+    ],
+    "complete": false
+  },
+  "display_metrics": [
+    {
+      "id": "contact_shoulder_angle_deg",
+      "label": "Shoulder angle at contact",
+      "value": 56.679770028322466,
+      "unit": "deg",
+      "note": null
+    },
+    {
+      "id": "peak_trunk_rotation_deg",
+      "label": "Trunk rotation (2D)",
+      "value": 88.09318495476339,
+      "unit": "deg",
+      "note": null
+    },
+    {
+      "id": "preparation_elbow_angle_deg",
+      "label": "Preparation elbow angle",
+      "value": 97.7267502706161,
+      "unit": "deg",
+      "note": null
+    },
+    {
+      "id": "follow_through_speed_ratio",
+      "label": "Follow-through speed ratio",
+      "value": 0.9613771742361928,
+      "unit": "",
+      "note": null
+    },
+    {
+      "id": "peak_wrist_speed",
+      "label": "Peak wrist speed",
+      "value": 0.8964009888335189,
+      "unit": "",
+      "note": null
+    },
+    {
+      "id": "swing_elbow_lead_over_shoulder_frames",
+      "label": "Arm-elevation timing (elbow peak lead over shoulder)",
+      "value": 0,
+      "unit": "frames",
+      "note": null
+    },
+    {
+      "id": "acceleration_elbow_extension_lead_over_trunk_frames",
+      "label": "Kinetic chain timing (elbow extension lead over trunk turn, during the hit)",
+      "value": 2,
+      "unit": "frames",
+      "note": "Low reliability in 2D video."
+    },
+    {
+      "id": "peak_trunk_rotation_velocity_deg_s",
+      "label": "Trunk rotation speed (during the hit)",
+      "value": 50.598265088293424,
+      "unit": "deg/s",
+      "note": "Low reliability in 2D video."
+    }
+  ],
+  "composite_scores": {
+    "available": true,
+    "chain_score": null,
+    "chain_unavailable_reason": "requires 3D landmarks",
+    "power_score": 0.3,
+    "base_score": 0.36057171688457346,
+    "notes": "Composite scores use canonical formulas; most ranges/weights are unvalidated priors. contact_wrist_y: lower y = higher contact; height score anchors on technique threshold 0.58 with unvalidated 0.20 width. When no real peak_speed_percentile is supplied, POWER uses a STOPGAP min-max of peak_wrist_speed on a small local clip set (not a population percentile) \u2014 replace once profiles include peak_wrist_speed."
+  },
+  "reference_comparisons": [],
+  "coaching": {
+    "available": false,
+    "status": "UNAVAILABLE",
+    "summary": "Coaching layer was not run.",
+    "main_focus": null,
+    "secondary": [],
+    "strengths": [],
+    "drills": [],
+    "caveats": [
+      "OpenAI coaching is disabled (OPENAI_COACHING_ENABLED=false)."
+    ],
+    "notes": "Coaching layer explains deterministic evidence only; it must not recalculate biomechanics measurements."
+  },
+  "keyframes": [
+    {
+      "label": "PREPARATION",
+      "timestamp": 3.7333333333333334,
+      "url": null
+    },
+    {
+      "label": "BACKSWING",
+      "timestamp": 7.6,
+      "url": null
+    },
+    {
+      "label": "ACCELERATION",
+      "timestamp": 7.733333333333333,
+      "url": null
+    },
+    {
+      "label": "CONTACT_MINUS_2",
+      "timestamp": 7.766666666666667,
+      "url": null
+    },
+    {
+      "label": "ESTIMATED_CONTACT",
+      "timestamp": 7.833333333333333,
+      "url": null
+    },
+    {
+      "label": "CONTACT_PLUS_2",
+      "timestamp": 7.9,
+      "url": null
+    },
+    {
+      "label": "FOLLOW_THROUGH",
+      "timestamp": 7.966666666666667,
+      "url": null
+    }
+  ],
+  "limitations": [
+    "We found 4 swings and analysed the one at 0:07.83.",
+    "Some joint angles came out physically impossible (likely a tracking error), so we left them out of the assessment.",
+    "Your racket arm was often hidden or out of view."
+  ],
+  "artifacts": {
+    "phases": true,
+    "metrics": true,
+    "technique": true,
+    "quality": true,
+    "contact": true,
+    "evidence": true,
+    "coaching": true,
+    "keyframes": true
+  },
+  "main_issue": null,
+  "analysis_confidence": 0.7972147173935077
+}

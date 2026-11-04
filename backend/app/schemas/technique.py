@@ -145,6 +145,8 @@ class TechniqueEvaluation:
     rule_version: str = ""
     severity_calibration_version: str = SEVERITY_CALIBRATION_VERSION
     evaluation_confidence: EvaluationConfidence | None = None
+    # One entry per tiered rule: checked / not_checked (with reason) / not_applicable.
+    rule_coverage: list[dict[str, Any]] = field(default_factory=list)
     analysis_id: str = ""
     snapshot_id: str = ""
     fingerprint: str = ""
@@ -192,6 +194,7 @@ class TechniqueEvaluation:
                 else None
             ),
             "issues": [issue.to_dict() for issue in self.issues],
+            "rule_coverage": list(self.rule_coverage),
         }
         payload.update(provenance_fields_from_object(self))
         return payload

@@ -54,6 +54,9 @@ HARD RULES (must follow):
     stroke has no issues or no faults; say those aspects were not assessed from
     this camera angle and suggest filming from the side, at hip height, with the
     whole body in view.
+17. If any evidence.rule_coverage entry has status="not_checked", the assessment
+    is partial. Never say the stroke has no issues; name the unchecked items
+    (their label) in caveats as not measured reliably.
 
 Output must match the provided structured schema exactly.
 """
