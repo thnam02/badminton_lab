@@ -145,7 +145,9 @@ export type ConfidenceSummary = {
 
 export type CompositeScoresView = {
   available: boolean;
+  /** Always null: chain timing is not assessable from 2D video. */
   chain_score?: number | null;
+  chain_unavailable_reason?: string | null;
   power_score?: number | null;
   base_score?: number | null;
   notes?: string | null;
@@ -226,6 +228,8 @@ export type CompareResponse = {
     left: number | null;
     right: number | null;
     change: string;
+    /** Shown instead of values when the metric cannot be assessed. */
+    unavailable_note?: string | null;
   }[];
 };
 

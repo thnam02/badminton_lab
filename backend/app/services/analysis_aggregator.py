@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from app.config import settings
+from app.processing.composite_scores import CHAIN_UNAVAILABLE_REASON
 from app.processing.technique_rules_config import (
     TIER_BY_CODE,
     TIER_HINT,
@@ -74,6 +75,8 @@ CONTACT_ESTIMATED_NOTE = (
     "Contact time is estimated from your arm speed. The shuttle wasn't tracked "
     "at that moment, so it may be a few frames off."
 )
+
+CHAIN_NOT_ASSESSABLE_LABEL = "Not assessable from 2D video"
 
 LIMITED_VIEW_MESSAGE = (
     "This camera angle allows only limited analysis. Film from the side, at hip "
@@ -295,7 +298,8 @@ def _summary_from_result(result: dict[str, Any]) -> dict[str, Any]:
         "mesh_status": result.get("mesh_status"),
         "composite_scores": {
             "available": bool(composite.get("available")),
-            "chain_score": composite.get("chain_score"),
+            "chain_score": None,
+            "chain_unavailable_reason": composite.get("chain_unavailable_reason"),
             "power_score": composite.get("power_score"),
             "base_score": composite.get("base_score"),
         },
@@ -312,6 +316,7 @@ def _normalize_composite_scores(evidence: dict[str, Any] | None) -> dict[str, An
     empty = {
         "available": False,
         "chain_score": None,
+        "chain_unavailable_reason": CHAIN_UNAVAILABLE_REASON,
         "power_score": None,
         "base_score": None,
         "notes": None,
@@ -321,14 +326,16 @@ def _normalize_composite_scores(evidence: dict[str, Any] | None) -> dict[str, An
     raw = evidence.get("composite_scores")
     if not isinstance(raw, dict):
         return empty
-    chain = raw.get("chain_score")
+    # Chain is hidden for every analysis, including ones scored before it was
+    # retired: kinetic-chain timing is unreliable in 2D.
     power = raw.get("power_score")
     base = raw.get("base_score")
-    has_any = any(v is not None for v in (chain, power, base))
+    has_any = any(v is not None for v in (power, base))
     available = bool(raw.get("available", has_any)) and has_any
     return {
         "available": available,
-        "chain_score": float(chain) if chain is not None else None,
+        "chain_score": None,
+        "chain_unavailable_reason": CHAIN_UNAVAILABLE_REASON,
         "power_score": float(power) if power is not None else None,
         "base_score": float(base) if base is not None else None,
         "notes": raw.get("notes"),
@@ -903,8 +910,17 @@ def _comparison_rows(
 
     left_comp = left.get("composite_scores") or {}
     right_comp = right.get("composite_scores") or {}
+    rows.append(
+        {
+            "label": "Chain score",
+            "unit": "",
+            "left": None,
+            "right": None,
+            "change": "n/a",
+            "unavailable_note": CHAIN_NOT_ASSESSABLE_LABEL,
+        }
+    )
     for key, label in (
-        ("chain_score", "Chain score"),
         ("power_score", "Power score"),
         ("base_score", "Base score"),
     ):

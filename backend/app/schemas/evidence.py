@@ -22,7 +22,8 @@ from app.schemas.contact import (
 # 1.5.0: tiered rules — technique_issues carry tier / reference_validated /
 #        unvalidated_prior / tentative / source_metrics; Tier 3 display_metrics.
 # 1.6.0: implausible_measurements / measurement_warnings (plausibility gate).
-EVIDENCE_VERSION = "1.6.0"
+# 1.7.0: composite_scores.chain_score is always null with chain_unavailable_reason.
+EVIDENCE_VERSION = "1.7.0"
 
 EVIDENCE_DEFAULT_NOTES = (
     "Assembled from already-computed analysis artifacts; "

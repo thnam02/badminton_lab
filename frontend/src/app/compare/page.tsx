@@ -142,13 +142,21 @@ function CompareInner() {
                     className="border-b border-[var(--border)] last:border-0"
                   >
                     <td className="px-4 py-3">{row.label}</td>
-                    <td className="px-4 py-3">
-                      {row.left == null ? "n/a" : formatMetric(row.left, row.unit, 2)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {row.right == null ? "n/a" : formatMetric(row.right, row.unit, 2)}
-                    </td>
-                    <td className="px-4 py-3 font-medium">{row.change}</td>
+                    {row.unavailable_note ? (
+                      <td colSpan={3} className="px-4 py-3 text-[var(--muted)]">
+                        {row.unavailable_note}
+                      </td>
+                    ) : (
+                      <>
+                        <td className="px-4 py-3">
+                          {row.left == null ? "n/a" : formatMetric(row.left, row.unit, 2)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {row.right == null ? "n/a" : formatMetric(row.right, row.unit, 2)}
+                        </td>
+                        <td className="px-4 py-3 font-medium">{row.change}</td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>

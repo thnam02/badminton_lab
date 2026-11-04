@@ -9,6 +9,9 @@ from __future__ import annotations
 from typing import Any
 
 
+CHAIN_UNAVAILABLE_REASON = "requires 3D landmarks"
+
+
 def clip(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, float(x)))
 
@@ -242,7 +245,6 @@ def compute_composite_scores(
     on a current-version analysis). Downstream should treat ``available=False``
     the same as a missing/pre-1.1.0 field — never coerce to 0.
     """
-    chain = chain_score(metrics)
     speed_pct = resolve_peak_speed_percentile_01(
         metrics, peak_speed_percentile=peak_speed_percentile
     )
@@ -255,10 +257,13 @@ def compute_composite_scores(
         metrics.get("preparation_knee_angle_deg"),
         metrics.get("contact_wrist_y_normalized"),
     )
-    available = any(s is not None for s in (chain, power, base))
+    available = any(s is not None for s in (power, base))
     return {
         "available": available,
-        "chain_score": chain,
+        # Chain depends on kinetic-chain timing, which is display-only and
+        # unreliable in 2D; its components stay below for diagnostics only.
+        "chain_score": None,
+        "chain_unavailable_reason": CHAIN_UNAVAILABLE_REASON,
         "power_score": power,
         "base_score": base,
         "components": {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchAnalyses } from "@/lib/api";
 import { formatDate, confidenceLabel, issueTitleFromCode } from "@/lib/format";
+import { BETA_SCORE_TOOLTIP, CHAIN_NOT_ASSESSABLE } from "@/lib/scores";
 import type { AnalysisSummary } from "@/lib/types";
 
 function band(score?: number | null): string {
@@ -80,18 +81,21 @@ export default function HistoryPage() {
               </div>
               {item.composite_scores?.available && (
                 <p className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
+                  <span className="rounded-md border border-dashed border-[var(--border)] px-2 py-0.5 font-medium">
+                    Chain: {CHAIN_NOT_ASSESSABLE}
+                  </span>
                   {(
                     [
-                      ["Chain", item.composite_scores.chain_score],
                       ["Power", item.composite_scores.power_score],
                       ["Base", item.composite_scores.base_score],
                     ] as const
                   ).map(([label, value]) => (
                     <span
                       key={label}
+                      title={BETA_SCORE_TOOLTIP}
                       className="rounded-md border border-[var(--border)] px-2 py-0.5 font-medium text-[var(--fg)]"
                     >
-                      {label}{" "}
+                      {label} (Beta){" "}
                       {value == null || Number.isNaN(value)
                         ? "n/a"
                         : Math.round(Number(value) * 100)}

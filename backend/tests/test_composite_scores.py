@@ -94,6 +94,7 @@ def test_compute_composite_available_false_when_empty() -> None:
     payload = compute_composite_scores({})
     assert payload["available"] is False
     assert payload["chain_score"] is None
+    assert payload["chain_unavailable_reason"] == "requires 3D landmarks"
     assert payload["power_score"] is None
     assert payload["base_score"] is None
 
@@ -112,7 +113,10 @@ def test_compute_composite_with_shared_power_inputs() -> None:
     }
     payload = compute_composite_scores(metrics, peak_speed_percentile=0.7)
     assert payload["available"] is True
-    assert payload["chain_score"] is not None
+    # Chain needs 3D landmarks: never scored, even with full kinetic-chain inputs.
+    assert payload["chain_score"] is None
+    assert payload["chain_unavailable_reason"] == "requires 3D landmarks"
+    assert payload["components"]["chain"]["order"] is not None
     assert payload["power_score"] is not None
     assert payload["base_score"] is not None
     assert payload["components"]["power"]["speed_score_source"] == "explicit_percentile"
