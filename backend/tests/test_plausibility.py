@@ -35,6 +35,7 @@ def _metrics(cls=StrokeMetrics, **overrides):
 def test_ranges_match_spec() -> None:
     assert PLAUSIBLE_RANGES_DEG == {
         "elbow": (60.0, 180.0),
+        "elbow_bend": (20.0, 180.0),
         "knee": (60.0, 180.0),
         "shoulder": (0.0, 180.0),
         "trunk_rotation": (0.0, 90.0),
@@ -93,8 +94,26 @@ def test_gated_values_leave_composite_scores() -> None:
     assert scores["components"]["chain"]["trunk_rotation"] is None
 
 
+@pytest.mark.parametrize(
+    "field_name", ["backswing_min_elbow_angle_deg", "preparation_elbow_angle_deg"]
+)
+@pytest.mark.parametrize(("value", "kept"), [(48.3, True), (20.0, True), (19.9, False)])
+def test_bend_phase_elbow_uses_20_degree_floor(field_name: str, value: float, kept: bool) -> None:
+    m = _metrics(ForehandClearMetrics, **{field_name: value})
+    apply_plausibility_gate(m)
+    assert (getattr(m, field_name) == value) is kept
+    assert (m.measurement_warnings == []) is kept
+
+
+def test_contact_elbow_keeps_60_degree_floor() -> None:
+    m = _metrics(contact_elbow_angle_deg=55.0, preparation_elbow_angle_deg=55.0)
+    apply_plausibility_gate(m)
+    assert m.contact_elbow_angle_deg is None
+    assert m.preparation_elbow_angle_deg == 55.0
+
+
 def test_clear_metrics_are_gated_too() -> None:
-    m = _metrics(ForehandClearMetrics, backswing_min_elbow_angle_deg=20.0)
+    m = _metrics(ForehandClearMetrics, backswing_min_elbow_angle_deg=15.0)
     apply_plausibility_gate(m)
     assert m.backswing_min_elbow_angle_deg is None
     assert m.measurement_warnings == [WARNING_IMPLAUSIBLE_MEASUREMENT]

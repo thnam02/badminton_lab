@@ -15,7 +15,10 @@ WARNING_IMPLAUSIBLE_MEASUREMENT = "IMPLAUSIBLE_MEASUREMENT"
 
 # Joint group → inclusive plausible range (degrees).
 PLAUSIBLE_RANGES_DEG: dict[str, tuple[float, float]] = {
+    # Contact only: the arm is near full reach when the racket meets the shuttle.
     "elbow": (60.0, 180.0),  # unvalidated prior
+    # Bend phases (preparation, backswing) legitimately flex the elbow deeply.
+    "elbow_bend": (20.0, 180.0),  # unvalidated prior
     "knee": (60.0, 180.0),  # unvalidated prior
     "shoulder": (0.0, 180.0),  # unvalidated prior
     "trunk_rotation": (0.0, 90.0),  # unvalidated prior
@@ -24,8 +27,8 @@ PLAUSIBLE_RANGES_DEG: dict[str, tuple[float, float]] = {
 # Metric field → joint group whose range applies.
 GATED_METRICS: dict[str, str] = {
     "contact_elbow_angle_deg": "elbow",
-    "preparation_elbow_angle_deg": "elbow",
-    "backswing_min_elbow_angle_deg": "elbow",
+    "preparation_elbow_angle_deg": "elbow_bend",
+    "backswing_min_elbow_angle_deg": "elbow_bend",
     "contact_knee_angle_deg": "knee",
     "preparation_knee_angle_deg": "knee",
     "loading_min_knee_angle_deg": "knee",
