@@ -21,7 +21,7 @@ from app.schemas.technique_calibration import (
 TECHNIQUE_RULE_VERSION_REFERENCE = "reference_distribution_v2"
 TECHNIQUE_RULE_VERSION_FALLBACK = "provisional_fallback_v1"
 TECHNIQUE_RULE_VERSION_LEGACY = "legacy_hardcoded_v1"
-TECHNIQUE_RULE_VERSION_TIERED = "tiered_rules_v2"
+TECHNIQUE_RULE_VERSION_TIERED = "tiered_rules_v3"
 
 
 class IssueSeverity(str, Enum):

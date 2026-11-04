@@ -264,7 +264,7 @@ def test_elbow_extension_peak_ignores_flexion_and_arm_elevation_lead() -> None:
     ]
     m = compute_stroke_metrics(pose, angles, motion, phases)
     assert m.swing_peak_elbow_omega_offset_frames == -4  # |ω| peak is the flexion
-    assert m.swing_peak_elbow_extension_offset_frames == -1
+    assert m.acceleration_peak_elbow_extension_offset_frames == -1
     # Shoulder |ω| peak at -3, elbow |ω| peak at -4 → elbow leads by 1 frame.
     assert m.swing_elbow_lead_over_shoulder_frames == 1
 
@@ -282,3 +282,37 @@ def test_contact_window_uses_highest_wrist_within_two_frames() -> None:
     m = compute_stroke_metrics(pose, angles, motion, phases)
     assert m.contact_wrist_y_normalized == pytest.approx(0.35)
     assert m.contact_window_min_wrist_y_normalized == pytest.approx(0.20)
+
+
+def test_chain_timing_peaks_search_only_the_hit() -> None:
+    import math
+    from dataclasses import replace
+
+    from app.processing.stroke_metrics import compute_stroke_metrics
+    from app.schemas.pose import Keypoint
+
+    pose, angles, motion, phases, contact = _swing_fixture()
+    # Backswing 10–19, acceleration 20–24, contact 25 → search frames 19..25.
+    motion.frames[:] = [
+        replace(f, right_elbow_angular_velocity=2000.0) if f.frame_index == 12 else f
+        for f in motion.frames
+    ]
+    # Trunk rotation (deg): jump of 40 at 12→13 (backswing) and 10 at 21→22 (hit).
+    rotation = {i: 0.0 if i <= 12 else (40.0 if i <= 21 else 50.0) for i in range(30)}
+    for frame in pose.frames:
+        a = math.radians(rotation[frame.frame_index])
+        dx, dy = 0.1 * math.cos(a), 0.1 * math.sin(a)
+        frame.keypoints.update(
+            {
+                "left_shoulder": Keypoint(0.5 - dx, 0.3 - dy, 0.9),
+                "right_shoulder": Keypoint(0.5 + dx, 0.3 + dy, 0.9),
+                "left_hip": Keypoint(0.4, 0.6, 0.9),
+                "right_hip": Keypoint(0.6, 0.6, 0.9),
+            }
+        )
+    m = compute_stroke_metrics(pose, angles, motion, phases)
+    assert m.acceleration_peak_elbow_extension_offset_frames == -1  # frame 24, not 12
+    assert m.acceleration_peak_trunk_rotation_velocity_offset_frames == 22 - contact
+    assert m.peak_trunk_rotation_velocity_deg_s == pytest.approx(10.0 * 30.0, rel=1e-6)
+    # Trunk peak at -3, elbow extension peak at -1 → elbow follows the trunk.
+    assert m.acceleration_elbow_extension_lead_over_trunk_frames == -2

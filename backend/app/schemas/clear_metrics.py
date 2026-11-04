@@ -44,7 +44,6 @@ class ForehandClearMetrics:
     swing_peak_elbow_omega_offset_frames: int | None = None
     swing_peak_shoulder_omega_offset_frames: int | None = None
     swing_elbow_lead_over_shoulder_frames: int | None = None
-    swing_peak_elbow_extension_offset_frames: int | None = None
     contact_nose_y_normalized: float | None = None
     contact_window_min_wrist_y_normalized: float | None = None
     backswing_end_wrist_y_normalized: float | None = None
@@ -54,7 +53,9 @@ class ForehandClearMetrics:
     # Peak shoulder-line vs hip-line angle (deg, [0, 90]) in prep/backswing — 2D X-factor proxy.
     peak_trunk_rotation_deg: float | None = None
     peak_trunk_rotation_velocity_deg_s: float | None = None
-    swing_peak_trunk_rotation_velocity_offset_frames: int | None = None
+    acceleration_peak_trunk_rotation_velocity_offset_frames: int | None = None
+    acceleration_peak_elbow_extension_offset_frames: int | None = None
+    acceleration_elbow_extension_lead_over_trunk_frames: int | None = None
 
     # Contact
     contact_elbow_angle_deg: float | None = None

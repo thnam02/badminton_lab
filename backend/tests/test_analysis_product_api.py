@@ -417,7 +417,13 @@ def test_tiered_issues_surface_tier_and_tentative(tmp_path: Path) -> None:
     # Thresholds are not reference-group distributions.
     assert result["reference_comparisons"] == []
     assert result["display_metrics"] == [
-        {"id": "contact_shoulder_angle_deg", "label": "Shoulder angle at contact", "value": 119.6, "unit": "deg"}
+        {
+            "id": "contact_shoulder_angle_deg",
+            "label": "Shoulder angle at contact",
+            "value": 119.6,
+            "unit": "deg",
+            "note": None,
+        }
     ]
 
 

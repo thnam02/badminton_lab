@@ -227,8 +227,6 @@ def _tiered_package(**overrides):
     values = dict(
         swing_peak_elbow_omega_offset_frames=4,
         swing_peak_shoulder_omega_offset_frames=8,
-        swing_peak_elbow_extension_offset_frames=4,
-        swing_peak_trunk_rotation_velocity_offset_frames=8,
         contact_wrist_y_normalized=0.50,
         contact_window_min_wrist_y_normalized=0.50,
         contact_nose_y_normalized=0.40,
@@ -263,7 +261,7 @@ def test_tiered_issues_carry_tier_and_tentative_flags() -> None:
     assert package.evidence_version == "1.6.0"
     packaged = {i["code"]: i for i in package.technique_issues}
     assert set(packaged) == {i.code for i in technique.issues}
-    assert len(packaged) == 7
+    assert len(packaged) == 6
     for issue in packaged.values():
         assert issue["tier"] in (1, 2)
         assert issue["reference_validated"] is False
@@ -285,16 +283,27 @@ def test_tiered_measured_values_match_source_metrics() -> None:
 
 
 def test_display_metrics_are_tier3_and_never_issues() -> None:
-    _, technique, package = _tiered_package(peak_wrist_speed=None)
+    _, technique, package = _tiered_package(
+        peak_wrist_speed=None,
+        acceleration_elbow_extension_lead_over_trunk_frames=3,
+        peak_trunk_rotation_velocity_deg_s=400.0,
+    )
     display = {d["metric_id"]: d for d in package.display_metrics}
-    assert set(display) == {
+    assert {
         "contact_shoulder_angle_deg",
         "peak_trunk_rotation_deg",
         "preparation_elbow_angle_deg",
         "follow_through_speed_ratio",
-    }
+        "acceleration_elbow_extension_lead_over_trunk_frames",
+        "peak_trunk_rotation_velocity_deg_s",
+    } <= set(display)
+    assert "peak_wrist_speed" not in display
     assert all(d["tier"] == 3 for d in display.values())
     assert display["contact_shoulder_angle_deg"]["value"] == pytest.approx(110.0)
+    assert display["contact_shoulder_angle_deg"]["note"] is None
+    for key in ("acceleration_elbow_extension_lead_over_trunk_frames", "peak_trunk_rotation_velocity_deg_s"):
+        assert display[key]["note"] == "Low reliability in 2D video."
+    assert "KINETIC_CHAIN_ORDER" not in {i["code"] for i in package.technique_issues}
     issue_metrics = {f for i in package.technique_issues for f in i["source_metrics"]}
     assert not issue_metrics & set(display)
     assert package.to_dict()["display_metrics"] == package.display_metrics

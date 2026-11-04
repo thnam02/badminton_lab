@@ -1,7 +1,7 @@
 import { formatMetric } from "@/lib/format";
 import type { DisplayMetric } from "@/lib/types";
 
-type Metric = { id: string; label: string; value: number; unit: string };
+type Metric = { id: string; label: string; value: number; unit: string; note?: string | null };
 
 type Props = {
   metrics: Metric[];
@@ -50,7 +50,12 @@ function MetricTable({ caption, rows }: { caption: string; rows: Metric[] }) {
         <tbody>
           {rows.map((m) => (
             <tr key={m.id} className="border-b border-[var(--border)] last:border-0">
-              <td className="px-4 py-3">{m.label}</td>
+              <td className="px-4 py-3">
+                {m.label}
+                {m.note && (
+                  <span className="mt-0.5 block text-xs text-[var(--muted)]">{m.note}</span>
+                )}
+              </td>
               <td className="px-4 py-3 font-medium">
                 {formatMetric(m.value, m.unit, m.unit === "" ? 2 : 1)}
               </td>

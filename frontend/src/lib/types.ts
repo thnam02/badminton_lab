@@ -62,7 +62,14 @@ export type TechniqueIssueView = {
   tentative?: boolean;
 };
 
-export type DisplayMetric = { id: string; label: string; value: number; unit: string };
+export type DisplayMetric = {
+  id: string;
+  label: string;
+  value: number;
+  unit: string;
+  /** e.g. "Low reliability in 2D video." */
+  note?: string | null;
+};
 
 export type ReferenceComparisonData = {
   metric_id?: string;

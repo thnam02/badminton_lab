@@ -53,8 +53,6 @@ class StrokeMetrics:
     swing_peak_shoulder_omega_offset_frames: int | None = None
     # Arm-elevation timing: frames the elbow |ω| peak leads the shoulder |ω| peak.
     swing_elbow_lead_over_shoulder_frames: int | None = None
-    # Peak positive elbow ω (extension) offset from contact, inside the swing.
-    swing_peak_elbow_extension_offset_frames: int | None = None
     # Normalized image y (grows downward) of nose at contact and of the racket-arm
     # wrist / shoulder on the last backswing frame.
     contact_nose_y_normalized: float | None = None
@@ -66,10 +64,13 @@ class StrokeMetrics:
     acceleration_phase_fraction: float | None = None
     # Peak shoulder-line vs hip-line angle (deg, [0, 90]) in prep/backswing — 2D X-factor proxy.
     peak_trunk_rotation_deg: float | None = None
-    # Peak |trunk rotation angular velocity| (deg/s) inside the analysed swing, and
-    # its frame offset from contact (negative = before contact).
+    # Kinetic-chain timing during the hit (backswing end → contact), display only:
+    # peak |trunk rotation ω| (deg/s, low reliability in 2D), offsets of the trunk
+    # and elbow-extension peaks from contact, and how far the elbow leads the trunk.
     peak_trunk_rotation_velocity_deg_s: float | None = None
-    swing_peak_trunk_rotation_velocity_offset_frames: int | None = None
+    acceleration_peak_trunk_rotation_velocity_offset_frames: int | None = None
+    acceleration_peak_elbow_extension_offset_frames: int | None = None
+    acceleration_elbow_extension_lead_over_trunk_frames: int | None = None
 
     # Follow-through: speed retention and duration after contact.
     follow_through_speed_ratio: float | None = None

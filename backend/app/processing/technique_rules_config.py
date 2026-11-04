@@ -13,14 +13,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-TIERED_RULES_VERSION = "tiered_rules_v2"
+TIERED_RULES_VERSION = "tiered_rules_v3"
 
 TIER_PRINCIPLE = 1
 TIER_HINT = 2
 TIER_DISPLAY = 3
 
-# Tier 1 codes
+# Retired as a rule (now the Tier 3 kinetic-chain timing display metric); the
+# code stays so older analyses keep their titles.
 KINETIC_CHAIN_ORDER = "KINETIC_CHAIN_ORDER"
+# Tier 1 codes
 LOW_CONTACT_POINT = "LOW_CONTACT_POINT"
 LATE_ELBOW_ACCELERATION = "LATE_ELBOW_ACCELERATION"
 LOW_RACKET_PREPARATION = "LOW_RACKET_PREPARATION"
@@ -30,8 +32,6 @@ LIMITED_LEG_DRIVE = "LIMITED_LEG_DRIVE"
 STIFF_PREPARATION_KNEE = "STIFF_PREPARATION_KNEE"
 
 TIER_BY_CODE: dict[str, int] = {
-    # Tier 2 until trunk-before-elbow timing is validated.
-    KINETIC_CHAIN_ORDER: TIER_HINT,
     LOW_CONTACT_POINT: TIER_PRINCIPLE,
     LATE_ELBOW_ACCELERATION: TIER_PRINCIPLE,
     LOW_RACKET_PREPARATION: TIER_PRINCIPLE,
@@ -49,9 +49,6 @@ CONTACT_WRIST_WINDOW_FRAMES = 2  # unvalidated prior
 
 @dataclass(frozen=True, slots=True)
 class TieredRulesConfig:
-    # Tier 2: flag when the peak elbow-extension ω precedes the peak trunk-rotation
-    # ω by more than this many frames (swing window).
-    chain_elbow_lead_max_frames: int = 1  # unvalidated prior
     # Tier 1: flag when the highest wrist y near contact exceeds nose y by more
     # than this margin (normalized image y grows downward, so larger y = lower).
     contact_wrist_below_nose_margin: float = 0.0  # unvalidated prior
@@ -67,7 +64,6 @@ class TieredRulesConfig:
     max_preparation_knee_deg: float = 170.0  # unvalidated prior
 
     # Base status when a rule fires (before the severity cap).
-    kinetic_chain_order_status: str = "MINOR"  # unvalidated prior
     low_contact_point_status: str = "MODERATE"  # unvalidated prior
     late_elbow_acceleration_status: str = "MINOR"
     low_racket_preparation_status: str = "MINOR"
@@ -81,17 +77,34 @@ class TieredRulesConfig:
     tier2_cap_validated: str = "MINOR"
 
 
-# Tier 3: (metric field, label, unit) shown for context only.
-TIER_DISPLAY_METRICS: tuple[tuple[str, str, str], ...] = (
-    ("contact_shoulder_angle_deg", "Shoulder angle at contact", "deg"),
-    ("peak_trunk_rotation_deg", "Trunk rotation (2D)", "deg"),
-    ("preparation_elbow_angle_deg", "Preparation elbow angle", "deg"),
-    ("follow_through_speed_ratio", "Follow-through speed ratio", ""),
-    ("peak_wrist_speed", "Peak wrist speed", ""),
+LOW_RELIABILITY_2D_NOTE = "Low reliability in 2D video."
+
+# Tier 3: (metric field, label, unit, note) shown for context only.
+TIER_DISPLAY_METRICS: tuple[tuple[str, str, str, str | None], ...] = (
+    ("contact_shoulder_angle_deg", "Shoulder angle at contact", "deg", None),
+    ("peak_trunk_rotation_deg", "Trunk rotation (2D)", "deg", None),
+    ("preparation_elbow_angle_deg", "Preparation elbow angle", "deg", None),
+    ("follow_through_speed_ratio", "Follow-through speed ratio", "", None),
+    ("peak_wrist_speed", "Peak wrist speed", "", None),
     (
         "swing_elbow_lead_over_shoulder_frames",
         "Arm-elevation timing (elbow peak lead over shoulder)",
         "frames",
+        None,
+    ),
+    # Kinetic chain order (formerly the KINETIC_CHAIN_ORDER rule). Needs 3D
+    # landmarks or coach-labelled data before it can become a rule again.
+    (
+        "acceleration_elbow_extension_lead_over_trunk_frames",
+        "Kinetic chain timing (elbow extension lead over trunk turn, during the hit)",
+        "frames",
+        LOW_RELIABILITY_2D_NOTE,
+    ),
+    (
+        "peak_trunk_rotation_velocity_deg_s",
+        "Trunk rotation speed (during the hit)",
+        "deg/s",
+        LOW_RELIABILITY_2D_NOTE,
     ),
 )
 

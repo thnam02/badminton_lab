@@ -50,8 +50,6 @@ def _clean(cls=StrokeMetrics, **overrides):
         contact_nose_y_normalized=0.40,
         swing_peak_elbow_omega_offset_frames=-1,
         swing_peak_shoulder_omega_offset_frames=-2,
-        swing_peak_elbow_extension_offset_frames=-1,
-        swing_peak_trunk_rotation_velocity_offset_frames=-2,
         backswing_end_wrist_y_normalized=0.30,
         backswing_end_shoulder_y_normalized=0.45,
         contact_elbow_angle_deg=150.0,
@@ -80,38 +78,21 @@ def test_clean_metrics_produce_no_issues_and_tiered_version():
     assert evaluation.reference_profile_id
 
 
-@pytest.mark.parametrize(
-    ("elbow_ext", "trunk", "fires"),
-    [(-1, -2, False), (-3, -2, False), (-3, -1, True), (-4, -1, True), (-3, 5, True)],
-)
-def test_kinetic_chain_order_trunk_before_elbow_boundary(elbow_ext, trunk, fires):
-    m = _clean(
-        swing_peak_elbow_extension_offset_frames=elbow_ext,
-        swing_peak_trunk_rotation_velocity_offset_frames=trunk,
-    )
-    codes = _codes(_eval(m, camera_view="SIDE"))
-    assert (KINETIC_CHAIN_ORDER in codes) is fires
-    if fires:
-        assert codes[KINETIC_CHAIN_ORDER] == IssueStatus.MINOR.value
+def test_kinetic_chain_order_is_never_an_issue():
+    from dataclasses import replace as dc_replace
 
-
-def test_kinetic_chain_order_is_tier2_side_only():
-    m = _clean(
-        swing_peak_elbow_extension_offset_frames=-6,
-        swing_peak_trunk_rotation_velocity_offset_frames=0,
-    )
-    assert KINETIC_CHAIN_ORDER not in _codes(_eval(m))
-    issue = next(i for i in _eval(m, camera_view="SIDE").issues if i.code == KINETIC_CHAIN_ORDER)
-    assert issue.tier == 2
-    assert issue.measured_value == pytest.approx(6.0)
-
-
-def test_shoulder_before_elbow_no_longer_triggers_chain_rule():
     m = _clean(
         swing_peak_elbow_omega_offset_frames=-10,
         swing_peak_shoulder_omega_offset_frames=5,
     )
-    assert KINETIC_CHAIN_ORDER not in _codes(_eval(m, camera_view="SIDE"))
+    m = dc_replace(
+        m,
+        acceleration_peak_elbow_extension_offset_frames=-8,
+        acceleration_peak_trunk_rotation_velocity_offset_frames=0,
+        acceleration_elbow_extension_lead_over_trunk_frames=8,
+    )
+    for view in (None, "SIDE"):
+        assert KINETIC_CHAIN_ORDER not in _codes(_eval(m, camera_view=view))
 
 
 def test_low_contact_point_uses_nose_not_absolute_height():
@@ -155,7 +136,7 @@ def test_low_racket_preparation_boundary_is_minor():
 def test_missing_inputs_skip_rules():
     m = _clean(
         contact_nose_y_normalized=None,
-        swing_peak_trunk_rotation_velocity_offset_frames=None,
+        contact_window_min_wrist_y_normalized=None,
         backswing_end_wrist_y_normalized=None,
     )
     assert _eval(m, camera_view="SIDE").issues == []
@@ -208,8 +189,6 @@ def test_leg_drive_and_prep_knee_boundaries():
 def _all_failing():
     return _tier2_failing(
         swing_peak_elbow_omega_offset_frames=5,
-        swing_peak_elbow_extension_offset_frames=4,
-        swing_peak_trunk_rotation_velocity_offset_frames=9,
         contact_window_min_wrist_y_normalized=0.5,
         backswing_end_wrist_y_normalized=0.6,
     )
@@ -217,14 +196,13 @@ def _all_failing():
 
 def test_provisional_caps_even_when_base_status_is_major():
     cfg = TieredRulesConfig(
-        kinetic_chain_order_status="MAJOR",
         low_contact_point_status="MAJOR",
         late_elbow_acceleration_status="MAJOR",
         low_racket_preparation_status="MAJOR",
         tier_hint_status="MAJOR",
     )
     evaluation = _eval(_all_failing(), camera_view="SIDE", config=cfg)
-    assert len(evaluation.issues) == 7
+    assert len(evaluation.issues) == 6
     for issue in evaluation.issues:
         assert issue.reference_validated is False
         assert issue.unvalidated_prior is True
@@ -237,16 +215,11 @@ def test_validated_profile_lifts_tier1_cap_only():
     validated = replace(
         build_provisional_smash_right_side(), status="VALIDATED", provisional=False
     )
-    cfg = TieredRulesConfig(
-        low_contact_point_status="MAJOR",
-        kinetic_chain_order_status="MAJOR",
-        tier_hint_status="MAJOR",
-    )
+    cfg = TieredRulesConfig(low_contact_point_status="MAJOR", tier_hint_status="MAJOR")
     evaluation = _eval(_all_failing(), camera_view="SIDE", config=cfg, profile=validated)
     by_code = {i.code: i for i in evaluation.issues}
     assert by_code[LOW_CONTACT_POINT].status == "MAJOR"
     assert by_code[LOW_CONTACT_POINT].reference_validated is True
-    assert by_code[KINETIC_CHAIN_ORDER].status == "MINOR"
     assert by_code[BENT_ELBOW_AT_CONTACT].status == "MINOR"
 
 

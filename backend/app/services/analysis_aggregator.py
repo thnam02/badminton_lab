@@ -511,6 +511,7 @@ def _normalize_display_metrics(evidence: dict[str, Any] | None) -> list[dict[str
                 "label": str(item.get("label") or item.get("metric_id") or ""),
                 "value": item["value"],
                 "unit": str(item.get("unit") or ""),
+                "note": item.get("note"),
             }
         )
     return out

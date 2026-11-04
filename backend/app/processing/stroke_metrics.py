@@ -418,10 +418,6 @@ def apply_swing_window_fields(
             metrics.swing_peak_shoulder_omega_offset_frames
             - metrics.swing_peak_elbow_omega_offset_frames
         )
-    # Elbow extension = interior elbow angle increasing (positive ω).
-    metrics.swing_peak_elbow_extension_offset_frames = _peak_positive_offset_in_window(
-        motion_by, contact_idx, attr="right_elbow_angular_velocity", start=start, end=end
-    )
     metrics.contact_nose_y_normalized = _keypoint_y(pose_by, contact_idx, "nose")
     from app.processing.technique_rules_config import CONTACT_WRIST_WINDOW_FRAMES
 
@@ -442,14 +438,60 @@ def apply_swing_window_fields(
         pose_by, back_end, "right_shoulder"
     )
 
+    apply_acceleration_chain_fields(metrics, pose_by, motion_by, phases, contact_idx)
+
+
+def acceleration_window(phases: PhaseSequence, contact_idx: int) -> tuple[int, int]:
+    """Backswing end → contact (the hit), falling back to acceleration start."""
+    back = _first_segment(phases, SmashPhase.BACKSWING)
+    accel = _first_segment(phases, SmashPhase.ACCELERATION)
+    if back is not None:
+        start = back.end_frame_index
+    elif accel is not None:
+        start = accel.start_frame_index
+    else:
+        start = contact_idx
+    return min(start, contact_idx), contact_idx
+
+
+def apply_acceleration_chain_fields(
+    metrics,
+    pose_by: dict,
+    motion_by: dict,
+    phases: PhaseSequence,
+    contact_idx: int,
+) -> None:
+    """Trunk-rotation vs elbow-extension peak timing during the hit (display only).
+
+    Needs 3D landmarks or coach-labelled data before it can become a rule
+    again: 2D trunk rotation is unreliable when the shoulders overlap.
+    """
     from app.processing.trunk_rotation import peak_trunk_rotation_velocity_in_window
 
+    start, end = acceleration_window(phases, contact_idx)
+    # Elbow extension = interior elbow angle increasing (positive ω).
+    metrics.acceleration_peak_elbow_extension_offset_frames = (
+        _peak_positive_offset_in_window(
+            motion_by,
+            contact_idx,
+            attr="right_elbow_angular_velocity",
+            start=start,
+            end=end,
+        )
+    )
     trunk_omega, trunk_frame = peak_trunk_rotation_velocity_in_window(
         pose_by.values(), start, end
     )
     metrics.peak_trunk_rotation_velocity_deg_s = trunk_omega
-    metrics.swing_peak_trunk_rotation_velocity_offset_frames = (
+    metrics.acceleration_peak_trunk_rotation_velocity_offset_frames = (
         int(trunk_frame - contact_idx) if trunk_frame is not None else None
+    )
+    elbow_off = metrics.acceleration_peak_elbow_extension_offset_frames
+    trunk_off = metrics.acceleration_peak_trunk_rotation_velocity_offset_frames
+    metrics.acceleration_elbow_extension_lead_over_trunk_frames = (
+        int(trunk_off - elbow_off)
+        if elbow_off is not None and trunk_off is not None
+        else None
     )
 
 

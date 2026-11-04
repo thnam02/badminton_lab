@@ -14,7 +14,6 @@ from app.processing.capture_context import HANDEDNESS_LEFT, RACKET_ARM_NOTE
 from app.processing.composite_scores import compute_composite_scores
 from app.processing.technique_rules_config import (
     BENT_ELBOW_AT_CONTACT,
-    KINETIC_CHAIN_ORDER,
     LATE_ELBOW_ACCELERATION,
     LIMITED_LEG_DRIVE,
     LOW_CONTACT_POINT,
@@ -72,10 +71,6 @@ ISSUE_PRIMARY_METRIC: dict[str, str] = {
 
 # Tiered rules whose measured_value is a difference of two metrics.
 ISSUE_DERIVED_METRICS: dict[str, tuple[str, str]] = {
-    KINETIC_CHAIN_ORDER: (
-        "swing_peak_trunk_rotation_velocity_offset_frames",
-        "swing_peak_elbow_extension_offset_frames",
-    ),
     LOW_CONTACT_POINT: ("contact_window_min_wrist_y_normalized", "contact_nose_y_normalized"),
     LOW_RACKET_PREPARATION: (
         "backswing_end_wrist_y_normalized",
@@ -108,7 +103,7 @@ def _packaged_issue(issue: TechniqueIssue) -> dict[str, Any]:
 def build_display_metrics(metrics_dict: dict[str, Any]) -> list[dict[str, Any]]:
     """Tier 3 metrics present in ``metrics_dict`` (display only)."""
     out: list[dict[str, Any]] = []
-    for metric_id, label, unit in TIER_DISPLAY_METRICS:
+    for metric_id, label, unit, note in TIER_DISPLAY_METRICS:
         value = metrics_dict.get(metric_id)
         if value is None:
             continue
@@ -119,6 +114,7 @@ def build_display_metrics(metrics_dict: dict[str, Any]) -> list[dict[str, Any]]:
                 "unit": unit,
                 "value": value,
                 "tier": TIER_DISPLAY,
+                "note": note,
             }
         )
     return out
