@@ -149,4 +149,6 @@ API contract:
 ## Notes
 
 - Processing is **synchronous** for this scaffold (no queue/Celery).
+- Known open issues (e.g. over-long acceleration phase on some clips) are tracked in
+  [docs/known-issues.md](docs/known-issues.md).
 - Out of scope for v1: auth, DB, stroke classification, shuttle/racket tracking, scoring, LLMs.
