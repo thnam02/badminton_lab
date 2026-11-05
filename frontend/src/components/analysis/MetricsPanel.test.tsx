@@ -28,6 +28,25 @@ describe("MetricsPanel display metrics", () => {
     expect(screen.getByText("Phase confidence")).toBeTruthy();
   });
 
+  it("shows peak wrist speed in torso lengths per second", () => {
+    render(
+      <MetricsPanel
+        metrics={[]}
+        displayMetrics={[
+          {
+            id: "peak_wrist_speed_body_norm",
+            label: "Peak wrist speed",
+            value: 11.38,
+            unit: "torso lengths/s",
+          },
+        ]}
+      />
+    );
+    const section = screen.getByRole("region", { name: "For reference only" });
+    expect(within(section).getByText("Peak wrist speed")).toBeTruthy();
+    expect(within(section).getByText("11.4 torso lengths/s")).toBeTruthy();
+  });
+
   it("omits the section when there are no display metrics", () => {
     render(
       <MetricsPanel metrics={[{ id: "phase_confidence", label: "Phase confidence", value: 0.9, unit: "" }]} />

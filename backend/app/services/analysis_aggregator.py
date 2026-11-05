@@ -607,7 +607,7 @@ def _normalize_metrics(metrics: dict[str, Any] | None) -> list[dict[str, Any]]:
         ("preparation_elbow_angle_deg", "Preparation elbow", "deg"),
         ("preparation_knee_angle_deg", "Preparation knee", "deg"),
         ("backswing_min_elbow_angle_deg", "Backswing elbow (min)", "deg"),
-        ("peak_wrist_speed", "Peak wrist speed", ""),
+        ("peak_wrist_speed_body_norm", "Peak wrist speed", "torso lengths/s"),
         ("peak_elbow_omega", "Peak elbow angular velocity", ""),
         ("peak_elbow_omega_offset_frames", "Elbow peak timing offset", "frames"),
         ("peak_shoulder_omega_offset_frames", "Shoulder peak timing offset", "frames"),
@@ -933,7 +933,7 @@ def _comparison_rows(
 ) -> list[dict[str, Any]]:
     keys = [
         ("contact_elbow_angle_deg", "Elbow contact", "deg"),
-        ("peak_wrist_speed", "Peak wrist speed", ""),
+        ("peak_wrist_speed_body_norm", "Peak wrist speed", "torso lengths/s"),
         ("knee_contribution_deg", "Knee contribution", "deg"),
         ("phase_confidence", "Phase confidence", ""),
     ]

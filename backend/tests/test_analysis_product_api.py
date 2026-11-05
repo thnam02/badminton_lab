@@ -77,7 +77,8 @@ def _seed_analysis(root: Path, analysis_id: str, *, elbow: float = 149.0) -> Non
             "estimated_contact_frame_index": 66,
             "phase_confidence": 0.9,
             "contact_elbow_angle_deg": elbow,
-            "peak_wrist_speed": 1.7,
+            "peak_wrist_speed": 1150.0,
+            "peak_wrist_speed_body_norm": 10.5,
             "knee_contribution_deg": 12.0,
         },
     )
@@ -363,7 +364,8 @@ def test_compare_compatible(tmp_path: Path) -> None:
     _seed_analysis(tmp_path, "right1", elbow=158.0)
     # bump wrist on right
     metrics = json.loads((tmp_path / "right1_pose_stroke_metrics.json").read_text())
-    metrics["peak_wrist_speed"] = 1.91
+    metrics["peak_wrist_speed"] = 1400.0
+    metrics["peak_wrist_speed_body_norm"] = 12.0
     (tmp_path / "right1_pose_stroke_metrics.json").write_text(json.dumps(metrics))
     cmp = compare_analyses("left1", "right1", output_dir=tmp_path)
     assert cmp["compatible"] is True
@@ -371,6 +373,16 @@ def test_compare_compatible(tmp_path: Path) -> None:
     assert "Elbow contact" in labels
     elbow = next(r for r in cmp["rows"] if r["label"] == "Elbow contact")
     assert elbow["change"] in {"Improved", "Changed", "Similar"}
+    # Wrist speed is compared in torso lengths / s; raw pixels / s never surface.
+    speed = [r for r in cmp["rows"] if r["label"] == "Peak wrist speed"]
+    assert len(speed) == 1
+    assert speed[0]["unit"] == "torso lengths/s"
+    assert speed[0]["left"] == pytest.approx(10.5)
+    assert speed[0]["right"] == pytest.approx(12.0)
+    result = get_analysis_result("right1", output_dir=tmp_path)
+    metric_ids = {m["id"] for m in result["metrics"]}
+    assert "peak_wrist_speed_body_norm" in metric_ids
+    assert "peak_wrist_speed" not in metric_ids
 
 
 def _seed_tiered(root: Path, analysis_id: str) -> None:

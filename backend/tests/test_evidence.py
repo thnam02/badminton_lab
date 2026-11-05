@@ -284,7 +284,7 @@ def test_tiered_measured_values_match_source_metrics() -> None:
 
 def test_display_metrics_are_tier3_and_never_issues() -> None:
     _, technique, package = _tiered_package(
-        peak_wrist_speed=None,
+        peak_wrist_speed=1200.0,
         peak_wrist_speed_body_norm=8.5,
         acceleration_elbow_extension_lead_over_trunk_frames=3,
         peak_trunk_rotation_velocity_deg_s=400.0,
@@ -299,7 +299,10 @@ def test_display_metrics_are_tier3_and_never_issues() -> None:
         "acceleration_elbow_extension_lead_over_trunk_frames",
         "peak_trunk_rotation_velocity_deg_s",
     } <= set(display)
+    # Raw pixel speed stays in metrics (diagnostics) but is never displayed.
     assert "peak_wrist_speed" not in display
+    assert package.metrics["peak_wrist_speed"] == pytest.approx(1200.0)
+    assert display["peak_wrist_speed_body_norm"]["label"] == "Peak wrist speed"
     assert display["peak_wrist_speed_body_norm"]["value"] == pytest.approx(8.5)
     assert display["peak_wrist_speed_body_norm"]["unit"] == "torso lengths/s"
     assert all(d["tier"] == 3 for d in display.values())

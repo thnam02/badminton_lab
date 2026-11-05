@@ -110,13 +110,9 @@ TIER_DISPLAY_METRICS: tuple[tuple[str, str, str, str | None], ...] = (
     ("peak_trunk_rotation_deg", "Trunk rotation (2D)", "deg", None),
     ("preparation_elbow_angle_deg", "Preparation elbow angle", "deg", None),
     ("follow_through_speed_ratio", "Follow-through speed ratio", "", None),
-    ("peak_wrist_speed", "Peak wrist speed", "", None),
-    (
-        "peak_wrist_speed_body_norm",
-        "Peak wrist speed (torso lengths per second)",
-        "torso lengths/s",
-        None,
-    ),
+    # Raw peak_wrist_speed (pixels / s) depends on camera distance and
+    # resolution, so only the torso-normalised value is shown.
+    ("peak_wrist_speed_body_norm", "Peak wrist speed", "torso lengths/s", None),
     (
         "swing_elbow_lead_over_shoulder_frames",
         "Arm-elevation timing (elbow peak lead over shoulder)",
