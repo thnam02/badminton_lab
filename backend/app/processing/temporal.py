@@ -29,7 +29,7 @@ def preprocess_pose_sequence(
     Joints filled in step 2 are listed in ``PoseFrame.interpolated``.
     """
     if sequence.frame_count == 0:
-        return PoseSequence(video=sequence.video, frames=[])
+        return sequence.with_frames([])
 
     # Work on a deep copy so the caller's raw sequence stays intact.
     working = copy.deepcopy(sequence)
@@ -89,7 +89,7 @@ def preprocess_pose_sequence(
             )
         )
 
-    return PoseSequence(video=sequence.video, frames=smoothed_frames)
+    return sequence.with_frames(smoothed_frames)
 
 
 def _collect_joint_names(frames: Iterable[PoseFrame]) -> list[str]:

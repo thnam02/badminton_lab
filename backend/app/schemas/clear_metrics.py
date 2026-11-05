@@ -32,7 +32,7 @@ class ForehandClearMetrics:
     # Acceleration
     # Peak |right elbow angular velocity| from motion peaks (degrees / second).
     peak_elbow_omega: float | None = None
-    # Peak right-wrist linear speed (normalized image units / second; not m/s).
+    # Peak right-wrist linear speed (pixels / second; not m/s).
     peak_wrist_speed: float | None = None
     # Torso-length-normalised peak wrist speed (see StrokeMetrics).
     swing_median_torso_length: float | None = None

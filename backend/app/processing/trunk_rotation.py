@@ -11,7 +11,14 @@ import math
 from collections.abc import Iterable
 
 from app.schemas.phases import PhaseSequence, SmashPhase
-from app.schemas.pose import Keypoint, PoseFrame, PoseSequence
+from app.schemas.pose import (
+    UNIT_SCALE,
+    Keypoint,
+    PixelScale,
+    PoseFrame,
+    PoseSequence,
+    to_pixels,
+)
 
 
 def trunk_rotation_deg(
@@ -41,6 +48,7 @@ def trunk_rotation_at_frame(
     frame: PoseFrame,
     *,
     confidence_threshold: float = 0.5,
+    scale: PixelScale = UNIT_SCALE,
 ) -> float | None:
     names = ("left_shoulder", "right_shoulder", "left_hip", "right_hip")
     pts: list[Keypoint] = []
@@ -48,7 +56,7 @@ def trunk_rotation_at_frame(
         kp = frame.keypoints.get(name)
         if kp is None or kp.confidence < confidence_threshold:
             return None
-        pts.append(kp)
+        pts.append(to_pixels(kp, scale))
     try:
         return trunk_rotation_deg(pts[0], pts[1], pts[2], pts[3])
     except (ValueError, ZeroDivisionError):
@@ -73,6 +81,7 @@ def peak_trunk_rotation_in_phases(
         return None
 
     pose_by = {f.frame_index: f for f in pose.frames}
+    scale = pose.pixel_scale()
     values: list[float] = []
     for start, end in windows:
         for idx in range(start, end + 1):
@@ -80,7 +89,7 @@ def peak_trunk_rotation_in_phases(
             if frame is None:
                 continue
             value = trunk_rotation_at_frame(
-                frame, confidence_threshold=confidence_threshold
+                frame, confidence_threshold=confidence_threshold, scale=scale
             )
             if value is not None:
                 values.append(value)
@@ -95,6 +104,7 @@ def peak_trunk_rotation_velocity_in_window(
     end: int,
     *,
     confidence_threshold: float = 0.5,
+    scale: PixelScale = UNIT_SCALE,
 ) -> tuple[float | None, int | None]:
     """Peak |d(trunk rotation)/dt| (deg/s) and its frame within [start, end].
 
@@ -109,7 +119,9 @@ def peak_trunk_rotation_velocity_in_window(
     best_frame: int | None = None
     prev: tuple[PoseFrame, float] | None = None
     for frame in frames:
-        value = trunk_rotation_at_frame(frame, confidence_threshold=confidence_threshold)
+        value = trunk_rotation_at_frame(
+            frame, confidence_threshold=confidence_threshold, scale=scale
+        )
         if value is None:
             prev = None
             continue

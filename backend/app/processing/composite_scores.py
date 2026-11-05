@@ -211,6 +211,8 @@ def resolve_peak_speed_percentile_01(
 #
 # Observed peak_wrist_speed on 16 local analysis clips with that field
 # (2026-09-22 workspace outputs): min ≈ 1.62, max ≈ 4.33 (norm image units/s).
+# peak_wrist_speed is now in pixels/s, so this range no longer matches it; it
+# only feeds the withheld POWER diagnostics.
 # Padded placeholder bounds below are for **individual-analysis relative
 # scoring only**. Replace once reference profiles include peak_wrist_speed.
 # Do NOT use this to make cross-population claims.

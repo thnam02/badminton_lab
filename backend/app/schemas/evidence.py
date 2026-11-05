@@ -26,7 +26,9 @@ from app.schemas.contact import (
 # 1.8.0: rule_coverage (which tiered rules ran, and why not).
 # 1.9.0: composite_scores.power_score is always null with power_unavailable_reason;
 #        peak_wrist_speed_body_norm display metric.
-EVIDENCE_VERSION = "1.9.0"
+# 1.10.0: angles, speeds and torso length use pixel-scaled keypoints
+#         (peak_wrist_speed in pixels / second).
+EVIDENCE_VERSION = "1.10.0"
 
 EVIDENCE_DEFAULT_NOTES = (
     "Assembled from already-computed analysis artifacts; "

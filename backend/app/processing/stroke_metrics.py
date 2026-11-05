@@ -12,7 +12,7 @@ from app.schemas.contact import ContactEvent
 from app.schemas.final_analysis import FinalAnalysisState
 from app.schemas.motion import MotionSequence, PeakStats
 from app.schemas.phases import PhaseSegment, PhaseSequence, SmashPhase
-from app.schemas.pose import PoseSequence
+from app.schemas.pose import PixelScale, PoseSequence
 from app.schemas.stroke import (
     AccelerationMetrics,
     BackswingMetrics,
@@ -114,8 +114,9 @@ def compute_stroke_metrics(
     metrics.preparation_elbow_angle_deg = _phase_mean_angle(
         phases, angle_by, SmashPhase.PREPARATION, "elbow"
     )
-    apply_swing_window_fields(metrics, pose_by, motion_by, phases, contact_idx)
-    apply_body_normalised_speed(metrics, pose_by, phases, contact_idx)
+    scale = pose.pixel_scale()
+    apply_swing_window_fields(metrics, pose_by, motion_by, phases, contact_idx, scale=scale)
+    apply_body_normalised_speed(metrics, pose_by, phases, contact_idx, scale=scale)
 
     metrics.peak_elbow_omega_offset_frames = _peak_elbow_omega_offset(motion_by, contact_idx)
     metrics.peak_shoulder_omega_offset_frames = _peak_omega_offset(
@@ -398,6 +399,8 @@ def apply_swing_window_fields(
     motion_by: dict,
     phases: PhaseSequence,
     contact_idx: int,
+    *,
+    scale: PixelScale,
 ) -> None:
     """Fill swing-window peak offsets and contact / backswing-end posture y values."""
     start, end = swing_window(phases, contact_idx)
@@ -439,17 +442,20 @@ def apply_swing_window_fields(
         pose_by, back_end, "right_shoulder"
     )
 
-    apply_acceleration_chain_fields(metrics, pose_by, motion_by, phases, contact_idx)
+    apply_acceleration_chain_fields(
+        metrics, pose_by, motion_by, phases, contact_idx, scale=scale
+    )
 
 
-def _midpoint(frame, left: str, right: str, confidence_threshold: float):
+def _midpoint(frame, left: str, right: str, confidence_threshold: float, scale: PixelScale):
     a = frame.keypoints.get(left)
     b = frame.keypoints.get(right)
     if a is None or b is None:
         return None
     if a.confidence < confidence_threshold or b.confidence < confidence_threshold:
         return None
-    x, y = (a.x + b.x) / 2.0, (a.y + b.y) / 2.0
+    x = (a.x + b.x) / 2.0 * scale[0]
+    y = (a.y + b.y) / 2.0 * scale[1]
     if not (math.isfinite(x) and math.isfinite(y)):
         return None
     return x, y
@@ -460,20 +466,23 @@ def median_torso_length(
     start: int,
     end: int,
     *,
+    scale: PixelScale,
     confidence_threshold: float = 0.5,
 ) -> float | None:
     """Median mid-shoulder → mid-hip distance over frames [start, end].
 
-    Same normalized image units as wrist speed, so speed / torso length is in
-    torso lengths per second.
+    Pixels, like wrist speed, so speed / torso length is in torso lengths per
+    second.
     """
     lengths: list[float] = []
     for idx in range(start, end + 1):
         frame = pose_by.get(idx)
         if frame is None:
             continue
-        shoulder = _midpoint(frame, "left_shoulder", "right_shoulder", confidence_threshold)
-        hip = _midpoint(frame, "left_hip", "right_hip", confidence_threshold)
+        shoulder = _midpoint(
+            frame, "left_shoulder", "right_shoulder", confidence_threshold, scale
+        )
+        hip = _midpoint(frame, "left_hip", "right_hip", confidence_threshold, scale)
         if shoulder is None or hip is None:
             continue
         lengths.append(math.hypot(shoulder[0] - hip[0], shoulder[1] - hip[1]))
@@ -487,10 +496,12 @@ def apply_body_normalised_speed(
     pose_by: dict,
     phases: PhaseSequence,
     contact_idx: int,
+    *,
+    scale: PixelScale,
 ) -> None:
     """Peak wrist speed in torso lengths / s, removing camera-distance scale."""
     start, end = swing_window(phases, contact_idx)
-    torso = median_torso_length(pose_by, start, end)
+    torso = median_torso_length(pose_by, start, end, scale=scale)
     metrics.swing_median_torso_length = torso
     speed = metrics.peak_wrist_speed
     metrics.peak_wrist_speed_body_norm = (
@@ -519,6 +530,8 @@ def apply_acceleration_chain_fields(
     motion_by: dict,
     phases: PhaseSequence,
     contact_idx: int,
+    *,
+    scale: PixelScale,
 ) -> None:
     """Trunk-rotation vs elbow-extension peak timing during the hit (display only).
 
@@ -539,7 +552,7 @@ def apply_acceleration_chain_fields(
         )
     )
     trunk_omega, trunk_frame = peak_trunk_rotation_velocity_in_window(
-        pose_by.values(), start, end
+        pose_by.values(), start, end, scale=scale
     )
     metrics.peak_trunk_rotation_velocity_deg_s = trunk_omega
     metrics.acceleration_peak_trunk_rotation_velocity_offset_frames = (

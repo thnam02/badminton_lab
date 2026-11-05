@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 
 from app.schemas.angles import AngleFrame, AngleSequence
-from app.schemas.pose import Keypoint, PoseSequence
+from app.schemas.pose import UNIT_SCALE, Keypoint, PixelScale, PoseSequence, to_pixels
 
 # (angle_name, proximal, vertex, distal)
 _JOINT_TRIPLETS: tuple[tuple[str, str, str, str], ...] = (
@@ -49,8 +49,13 @@ def compute_joint_angle(
     distal_name: str,
     *,
     confidence_threshold: float,
+    scale: PixelScale = UNIT_SCALE,
 ) -> float | None:
-    """Return angle in degrees, or None if any required keypoint is unusable."""
+    """Return angle in degrees, or None if any required keypoint is unusable.
+
+    ``scale`` maps normalized keypoints to pixels so the angle is measured in
+    true image geometry on non-square frames.
+    """
     proximal = keypoints.get(proximal_name)
     vertex = keypoints.get(vertex_name)
     distal = keypoints.get(distal_name)
@@ -63,7 +68,9 @@ def compute_joint_angle(
     ):
         return None
     try:
-        return angle_at_vertex(proximal, vertex, distal)
+        return angle_at_vertex(
+            to_pixels(proximal, scale), to_pixels(vertex, scale), to_pixels(distal, scale)
+        )
     except ValueError:
         return None
 
@@ -75,6 +82,7 @@ def compute_angle_sequence(
 ) -> AngleSequence:
     """Build per-frame right elbow / knee / shoulder angles from a pose sequence."""
     out = AngleSequence(video=sequence.video)
+    scale = sequence.pixel_scale()
     for frame in sequence.frames:
         angles: dict[str, float | None] = {}
         for angle_name, proximal, vertex, distal in _JOINT_TRIPLETS:
@@ -84,6 +92,7 @@ def compute_angle_sequence(
                 vertex,
                 distal,
                 confidence_threshold=confidence_threshold,
+                scale=scale,
             )
         out.append(
             AngleFrame(

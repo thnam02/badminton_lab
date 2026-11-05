@@ -35,7 +35,12 @@ def load_pose_sequence(path: Path) -> PoseSequence:
                 keypoints=kps,
             )
         )
-    return PoseSequence(video=str(data.get("video", path.name)), frames=frames)
+    return PoseSequence(
+        video=str(data.get("video", path.name)),
+        frames=frames,
+        frame_width=data.get("frame_width"),
+        frame_height=data.get("frame_height"),
+    )
 
 
 def infer_hitting_hand(

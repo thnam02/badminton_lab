@@ -233,7 +233,7 @@ def _validate_phase_ordering(phases: PhaseSequence) -> None:
 
 
 def _copy_pose_sequence(pose: PoseSequence) -> PoseSequence:
-    return PoseSequence(video=pose.video, frames=list(pose.frames))
+    return pose.with_frames(list(pose.frames))
 
 
 def _copy_angle_sequence(angles: AngleSequence) -> AngleSequence:

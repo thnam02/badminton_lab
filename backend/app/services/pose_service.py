@@ -187,8 +187,10 @@ class PoseService:
         """RTMPose → temporal → quality → angles/motion → initial phases → kinematic contact."""
         estimator = self.estimator
         estimator.reset_tracking()
-        raw_sequence = PoseSequence(video=output_path.name)
         video_fps, video_width, video_height = probe_video_metadata(input_path)
+        raw_sequence = PoseSequence(
+            video=output_path.name, frame_width=video_width, frame_height=video_height
+        )
 
         def collect_frame(frame, frame_index: int, fps: float) -> None:
             keypoints = estimator.predict(frame)
@@ -237,6 +239,9 @@ class PoseService:
         analyzer = get_stroke_analyzer(stroke_type)
         handedness = normalize_handedness(handedness)
         camera_view = normalize_camera_view(camera_view)
+        if not (raw_sequence.frame_width and raw_sequence.frame_height):
+            raw_sequence.frame_width = int(video_width)
+            raw_sequence.frame_height = int(video_height)
         if handedness == HANDEDNESS_LEFT:
             raw_sequence = swap_left_right(raw_sequence)
 

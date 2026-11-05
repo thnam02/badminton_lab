@@ -109,4 +109,4 @@ def swap_left_right(sequence: PoseSequence) -> PoseSequence:
         )
         for f in sequence.frames
     ]
-    return PoseSequence(video=sequence.video, frames=frames)
+    return sequence.with_frames(frames)

@@ -258,7 +258,7 @@ def _tiered_package(**overrides):
 
 def test_tiered_issues_carry_tier_and_tentative_flags() -> None:
     _, technique, package = _tiered_package()
-    assert package.evidence_version == "1.9.0"
+    assert package.evidence_version == "1.10.0"
     packaged = {i["code"]: i for i in package.technique_issues}
     assert set(packaged) == {i.code for i in technique.issues}
     assert len(packaged) == 6

@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-TIERED_RULES_VERSION = "tiered_rules_v3"
+# v4: thresholds unchanged; angles are measured on pixel-scaled keypoints.
+TIERED_RULES_VERSION = "tiered_rules_v4"
 
 TIER_PRINCIPLE = 1
 TIER_HINT = 2

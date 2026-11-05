@@ -24,12 +24,11 @@ class StrokeMetrics:
     contact_wrist_y_normalized: float | None = None
     # Resolved contact confidence; None when metrics were built without a contact event.
     contact_confidence: float | None = None
-    # Peak right-wrist linear speed from motion peaks (normalized image units / second;
-    # keypoints are typically in [0, 1] image space; not m/s or px/frame).
+    # Peak right-wrist linear speed from motion peaks (pixels / second; not m/s).
     peak_wrist_speed: float | None = None
-    # Median mid-shoulder → mid-hip distance over the analysed swing (normalized
-    # image units) and peak_wrist_speed divided by it (torso lengths / second),
-    # which removes the dependence on player distance from the camera.
+    # Median mid-shoulder → mid-hip distance over the analysed swing (pixels)
+    # and peak_wrist_speed divided by it (torso lengths / second), which removes
+    # the dependence on player distance from the camera and on resolution.
     swing_median_torso_length: float | None = None
     peak_wrist_speed_body_norm: float | None = None
 
