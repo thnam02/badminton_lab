@@ -111,6 +111,12 @@ TIER_DISPLAY_METRICS: tuple[tuple[str, str, str, str | None], ...] = (
     ("follow_through_speed_ratio", "Follow-through speed ratio", "", None),
     ("peak_wrist_speed", "Peak wrist speed", "", None),
     (
+        "peak_wrist_speed_body_norm",
+        "Peak wrist speed (torso lengths per second)",
+        "torso lengths/s",
+        None,
+    ),
+    (
         "swing_elbow_lead_over_shoulder_frames",
         "Arm-elevation timing (elbow peak lead over shoulder)",
         "frames",

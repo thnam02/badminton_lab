@@ -10,6 +10,7 @@ from typing import Any
 
 
 CHAIN_UNAVAILABLE_REASON = "requires 3D landmarks"
+POWER_UNAVAILABLE_REASON = "speed scale not yet calibrated"
 
 
 def clip(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
@@ -241,6 +242,7 @@ def compute_composite_scores(
 ) -> dict[str, Any]:
     """Return coaching-facing composite scores.
 
+    Chain and power are always withheld (see their ``*_unavailable_reason``).
     ``available`` is False when every top-level score is None (insufficient inputs
     on a current-version analysis). Downstream should treat ``available=False``
     the same as a missing/pre-1.1.0 field — never coerce to 0.
@@ -257,14 +259,16 @@ def compute_composite_scores(
         metrics.get("preparation_knee_angle_deg"),
         metrics.get("contact_wrist_y_normalized"),
     )
-    available = any(s is not None for s in (power, base))
     return {
-        "available": available,
+        "available": base is not None,
         # Chain depends on kinetic-chain timing, which is display-only and
         # unreliable in 2D; its components stay below for diagnostics only.
         "chain_score": None,
         "chain_unavailable_reason": CHAIN_UNAVAILABLE_REASON,
-        "power_score": power,
+        # No validated range exists yet for body-normalised wrist speed; the
+        # uncalibrated value is kept in components for diagnostics only.
+        "power_score": None,
+        "power_unavailable_reason": POWER_UNAVAILABLE_REASON,
         "base_score": base,
         "components": {
             "chain": {
@@ -274,6 +278,8 @@ def compute_composite_scores(
                 "trunk_rotation": _trunk_rotation_score(metrics),
             },
             "power": {
+                "uncalibrated_score": power,
+                "peak_wrist_speed_body_norm": metrics.get("peak_wrist_speed_body_norm"),
                 "peak_speed_percentile": speed_pct,
                 "speed_score_source": (
                     "explicit_percentile"
@@ -300,6 +306,7 @@ def compute_composite_scores(
             "0.20 width. When no real peak_speed_percentile is supplied, POWER "
             "uses a STOPGAP min-max of peak_wrist_speed on a small local clip "
             "set (not a population percentile) — replace once profiles include "
-            "peak_wrist_speed."
+            "peak_wrist_speed. POWER is withheld until body-normalised wrist "
+            "speed has a validated range."
         ),
     }

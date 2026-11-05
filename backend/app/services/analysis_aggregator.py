@@ -11,7 +11,10 @@ from pathlib import Path
 from typing import Any
 
 from app.config import settings
-from app.processing.composite_scores import CHAIN_UNAVAILABLE_REASON
+from app.processing.composite_scores import (
+    CHAIN_UNAVAILABLE_REASON,
+    POWER_UNAVAILABLE_REASON,
+)
 from app.processing.technique_rules_config import (
     TIER_BY_CODE,
     TIER_HINT,
@@ -77,6 +80,7 @@ CONTACT_ESTIMATED_NOTE = (
 )
 
 CHAIN_NOT_ASSESSABLE_LABEL = "Not assessable from 2D video"
+POWER_NOT_CALIBRATED_LABEL = "Speed scale not yet calibrated"
 
 LIMITED_VIEW_MESSAGE = (
     "This camera angle allows only limited analysis. Film from the side, at hip "
@@ -300,7 +304,8 @@ def _summary_from_result(result: dict[str, Any]) -> dict[str, Any]:
             "available": bool(composite.get("available")),
             "chain_score": None,
             "chain_unavailable_reason": composite.get("chain_unavailable_reason"),
-            "power_score": composite.get("power_score"),
+            "power_score": None,
+            "power_unavailable_reason": composite.get("power_unavailable_reason"),
             "base_score": composite.get("base_score"),
         },
     }
@@ -318,6 +323,7 @@ def _normalize_composite_scores(evidence: dict[str, Any] | None) -> dict[str, An
         "chain_score": None,
         "chain_unavailable_reason": CHAIN_UNAVAILABLE_REASON,
         "power_score": None,
+        "power_unavailable_reason": POWER_UNAVAILABLE_REASON,
         "base_score": None,
         "notes": None,
     }
@@ -326,17 +332,17 @@ def _normalize_composite_scores(evidence: dict[str, Any] | None) -> dict[str, An
     raw = evidence.get("composite_scores")
     if not isinstance(raw, dict):
         return empty
-    # Chain is hidden for every analysis, including ones scored before it was
-    # retired: kinetic-chain timing is unreliable in 2D.
-    power = raw.get("power_score")
+    # Chain and power are hidden for every analysis, including ones scored
+    # before they were withheld: kinetic-chain timing is unreliable in 2D and
+    # wrist speed has no calibrated scale yet.
     base = raw.get("base_score")
-    has_any = any(v is not None for v in (power, base))
-    available = bool(raw.get("available", has_any)) and has_any
+    available = bool(raw.get("available", base is not None)) and base is not None
     return {
         "available": available,
         "chain_score": None,
         "chain_unavailable_reason": CHAIN_UNAVAILABLE_REASON,
-        "power_score": float(power) if power is not None else None,
+        "power_score": None,
+        "power_unavailable_reason": POWER_UNAVAILABLE_REASON,
         "base_score": float(base) if base is not None else None,
         "notes": raw.get("notes"),
     }
@@ -950,17 +956,22 @@ def _comparison_rows(
             "unavailable_note": CHAIN_NOT_ASSESSABLE_LABEL,
         }
     )
-    for key, label in (
-        ("power_score", "Power score"),
-        ("base_score", "Base score"),
-    ):
-        lv = left_comp.get(key) if left_comp.get("available") else None
-        rv = right_comp.get(key) if right_comp.get("available") else None
-        if lv is None and rv is None:
-            continue
+    rows.append(
+        {
+            "label": "Power score",
+            "unit": "",
+            "left": None,
+            "right": None,
+            "change": "n/a",
+            "unavailable_note": POWER_NOT_CALIBRATED_LABEL,
+        }
+    )
+    lv = left_comp.get("base_score") if left_comp.get("available") else None
+    rv = right_comp.get("base_score") if right_comp.get("available") else None
+    if lv is not None or rv is not None:
         rows.append(
             {
-                "label": label,
+                "label": "Base score",
                 "unit": "",
                 "left": lv,
                 "right": rv,

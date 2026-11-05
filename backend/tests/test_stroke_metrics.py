@@ -316,3 +316,55 @@ def test_chain_timing_peaks_search_only_the_hit() -> None:
     assert m.peak_trunk_rotation_velocity_deg_s == pytest.approx(10.0 * 30.0, rel=1e-6)
     # Trunk peak at -3, elbow extension peak at -1 → elbow follows the trunk.
     assert m.acceleration_elbow_extension_lead_over_trunk_frames == -2
+
+
+def _set_torso(frame, length: float, confidence: float = 0.9) -> None:
+    from app.schemas.pose import Keypoint
+
+    frame.keypoints.update(
+        {
+            "left_shoulder": Keypoint(0.45, 0.30, confidence),
+            "right_shoulder": Keypoint(0.55, 0.30, confidence),
+            "left_hip": Keypoint(0.45, 0.30 + length, confidence),
+            "right_hip": Keypoint(0.55, 0.30 + length, confidence),
+        }
+    )
+
+
+@pytest.mark.parametrize("stroke", ["smash", "clear"])
+def test_peak_wrist_speed_divided_by_median_swing_torso_length(stroke: str) -> None:
+    from app.processing.stroke_metrics import compute_stroke_metrics
+    from app.processing.strokes.clear.metrics import compute_clear_metrics
+    from app.schemas.motion import PeakStats
+
+    pose, angles, motion, phases, contact = _swing_fixture()
+    motion.peaks["right_wrist_speed"] = PeakStats(
+        value=2.0, frame_index=contact, timestamp=contact / 30.0
+    )
+    # Swing window is backswing start 10 → follow-through end 29.
+    for frame in pose.frames:
+        i = frame.frame_index
+        if i < 10:
+            _set_torso(frame, 0.80)  # preparation: outside the swing window
+        elif i == 15:
+            _set_torso(frame, 0.60)  # single outlier: median ignores it
+        elif i == 16:
+            _set_torso(frame, 0.05, confidence=0.2)  # low confidence: skipped
+        else:
+            _set_torso(frame, 0.20)
+    compute = compute_stroke_metrics if stroke == "smash" else compute_clear_metrics
+    m = compute(pose, angles, motion, phases)
+
+    assert m.peak_wrist_speed == pytest.approx(2.0)
+    assert m.swing_median_torso_length == pytest.approx(0.20)
+    assert m.peak_wrist_speed_body_norm == pytest.approx(10.0)
+
+
+def test_body_normalised_speed_none_without_hips() -> None:
+    from app.processing.stroke_metrics import compute_stroke_metrics
+
+    pose, angles, motion, phases, _ = _swing_fixture()
+    m = compute_stroke_metrics(pose, angles, motion, phases)
+    assert m.peak_wrist_speed is not None
+    assert m.swing_median_torso_length is None
+    assert m.peak_wrist_speed_body_norm is None

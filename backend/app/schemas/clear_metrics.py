@@ -34,6 +34,9 @@ class ForehandClearMetrics:
     peak_elbow_omega: float | None = None
     # Peak right-wrist linear speed (normalized image units / second; not m/s).
     peak_wrist_speed: float | None = None
+    # Torso-length-normalised peak wrist speed (see StrokeMetrics).
+    swing_median_torso_length: float | None = None
+    peak_wrist_speed_body_norm: float | None = None
     peak_elbow_omega_offset_frames: int | None = None
     peak_shoulder_omega_offset_frames: int | None = None
     peak_hip_omega_offset_frames: int | None = None

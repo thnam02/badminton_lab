@@ -258,7 +258,7 @@ def _tiered_package(**overrides):
 
 def test_tiered_issues_carry_tier_and_tentative_flags() -> None:
     _, technique, package = _tiered_package()
-    assert package.evidence_version == "1.8.0"
+    assert package.evidence_version == "1.9.0"
     packaged = {i["code"]: i for i in package.technique_issues}
     assert set(packaged) == {i.code for i in technique.issues}
     assert len(packaged) == 6
@@ -285,6 +285,7 @@ def test_tiered_measured_values_match_source_metrics() -> None:
 def test_display_metrics_are_tier3_and_never_issues() -> None:
     _, technique, package = _tiered_package(
         peak_wrist_speed=None,
+        peak_wrist_speed_body_norm=8.5,
         acceleration_elbow_extension_lead_over_trunk_frames=3,
         peak_trunk_rotation_velocity_deg_s=400.0,
     )
@@ -294,10 +295,13 @@ def test_display_metrics_are_tier3_and_never_issues() -> None:
         "peak_trunk_rotation_deg",
         "preparation_elbow_angle_deg",
         "follow_through_speed_ratio",
+        "peak_wrist_speed_body_norm",
         "acceleration_elbow_extension_lead_over_trunk_frames",
         "peak_trunk_rotation_velocity_deg_s",
     } <= set(display)
     assert "peak_wrist_speed" not in display
+    assert display["peak_wrist_speed_body_norm"]["value"] == pytest.approx(8.5)
+    assert display["peak_wrist_speed_body_norm"]["unit"] == "torso lengths/s"
     assert all(d["tier"] == 3 for d in display.values())
     assert display["contact_shoulder_angle_deg"]["value"] == pytest.approx(110.0)
     assert display["contact_shoulder_angle_deg"]["note"] is None

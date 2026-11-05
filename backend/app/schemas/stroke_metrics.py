@@ -27,6 +27,11 @@ class StrokeMetrics:
     # Peak right-wrist linear speed from motion peaks (normalized image units / second;
     # keypoints are typically in [0, 1] image space; not m/s or px/frame).
     peak_wrist_speed: float | None = None
+    # Median mid-shoulder → mid-hip distance over the analysed swing (normalized
+    # image units) and peak_wrist_speed divided by it (torso lengths / second),
+    # which removes the dependence on player distance from the camera.
+    swing_median_torso_length: float | None = None
+    peak_wrist_speed_body_norm: float | None = None
 
     # Knee contribution: contact knee angle minus the deepest knee bend while
     # loading (backswing start → frame before contact), degrees.

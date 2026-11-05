@@ -304,14 +304,24 @@ def test_composite_scores_surface_when_evidence_has_them(tmp_path: Path) -> None
     )
     result = get_analysis_result("comp001", output_dir=tmp_path)
     assert result["composite_scores"]["available"] is True
-    # Older evidence still carries a chain score; it is hidden everywhere.
+    # Older evidence still carries chain and power scores; both are hidden everywhere.
     assert result["composite_scores"]["chain_score"] is None
     assert result["composite_scores"]["chain_unavailable_reason"] == "requires 3D landmarks"
-    assert result["composite_scores"]["power_score"] == pytest.approx(0.71)
+    assert result["composite_scores"]["power_score"] is None
+    assert (
+        result["composite_scores"]["power_unavailable_reason"]
+        == "speed scale not yet calibrated"
+    )
+    assert result["composite_scores"]["base_score"] == pytest.approx(0.66)
 
     summary = next(a for a in list_analyses(output_dir=tmp_path) if a["analysis_id"] == "comp001")
     assert summary["composite_scores"]["chain_score"] is None
     assert summary["composite_scores"]["chain_unavailable_reason"] == "requires 3D landmarks"
+    assert summary["composite_scores"]["power_score"] is None
+    assert (
+        summary["composite_scores"]["power_unavailable_reason"]
+        == "speed scale not yet calibrated"
+    )
 
     _seed_analysis(tmp_path, "comp002")
     cmp = compare_analyses("comp001", "comp002", output_dir=tmp_path)
@@ -321,7 +331,12 @@ def test_composite_scores_surface_when_evidence_has_them(tmp_path: Path) -> None
     assert chain_rows[0]["right"] is None
     assert chain_rows[0]["unavailable_note"] == "Not assessable from 2D video"
     power_rows = [r for r in cmp["rows"] if r["label"] == "Power score"]
-    assert power_rows[0]["left"] == pytest.approx(0.71)
+    assert len(power_rows) == 1
+    assert power_rows[0]["left"] is None
+    assert power_rows[0]["right"] is None
+    assert power_rows[0]["unavailable_note"] == "Speed scale not yet calibrated"
+    base_rows = [r for r in cmp["rows"] if r["label"] == "Base score"]
+    assert base_rows[0]["left"] == pytest.approx(0.66)
 
 
 def test_coaching_unavailable_does_not_fail(tmp_path: Path) -> None:

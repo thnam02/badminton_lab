@@ -156,7 +156,9 @@ export type CompositeScoresView = {
   /** Always null: chain timing is not assessable from 2D video. */
   chain_score?: number | null;
   chain_unavailable_reason?: string | null;
+  /** Always null: wrist speed has no calibrated scale yet. */
   power_score?: number | null;
+  power_unavailable_reason?: string | null;
   base_score?: number | null;
   notes?: string | null;
 };

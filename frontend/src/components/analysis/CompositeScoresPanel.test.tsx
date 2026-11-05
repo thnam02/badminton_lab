@@ -6,16 +6,13 @@ describe("CompositeScoresPanel", () => {
   it("shows n/a for a null score instead of 0", () => {
     render(
       <CompositeScoresPanel
-        scores={{ available: true, chain_score: null, power_score: null, base_score: 0.5 }}
+        scores={{ available: true, chain_score: null, power_score: null, base_score: null }}
       />
     );
-    const power = screen.getByText("Power").closest("article");
-    expect(power?.textContent).toContain("n/a");
-    expect(power?.textContent).toContain("Not enough signal for this score");
-    expect(power?.textContent).not.toContain("/ 100");
     const base = screen.getByText("Base").closest("article");
-    expect(base?.textContent).toContain("50");
-    expect(base?.textContent).toContain("/ 100");
+    expect(base?.textContent).toContain("n/a");
+    expect(base?.textContent).toContain("Not enough signal for this score");
+    expect(base?.textContent).not.toContain("/ 100");
   });
 
   it("never shows a chain score, even if one is supplied", () => {
@@ -30,21 +27,34 @@ describe("CompositeScoresPanel", () => {
     expect(chain?.textContent).not.toContain("Beta");
   });
 
-  it("labels Power and Base as Beta with the provisional-targets tooltip", () => {
+  it("never shows a power score, even if one is supplied", () => {
     render(
       <CompositeScoresPanel
-        scores={{ available: true, chain_score: null, power_score: 0.4, base_score: 0.5 }}
+        scores={{ available: true, chain_score: null, power_score: 0.47, base_score: 0.5 }}
+      />
+    );
+    const power = screen.getByText("Power").closest("article");
+    expect(power?.textContent).toContain("Speed scale not yet calibrated");
+    expect(power?.textContent).not.toContain("47");
+    expect(power?.textContent).not.toContain("/ 100");
+    expect(power?.textContent).not.toContain("Beta");
+  });
+
+  it("labels Base as Beta with the provisional-targets tooltip", () => {
+    render(
+      <CompositeScoresPanel
+        scores={{ available: true, chain_score: null, power_score: null, base_score: 0.5 }}
       />
     );
     const badges = screen.getAllByText("Beta");
-    expect(badges).toHaveLength(2);
-    for (const badge of badges) {
-      expect(badge.getAttribute("title")).toBe(
-        "Based on provisional targets, not yet validated by coaches."
-      );
-    }
-    expect(screen.getByText("Power").closest("article")?.textContent).toContain("Beta");
-    expect(screen.getByText("Base").closest("article")?.textContent).toContain("Beta");
+    expect(badges).toHaveLength(1);
+    expect(badges[0].getAttribute("title")).toBe(
+      "Based on provisional targets, not yet validated by coaches."
+    );
+    const base = screen.getByText("Base").closest("article");
+    expect(base?.textContent).toContain("Beta");
+    expect(base?.textContent).toContain("50");
+    expect(base?.textContent).toContain("/ 100");
   });
 
   it("shows the unavailable message when scores are missing", () => {

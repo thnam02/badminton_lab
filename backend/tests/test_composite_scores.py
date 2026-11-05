@@ -96,6 +96,7 @@ def test_compute_composite_available_false_when_empty() -> None:
     assert payload["chain_score"] is None
     assert payload["chain_unavailable_reason"] == "requires 3D landmarks"
     assert payload["power_score"] is None
+    assert payload["power_unavailable_reason"] == "speed scale not yet calibrated"
     assert payload["base_score"] is None
 
 
@@ -117,9 +118,31 @@ def test_compute_composite_with_shared_power_inputs() -> None:
     assert payload["chain_score"] is None
     assert payload["chain_unavailable_reason"] == "requires 3D landmarks"
     assert payload["components"]["chain"]["order"] is not None
-    assert payload["power_score"] is not None
+    # Power waits for a calibrated speed scale; its inputs stay for diagnostics.
+    assert payload["power_score"] is None
+    assert payload["power_unavailable_reason"] == "speed scale not yet calibrated"
+    assert payload["components"]["power"]["uncalibrated_score"] is not None
     assert payload["base_score"] is not None
     assert payload["components"]["power"]["speed_score_source"] == "explicit_percentile"
+
+
+def test_power_withheld_and_available_tracks_base_only() -> None:
+    metrics = {
+        "peak_wrist_speed": 2.0,
+        "peak_wrist_speed_body_norm": 9.5,
+        "follow_through_speed_ratio": 0.6,
+        "acceleration_phase_fraction": 0.40,
+    }
+    payload = compute_composite_scores(metrics)
+    assert payload["power_score"] is None
+    assert payload["available"] is False
+    assert payload["components"]["power"]["peak_wrist_speed_body_norm"] == pytest.approx(9.5)
+
+    with_base = compute_composite_scores(
+        {**metrics, "preparation_knee_angle_deg": 125.0, "contact_wrist_y_normalized": 0.40}
+    )
+    assert with_base["available"] is True
+    assert with_base["power_score"] is None
 
 
 def test_stopgap_speed_score_from_peak_wrist_feeds_power() -> None:
@@ -142,16 +165,12 @@ def test_stopgap_speed_score_from_peak_wrist_feeds_power() -> None:
         "acceleration_phase_fraction": 0.40,
     }
     payload = compute_composite_scores(metrics)
-    assert payload["power_score"] is not None
-    assert payload["components"]["power"]["peak_speed_percentile"] == pytest.approx(0.5)
-    assert (
-        payload["components"]["power"]["speed_score_source"]
-        == "stopgap_minmax_peak_wrist_speed"
-    )
+    power = payload["components"]["power"]
+    assert power["peak_speed_percentile"] == pytest.approx(0.5)
+    assert power["speed_score_source"] == "stopgap_minmax_peak_wrist_speed"
     # 0.5*0.5 + 1.0*0.3 + 1.0*0.2 = 0.75
-    assert payload["power_score"] == pytest.approx(0.75, abs=0.02)
+    assert power["uncalibrated_score"] == pytest.approx(0.75, abs=0.02)
 
     # Faster wrist → higher power when retention/timing held constant.
     faster = compute_composite_scores({**metrics, "peak_wrist_speed": mid + 1.0})
-    assert faster["power_score"] is not None
-    assert faster["power_score"] > payload["power_score"]
+    assert faster["components"]["power"]["uncalibrated_score"] > power["uncalibrated_score"]

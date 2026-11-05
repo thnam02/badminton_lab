@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchAnalyses } from "@/lib/api";
 import { formatDate, confidenceLabel, issueTitleFromCode } from "@/lib/format";
-import { BETA_SCORE_TOOLTIP, CHAIN_NOT_ASSESSABLE } from "@/lib/scores";
+import {
+  BETA_SCORE_TOOLTIP,
+  CHAIN_NOT_ASSESSABLE,
+  POWER_NOT_CALIBRATED,
+} from "@/lib/scores";
 import type { AnalysisSummary } from "@/lib/types";
 
 function band(score?: number | null): string {
@@ -84,23 +88,19 @@ export default function HistoryPage() {
                   <span className="rounded-md border border-dashed border-[var(--border)] px-2 py-0.5 font-medium">
                     Chain: {CHAIN_NOT_ASSESSABLE}
                   </span>
-                  {(
-                    [
-                      ["Power", item.composite_scores.power_score],
-                      ["Base", item.composite_scores.base_score],
-                    ] as const
-                  ).map(([label, value]) => (
-                    <span
-                      key={label}
-                      title={BETA_SCORE_TOOLTIP}
-                      className="rounded-md border border-[var(--border)] px-2 py-0.5 font-medium text-[var(--fg)]"
-                    >
-                      {label} (Beta){" "}
-                      {value == null || Number.isNaN(value)
-                        ? "n/a"
-                        : Math.round(Number(value) * 100)}
-                    </span>
-                  ))}
+                  <span className="rounded-md border border-dashed border-[var(--border)] px-2 py-0.5 font-medium">
+                    Power: {POWER_NOT_CALIBRATED}
+                  </span>
+                  <span
+                    title={BETA_SCORE_TOOLTIP}
+                    className="rounded-md border border-[var(--border)] px-2 py-0.5 font-medium text-[var(--fg)]"
+                  >
+                    Base (Beta){" "}
+                    {item.composite_scores.base_score == null ||
+                    Number.isNaN(item.composite_scores.base_score)
+                      ? "n/a"
+                      : Math.round(Number(item.composite_scores.base_score) * 100)}
+                  </span>
                 </p>
               )}
               <p className="mt-3 text-sm text-[var(--muted)]">
