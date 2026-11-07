@@ -24,3 +24,6 @@ export const inputBase =
   "block min-h-11 w-full rounded-xl border border-border bg-surface-2 px-3 text-text";
 
 export const tile = "rounded-xl bg-surface-2 p-3.5";
+
+export const detailsSummary =
+  "flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm text-text-muted hover:text-text [&::-webkit-details-marker]:hidden after:inline-block after:-rotate-90 after:transition-transform after:content-['▾'] [details[open]>&]:after:rotate-0";

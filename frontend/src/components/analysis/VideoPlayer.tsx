@@ -54,7 +54,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
     if (!src || error) {
       return (
         <div
-          className="flex aspect-video w-full items-center justify-center rounded-lg border border-[var(--border)] bg-[#111] px-6 text-center text-sm text-white/80"
+          className="flex aspect-video w-full items-center justify-center bg-bg px-6 text-center text-sm text-text-muted"
           role="status"
         >
           {unavailableMessage}
@@ -68,10 +68,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, Props>(
         src={src}
         controls
         playsInline
-        className={
-          className ||
-          "aspect-video w-full rounded-lg border border-[var(--border)] bg-black"
-        }
+        className={className || "aspect-video w-full bg-black"}
         onTimeUpdate={(e) => onTimeUpdate?.(e.currentTarget.currentTime)}
         onError={() => setError(true)}
       />

@@ -53,7 +53,7 @@ export function SiteHeader() {
           {!onAnalyze && (
             <Link
               href="/analyze"
-              className="ml-2 inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-[18px] font-semibold text-bg hover:bg-accent-soft hover:text-bg"
+              className="ml-2 hidden min-h-11 items-center sm:inline-flex gap-2 rounded-full bg-accent px-[18px] font-semibold text-bg hover:bg-accent-soft hover:text-bg"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
