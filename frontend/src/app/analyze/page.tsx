@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
+import { PageContainer } from "@/components/shell/PageContainer";
 import { startAnalyze, type CameraView, type Handedness } from "@/lib/api";
 
 const ACCEPTED = ".mp4,.mov,video/mp4,video/quicktime";
@@ -152,7 +153,7 @@ export default function AnalyzePage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
+    <PageContainer>
       <header className="space-y-2">
         <h1 className="font-display text-3xl font-semibold tracking-tight">
           Analyze a stroke
@@ -261,7 +262,7 @@ export default function AnalyzePage() {
           ref={inputRef}
           type="file"
           accept={ACCEPTED}
-          className="mt-4 block w-full text-sm file:mr-4 file:rounded-md file:border-0 file:bg-[var(--accent)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+          className="mt-4 block w-full text-sm file:mr-4 file:rounded-md file:border-0 file:bg-[var(--accent)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-[var(--bg)]"
           onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
         />
         {file && (
@@ -308,7 +309,7 @@ export default function AnalyzePage() {
           type="button"
           disabled={!canUpload || loading}
           onClick={runAnalyze}
-          className="mt-4 inline-flex items-center justify-center rounded-md bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-4 inline-flex items-center justify-center rounded-md bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-[var(--bg)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loading ? "Analyzing…" : "Start analysis"}
         </button>
@@ -362,6 +363,6 @@ export default function AnalyzePage() {
           </p>
         )}
       </section>
-    </main>
+    </PageContainer>
   );
 }

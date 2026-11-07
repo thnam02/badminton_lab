@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
-import { Fraunces, Source_Sans_3 } from "next/font/google";
-import Link from "next/link";
+import { Inter, Space_Grotesk } from "next/font/google";
+import { SiteHeader } from "@/components/shell/SiteHeader";
 import "./globals.css";
 
-const sourceSans = Source_Sans_3({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 });
 
-const fraunces = Fraunces({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
+  weight: ["500", "600", "700"],
   variable: "--font-display",
 });
 
@@ -25,46 +26,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${sourceSans.variable} ${fraunces.variable} antialiased`}
-      >
-        <div className="min-h-screen">
-          <header className="border-b border-[var(--border)] bg-[var(--bg-elevated)]">
-            <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-              <Link
-                href="/"
-                className="font-display text-xl font-semibold tracking-tight text-[var(--fg)]"
-              >
-                Badminton Lab
-              </Link>
-              <nav
-                className="flex items-center gap-1 text-sm font-medium text-[var(--muted)]"
-                aria-label="Primary"
-              >
-                <Link
-                  href="/analyze"
-                  className="rounded-md px-3 py-2 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
-                >
-                  Analyze
-                </Link>
-                <Link
-                  href="/history"
-                  className="rounded-md px-3 py-2 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
-                >
-                  History
-                </Link>
-                <Link
-                  href="/compare"
-                  className="rounded-md px-3 py-2 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
-                >
-                  Compare
-                </Link>
-              </nav>
-            </div>
-          </header>
-          {children}
-        </div>
+    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
+      <body>
+        <a
+          href="#main"
+          className="sr-only rounded-lg bg-accent px-4 py-3 font-semibold text-bg focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 hover:text-bg"
+        >
+          Skip to content
+        </a>
+        <SiteHeader />
+        {children}
       </body>
     </html>
   );

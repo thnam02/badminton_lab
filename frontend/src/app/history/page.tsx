@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PageContainer } from "@/components/shell/PageContainer";
 import { fetchAnalyses } from "@/lib/api";
 import { formatDate, confidenceLabel, issueTitleFromCode } from "@/lib/format";
 import type { AnalysisSummary } from "@/lib/types";
@@ -28,7 +29,7 @@ export default function HistoryPage() {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+    <PageContainer>
       <header className="mb-8 space-y-2">
         <h1 className="font-display text-3xl font-semibold">History</h1>
         <p className="text-sm text-[var(--muted)]">
@@ -109,6 +110,6 @@ export default function HistoryPage() {
           </li>
         ))}
       </ul>
-    </main>
+    </PageContainer>
   );
 }

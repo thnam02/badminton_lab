@@ -3,33 +3,38 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f7f6f3;
-  --bg-elevated: #ffffff;
-  --fg: #1a1c1a;
-  --muted: #5c635c;
-  --accent: #1f6b4a;
-  --accent-dim: #165239;
-  --accent-soft: #e7f2ec;
-  --danger: #9b2c2c;
-  --warning: #8a6d1d;
-  --border: #e2e0da;
-  --focus: #1f6b4a;
-  --timeline-track: #e8e6e0;
-  --timeline-active: #1f6b4a;
+  color-scheme: dark;
+
+  /* Legacy names still referenced by pages that are not yet on theme tokens. */
+  --bg: theme("colors.bg");
+  --bg-elevated: theme("colors.surface.DEFAULT");
+  --fg: theme("colors.text.DEFAULT");
+  --muted: theme("colors.text.muted");
+  --accent: theme("colors.accent.DEFAULT");
+  --accent-dim: theme("colors.accent.soft");
+  --accent-soft: rgb(61 214 140 / 0.12);
+  --danger: theme("colors.danger");
+  --warning: theme("colors.warn");
+  --border: theme("colors.border");
+  --timeline-track: theme("colors.surface.2");
+  --timeline-active: theme("colors.accent.DEFAULT");
 }
 
 body {
-  color: var(--fg);
-  background: var(--bg);
-  font-family: var(--font-sans), "Segoe UI", sans-serif;
+  @apply bg-bg font-sans text-text antialiased;
+  font-size: 15px;
+  line-height: 1.55;
   min-height: 100vh;
 }
 
-:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+:where(a) {
+  color: theme("colors.accent.DEFAULT");
 }
 
-.font-display {
-  font-family: var(--font-display), Georgia, serif;
+:where(a:hover) {
+  color: theme("colors.accent.soft");
+}
+
+:focus-visible {
+  @apply outline outline-2 outline-offset-2 outline-accent;
 }
