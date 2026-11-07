@@ -178,6 +178,8 @@ export type AnalysisSummary = {
   stroke_type_raw?: string | null;
   handedness?: string | null;
   handedness_raw?: string | null;
+  /** Present only for indexed analyses with a declared (non-UNKNOWN) view. */
+  camera_view?: string | null;
   analysis_confidence?: number | null;
   main_issue?: string | null;
   pose_video_url?: string | null;
