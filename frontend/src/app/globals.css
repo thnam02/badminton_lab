@@ -4,20 +4,6 @@
 
 :root {
   color-scheme: dark;
-
-  /* Legacy names still referenced by pages that are not yet on theme tokens. */
-  --bg: theme("colors.bg");
-  --bg-elevated: theme("colors.surface.DEFAULT");
-  --fg: theme("colors.text.DEFAULT");
-  --muted: theme("colors.text.muted");
-  --accent: theme("colors.accent.DEFAULT");
-  --accent-dim: theme("colors.accent.soft");
-  --accent-soft: rgb(61 214 140 / 0.12);
-  --danger: theme("colors.danger");
-  --warning: theme("colors.warn");
-  --border: theme("colors.border");
-  --timeline-track: theme("colors.surface.2");
-  --timeline-active: theme("colors.accent.DEFAULT");
 }
 
 body {

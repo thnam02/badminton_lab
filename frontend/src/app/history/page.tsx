@@ -304,11 +304,11 @@ function HistoryRow({
           <PlayerIcon />
         )}
       </div>
-      <div className="flex min-w-0 flex-[999_1_280px] flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      <div className="flex min-w-0 flex-[999_1_280px] flex-col">
+        <div className="flex flex-wrap items-center gap-x-2.5">
           <Link
             href={href}
-            className="font-display text-lg font-semibold text-text hover:text-accent-soft"
+            className="inline-flex min-h-11 items-center font-display text-lg font-semibold text-text hover:text-accent-soft"
           >
             {stroke}
           </Link>
