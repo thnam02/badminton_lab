@@ -11,16 +11,40 @@ from app.config import settings
 from app.cv.mmpose_estimator import MMPoseEstimator
 from app.cv.overlay import AnnotationRenderer
 from app.processing.angles import compute_angle_sequence
-from app.processing.contact_resolver import resolve_contact
+from app.processing.capture_context import (
+    CAMERA_VIEW_UNKNOWN,
+    HANDEDNESS_LEFT,
+    HANDEDNESS_UNKNOWN,
+    capture_context_warnings,
+    normalize_camera_view,
+    normalize_handedness,
+    profile_camera_view,
+    profile_handedness,
+    swap_left_right,
+)
+from app.processing.contact_peaks import ContactPeakAnalysis, analyze_contact_peaks
+from app.processing.contact_resolver import (
+    WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE,
+    resolve_contact,
+    shuttle_detected_near,
+)
 from app.processing.keyframes import extract_keyframes_from_final
 from app.processing.motion import compute_motion_derivatives
 from app.processing.strokes import get_stroke_analyzer
 from app.processing.temporal import preprocess_pose_sequence
-from app.processing.video_quality import assess_video_quality
+from app.processing.video_quality import (
+    apply_contact_visibility,
+    assess_video_quality,
+    racket_arm_visibility_at_contact,
+)
 from app.schemas.analysis_snapshot import build_analysis_snapshot
 from app.schemas.angles import AngleSequence
 from app.schemas.coaching import CoachingReport
-from app.schemas.contact import CONTACT_TYPE_KINEMATIC, ContactEvent
+from app.schemas.contact import (
+    CONTACT_TYPE_KINEMATIC,
+    ContactEvent,
+    ContactSignalEvidence,
+)
 from app.schemas.evidence import EvidencePackage
 from app.schemas.final_analysis import (
     FinalAnalysisState,
@@ -28,7 +52,7 @@ from app.schemas.final_analysis import (
     build_final_analysis_state,
 )
 from app.schemas.keyframes import KeyframeSet
-from app.schemas.motion import MotionSequence
+from app.schemas.motion import MotionSequence, PeakStats
 from app.schemas.phases import PhaseSequence
 from app.schemas.pose import PoseFrame, PoseSequence
 from app.schemas.provenance import (
@@ -78,6 +102,7 @@ from app.services.video_service import (
     technique_json_path_for,
     video_quality_json_path_for,
 )
+from app.services.warning_messages import log_unmapped_warnings
 
 
 @dataclass(slots=True)
@@ -101,6 +126,11 @@ class PoseKinematics:
     video_width: int
     video_height: int
     stroke_type: StrokeType = StrokeType.FOREHAND_SMASH
+    # When LEFT, every pose/angle/motion field here uses swapped labels:
+    # right_* means racket arm (see app.processing.capture_context).
+    handedness: str = HANDEDNESS_UNKNOWN
+    camera_view: str = CAMERA_VIEW_UNKNOWN
+    contact_peaks: ContactPeakAnalysis | None = None
 
 
 @dataclass(slots=True)
@@ -151,12 +181,16 @@ class PoseService:
         output_path: Path,
         *,
         stroke_type: str | StrokeType | None = None,
+        handedness: str = HANDEDNESS_UNKNOWN,
+        camera_view: str = CAMERA_VIEW_UNKNOWN,
     ) -> PoseKinematics:
         """RTMPose → temporal → quality → angles/motion → initial phases → kinematic contact."""
-        analyzer = get_stroke_analyzer(stroke_type)
         estimator = self.estimator
-        raw_sequence = PoseSequence(video=output_path.name)
+        estimator.reset_tracking()
         video_fps, video_width, video_height = probe_video_metadata(input_path)
+        raw_sequence = PoseSequence(
+            video=output_path.name, frame_width=video_width, frame_height=video_height
+        )
 
         def collect_frame(frame, frame_index: int, fps: float) -> None:
             keypoints = estimator.predict(frame)
@@ -169,6 +203,47 @@ class PoseService:
             )
 
         iter_video_frames(input_path, collect_frame)
+
+        return self.kinematics_from_raw_pose(
+            raw_sequence,
+            input_path=input_path,
+            output_path=output_path,
+            stroke_type=stroke_type,
+            handedness=handedness,
+            camera_view=camera_view,
+            video_fps=video_fps,
+            video_width=video_width,
+            video_height=video_height,
+            extra_warnings=estimator.tracker.warnings(),
+        )
+
+    def kinematics_from_raw_pose(
+        self,
+        raw_sequence: PoseSequence,
+        *,
+        input_path: Path,
+        output_path: Path,
+        stroke_type: str | StrokeType | None = None,
+        handedness: str = HANDEDNESS_UNKNOWN,
+        camera_view: str = CAMERA_VIEW_UNKNOWN,
+        video_fps: float,
+        video_width: int,
+        video_height: int,
+        extra_warnings: list[str] | None = None,
+    ) -> PoseKinematics:
+        """Everything after RTMPose, starting from true-anatomy keypoint labels.
+
+        For LEFT-handed players the labels are swapped first, so downstream
+        ``right_*`` measurements describe the racket arm (see capture_context).
+        """
+        analyzer = get_stroke_analyzer(stroke_type)
+        handedness = normalize_handedness(handedness)
+        camera_view = normalize_camera_view(camera_view)
+        if not (raw_sequence.frame_width and raw_sequence.frame_height):
+            raw_sequence.frame_width = int(video_width)
+            raw_sequence.frame_height = int(video_height)
+        if handedness == HANDEDNESS_LEFT:
+            raw_sequence = swap_left_right(raw_sequence)
 
         smoothed_sequence = preprocess_pose_sequence(
             raw_sequence,
@@ -184,6 +259,10 @@ class PoseService:
             width=video_width,
             height=video_height,
             confidence_threshold=settings.pose_confidence_threshold,
+            extra_warnings=[
+                *(extra_warnings or []),
+                *capture_context_warnings(handedness, camera_view),
+            ],
         )
         angle_sequence = compute_angle_sequence(
             smoothed_sequence,
@@ -194,6 +273,19 @@ class PoseService:
             angle_sequence,
             confidence_threshold=settings.pose_confidence_threshold,
         )
+        contact_peaks = analyze_contact_peaks(
+            motion_sequence,
+            raw_sequence,
+            confidence_threshold=settings.pose_confidence_threshold,
+        )
+        if contact_peaks.chosen is not None:
+            # Phases and peak-speed metrics anchor to the chosen contact peak,
+            # which is not always the clip's global wrist-speed maximum.
+            motion_sequence.peaks["right_wrist_speed"] = PeakStats(
+                value=contact_peaks.chosen.speed,
+                frame_index=contact_peaks.chosen.frame_index,
+                timestamp=contact_peaks.chosen.timestamp,
+            )
         initial_phases = analyzer.detect_phases(
             smoothed_sequence,
             angle_sequence,
@@ -214,6 +306,9 @@ class PoseService:
             video_width=video_width,
             video_height=video_height,
             stroke_type=analyzer.stroke_type,
+            handedness=handedness,
+            camera_view=camera_view,
+            contact_peaks=contact_peaks,
         )
 
     def finalize_analysis(
@@ -233,45 +328,8 @@ class PoseService:
         """
         input_path = kinematics.input_path
         output_path = kinematics.output_path
-
-        contact_event = _resolve_final_contact(
-            initial_phases=kinematics.initial_phases,
-            kinematic_contact=kinematics.kinematic_contact,
-            pose=kinematics.smoothed_sequence,
-            motion=kinematics.motion_sequence,
-            shuttle=shuttle,
-            racket=racket,
-        )
         analyzer = get_stroke_analyzer(kinematics.stroke_type)
-        if kinematics.kinematic_contact.kinematic_frame_index is not None:
-            final_phases = analyzer.detect_phases(
-                kinematics.smoothed_sequence,
-                kinematics.angle_sequence,
-                kinematics.motion_sequence,
-                forced_contact_frame_index=contact_event.frame_index,
-            )
-        else:
-            final_phases = kinematics.initial_phases
-
-        intermediate = IntermediateAnalysisSnapshot(
-            raw_pose=kinematics.raw_sequence,
-            initial_phases=kinematics.initial_phases,
-            kinematic_contact=kinematics.kinematic_contact,
-        )
-        final_state = build_final_analysis_state(
-            smoothed_pose=kinematics.smoothed_sequence,
-            angles=kinematics.angle_sequence,
-            motion=kinematics.motion_sequence,
-            video_quality=kinematics.quality_report,
-            phases=final_phases,
-            contact=contact_event,
-            video_fps=kinematics.video_fps,
-            video_width=kinematics.video_width,
-            video_height=kinematics.video_height,
-            input_path=input_path,
-            output_path=output_path,
-            intermediate=intermediate,
-        )
+        final_state = self.build_final_state(kinematics, shuttle=shuttle, racket=racket)
 
         analysis_id = _artifact_base_stem(output_path)
         snapshot = build_analysis_snapshot(final_state, analysis_id=analysis_id)
@@ -319,6 +377,11 @@ class PoseService:
             final_state,
             stroke_metrics,
             quality_confidence=float(final_state.video_quality.analysis_confidence),
+            pose_confidence=(
+                final_state.video_quality.metrics.racket_arm_visibility_at_contact
+            ),
+            handedness=profile_handedness(kinematics.handedness),
+            camera_view=profile_camera_view(kinematics.camera_view),
         )
         apply_provenance(
             technique_evaluation,
@@ -342,7 +405,8 @@ class PoseService:
             keyframes=keyframe_set,
             snapshot=snapshot,
             stroke_type=analyzer.stroke_type.value,
-            handedness=None,
+            handedness=kinematics.handedness,
+            camera_view=kinematics.camera_view,
         )
         coaching_report = generate_coaching_report_from_final(
             final_state,
@@ -364,10 +428,16 @@ class PoseService:
 
             mesh_video_path = mesh_video_path_for(output_path)
             mesh_json_path = mesh_json_path_for(output_path)
+            # Mesh fitting needs true anatomical labels, not racket-arm labels.
+            mesh_pose = (
+                swap_left_right(final_state.smoothed_pose)
+                if kinematics.handedness == HANDEDNESS_LEFT
+                else final_state.smoothed_pose
+            )
             mesh_status = start_mesh_job(
                 video_path=input_path,
                 pose_output=output_path,
-                pose_sequence=final_state.smoothed_pose,
+                pose_sequence=mesh_pose,
             )
 
         raw_json_path = pose_json_path_for(output_path)
@@ -527,6 +597,68 @@ class PoseService:
             mesh_status=mesh_status,
         )
 
+    def build_final_state(
+        self,
+        kinematics: PoseKinematics,
+        *,
+        shuttle: ShuttleTrajectory | None = None,
+        racket: RacketTrajectory | None = None,
+    ) -> FinalAnalysisState:
+        """ContactResolver → final contact → phase re-snap → FinalAnalysisState."""
+        contact_event = _resolve_final_contact(
+            initial_phases=kinematics.initial_phases,
+            kinematic_contact=kinematics.kinematic_contact,
+            pose=kinematics.smoothed_sequence,
+            motion=kinematics.motion_sequence,
+            shuttle=shuttle,
+            racket=racket,
+            contact_peaks=kinematics.contact_peaks,
+        )
+        analyzer = get_stroke_analyzer(kinematics.stroke_type)
+        if kinematics.kinematic_contact.kinematic_frame_index is not None:
+            final_phases = analyzer.detect_phases(
+                kinematics.smoothed_sequence,
+                kinematics.angle_sequence,
+                kinematics.motion_sequence,
+                forced_contact_frame_index=contact_event.frame_index,
+            )
+        else:
+            final_phases = kinematics.initial_phases
+
+        intermediate = IntermediateAnalysisSnapshot(
+            raw_pose=kinematics.raw_sequence,
+            initial_phases=kinematics.initial_phases,
+            kinematic_contact=kinematics.kinematic_contact,
+        )
+        video_quality = apply_contact_visibility(
+            kinematics.quality_report,
+            racket_arm_visibility_at_contact(
+                kinematics.smoothed_sequence,
+                contact_event.frame_index,
+                confidence_threshold=settings.pose_confidence_threshold,
+            ),
+        )
+        # Contact warnings are surfaced with quality warnings; their confidence
+        # cost is already carried by contact confidence, so no extra penalty.
+        video_quality.warnings.extend(
+            w for w in contact_event.warnings if w not in video_quality.warnings
+        )
+        log_unmapped_warnings(video_quality.warnings, analysis=kinematics.output_path.stem)
+        return build_final_analysis_state(
+            smoothed_pose=kinematics.smoothed_sequence,
+            angles=kinematics.angle_sequence,
+            motion=kinematics.motion_sequence,
+            video_quality=video_quality,
+            phases=final_phases,
+            contact=contact_event,
+            video_fps=kinematics.video_fps,
+            video_width=kinematics.video_width,
+            video_height=kinematics.video_height,
+            input_path=kinematics.input_path,
+            output_path=kinematics.output_path,
+            intermediate=intermediate,
+        )
+
     def analyze_video(
         self,
         input_path: Path,
@@ -537,6 +669,8 @@ class PoseService:
         shuttle: ShuttleTrajectory | None = None,
         racket: RacketTrajectory | None = None,
         stroke_type: str | StrokeType | None = None,
+        handedness: str = HANDEDNESS_UNKNOWN,
+        camera_view: str = CAMERA_VIEW_UNKNOWN,
     ) -> FinalizedAnalysis:
         """Full pose pipeline with optional precomputed shuttle/racket trajectories.
 
@@ -545,7 +679,11 @@ class PoseService:
         """
         del muscle_overlay  # retired path — ignored
         kinematics = self.compute_pose_kinematics(
-            input_path, output_path, stroke_type=stroke_type
+            input_path,
+            output_path,
+            stroke_type=stroke_type,
+            handedness=handedness,
+            camera_view=camera_view,
         )
         return self.finalize_analysis(
             kinematics,
@@ -584,6 +722,7 @@ def _resolve_final_contact(
     motion: MotionSequence,
     shuttle: ShuttleTrajectory | None,
     racket: RacketTrajectory | None,
+    contact_peaks: ContactPeakAnalysis | None = None,
 ) -> ContactEvent:
     """Single ContactResolver call that every downstream artifact must use."""
     kin_frame = kinematic_contact.kinematic_frame_index
@@ -596,16 +735,41 @@ def _resolve_final_contact(
             confidence=0.0,
             notes="No kinematic contact available.",
         )
-    return resolve_contact(
+    chosen = contact_peaks.chosen if contact_peaks is not None else None
+    peak_confidence = contact_peaks.confidence if chosen is not None else None
+    event = resolve_contact(
         kinematic_frame_index=kin_frame,
         kinematic_timestamp=kin_ts,
-        kinematic_confidence=float(initial_phases.confidence),
+        kinematic_confidence=float(initial_phases.confidence)
+        * (1.0 if peak_confidence is None else peak_confidence),
         pose=pose,
         motion=motion,
         shuttle=shuttle,
         racket=racket,
         hitting_hand=racket.hitting_hand if racket is not None else None,
     )
+    if chosen is not None:
+        event.contact_peak_confidence = peak_confidence
+        event.warnings = list(contact_peaks.warnings)
+        event.swing_candidates = [s.to_dict() for s in contact_peaks.swings]
+        event.evidence.append(
+            ContactSignalEvidence(
+                name="contact_peak",
+                value=float(chosen.frame_index),
+                weight=0.0,
+                score=float(peak_confidence),
+                notes=(
+                    f"Wrist-speed peak {chosen.speed:.3f} at frame "
+                    f"{chosen.frame_index}; width {chosen.width_frames} frames; "
+                    f"{len(contact_peaks.candidates)} candidate peak(s); "
+                    f"competitor ratio {contact_peaks.competitor_ratio}."
+                ),
+            )
+        )
+    event.shuttle_verified = shuttle_detected_near(shuttle, event.frame_index)
+    if not event.shuttle_verified:
+        event.warnings.append(WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE)
+    return event
 
 
 def _kinematic_contact_event(phases: PhaseSequence) -> ContactEvent:

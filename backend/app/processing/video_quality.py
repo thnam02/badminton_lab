@@ -7,9 +7,11 @@ warning codes; does not reject aggressively.
 
 from __future__ import annotations
 
+import dataclasses
 import math
 from collections.abc import Sequence
 
+from app.processing.capture_context import CAPTURE_CONTEXT_CONFIDENCE_FACTORS
 from app.schemas.pose import Keypoint, PoseFrame, PoseSequence
 from app.schemas.video_quality import VideoQualityMetrics, VideoQualityReport
 
@@ -62,6 +64,66 @@ _RACKET_ARM_JOINTS: tuple[str, ...] = (
     "right_wrist",
 )
 
+CONTACT_WINDOW_FRAMES = 5  # unvalidated prior
+WARNING_LOW_RACKET_ARM_AT_CONTACT = "LOW_RACKET_ARM_AT_CONTACT"
+
+
+def racket_arm_visibility_at_contact(
+    smoothed_pose: PoseSequence,
+    contact_frame_index: int | None,
+    *,
+    confidence_threshold: float = 0.5,
+    window: int = CONTACT_WINDOW_FRAMES,
+) -> float | None:
+    """Share of frames within ±``window`` of contact where the racket-arm
+    shoulder, elbow and wrist were all detected (not interpolated) at or above
+    ``confidence_threshold``. ``None`` when contact or frames are unavailable.
+    """
+    if contact_frame_index is None:
+        return None
+    frames = [
+        f
+        for f in smoothed_pose.frames
+        if abs(f.frame_index - contact_frame_index) <= window
+    ]
+    if not frames:
+        return None
+    good = sum(
+        1
+        for f in frames
+        if all(
+            name not in f.interpolated
+            and _visible(f.keypoints.get(name), confidence_threshold)
+            for name in _RACKET_ARM_JOINTS
+        )
+    )
+    return float(good / len(frames))
+
+
+def apply_contact_visibility(
+    report: VideoQualityReport,
+    visibility: float | None,
+) -> VideoQualityReport:
+    """Return a copy of ``report`` recording contact-window racket-arm
+    visibility; below the racket-arm threshold it caps ``analysis_confidence``
+    at that visibility and adds ``LOW_RACKET_ARM_AT_CONTACT``.
+    """
+    metrics = dataclasses.replace(
+        report.metrics, racket_arm_visibility_at_contact=visibility
+    )
+    warnings = list(report.warnings)
+    confidence = report.analysis_confidence
+    if visibility is not None and visibility < _MIN_RACKET_ARM_VISIBILITY:
+        if WARNING_LOW_RACKET_ARM_AT_CONTACT not in warnings:
+            warnings.append(WARNING_LOW_RACKET_ARM_AT_CONTACT)
+        confidence = min(confidence, float(visibility))
+    return dataclasses.replace(
+        report,
+        metrics=metrics,
+        warnings=warnings,
+        analysis_confidence=confidence,
+    )
+
 
 def assess_video_quality(
     raw_pose: PoseSequence,
@@ -71,10 +133,13 @@ def assess_video_quality(
     width: int | None = None,
     height: int | None = None,
     confidence_threshold: float = 0.5,
+    extra_warnings: Sequence[str] = (),
 ) -> VideoQualityReport:
     """Build a ``VideoQualityReport`` from raw (and optional smoothed) pose.
 
     ``smoothed_pose`` is used only to estimate the interpolated-keypoint fraction.
+    ``extra_warnings`` come from upstream stages (e.g. person selection) and
+    count toward the warning penalty like any other warning.
     """
     video = raw_pose.video
     frames = raw_pose.frames
@@ -143,6 +208,7 @@ def assess_video_quality(
         camera_stability=stability,
     )
     warnings = _collect_warnings(metrics)
+    warnings.extend(w for w in extra_warnings if w not in warnings)
     confidence = _analysis_confidence(metrics, warnings)
 
     return VideoQualityReport(
@@ -394,6 +460,10 @@ def _analysis_confidence(
         parts.append(max(0.0, min(1.0, metrics.fps / 30.0)))
 
     base = sum(parts) / len(parts) if parts else 0.2
-    penalty = 0.06 * len(warnings)
+    # Capture-context warnings carry their own explicit factors instead.
+    generic = [w for w in warnings if w not in CAPTURE_CONTEXT_CONFIDENCE_FACTORS]
+    penalty = 0.06 * len(generic)
     score = base * (1.0 - min(0.55, penalty))
+    for warning in warnings:
+        score *= CAPTURE_CONTEXT_CONFIDENCE_FACTORS.get(warning, 1.0)
     return float(max(0.05, min(0.98, score)))

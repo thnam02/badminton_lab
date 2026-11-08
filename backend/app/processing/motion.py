@@ -11,11 +11,13 @@ from collections.abc import Callable, Sequence
 
 from app.schemas.angles import AngleFrame, AngleSequence
 from app.schemas.motion import MotionFrame, MotionSequence, PeakStats
-from app.schemas.pose import Keypoint, PoseFrame, PoseSequence
+from app.schemas.pose import Keypoint, PixelScale, PoseFrame, PoseSequence
 
 _METRIC_WRIST_SPEED = "right_wrist_speed"
 _METRIC_ELBOW_OMEGA = "right_elbow_angular_velocity"
 _METRIC_KNEE_OMEGA = "right_knee_angular_velocity"
+_METRIC_SHOULDER_OMEGA = "right_shoulder_angular_velocity"
+_METRIC_HIP_OMEGA = "right_hip_angular_velocity"
 
 
 def compute_motion_derivatives(
@@ -26,7 +28,8 @@ def compute_motion_derivatives(
 ) -> MotionSequence:
     """Per-frame wrist speed and elbow/knee angular velocity, plus peaks.
 
-    Linear speed uses consecutive valid ``right_wrist`` samples from ``pose``.
+    Linear speed uses consecutive valid ``right_wrist`` samples from ``pose``,
+    in pixels / second (normalized units / second if the frame size is unknown).
     Angular velocities use consecutive non-null angle samples from ``angles``.
     Missing values yield ``None`` (no interpolation).
     """
@@ -38,6 +41,7 @@ def compute_motion_derivatives(
     ]
 
     out = MotionSequence(video=pose.video or angles.video)
+    scale = pose.pixel_scale()
     prev_pose: PoseFrame | None = None
     prev_angle: AngleFrame | None = None
 
@@ -59,10 +63,13 @@ def compute_motion_derivatives(
                 pose_frame,
                 joint="right_wrist",
                 confidence_threshold=confidence_threshold,
+                scale=scale,
             )
 
         elbow_omega = None
         knee_omega = None
+        shoulder_omega = None
+        hip_omega = None
         if angle_frame is not None and prev_angle is not None:
             elbow_omega = _angular_velocity(
                 prev_angle.right_elbow,
@@ -76,6 +83,18 @@ def compute_motion_derivatives(
                 prev_angle.timestamp,
                 angle_frame.timestamp,
             )
+            shoulder_omega = _angular_velocity(
+                prev_angle.right_shoulder,
+                angle_frame.right_shoulder,
+                prev_angle.timestamp,
+                angle_frame.timestamp,
+            )
+            hip_omega = _angular_velocity(
+                prev_angle.right_hip,
+                angle_frame.right_hip,
+                prev_angle.timestamp,
+                angle_frame.timestamp,
+            )
 
         out.append(
             MotionFrame(
@@ -84,6 +103,8 @@ def compute_motion_derivatives(
                 right_wrist_speed=wrist_speed,
                 right_elbow_angular_velocity=elbow_omega,
                 right_knee_angular_velocity=knee_omega,
+                right_shoulder_angular_velocity=shoulder_omega,
+                right_hip_angular_velocity=hip_omega,
             )
         )
 
@@ -101,6 +122,12 @@ def compute_motion_derivatives(
         ),
         _METRIC_KNEE_OMEGA: _peak_for(
             out.frames, lambda f: f.right_knee_angular_velocity, use_abs=True
+        ),
+        _METRIC_SHOULDER_OMEGA: _peak_for(
+            out.frames, lambda f: f.right_shoulder_angular_velocity, use_abs=True
+        ),
+        _METRIC_HIP_OMEGA: _peak_for(
+            out.frames, lambda f: f.right_hip_angular_velocity, use_abs=True
         ),
     }
     return out
@@ -131,6 +158,7 @@ def _linear_speed(
     *,
     joint: str,
     confidence_threshold: float,
+    scale: PixelScale,
 ) -> float | None:
     a = _usable_keypoint(prev, joint, confidence_threshold=confidence_threshold)
     b = _usable_keypoint(curr, joint, confidence_threshold=confidence_threshold)
@@ -139,7 +167,7 @@ def _linear_speed(
     dt = _delta_t(prev.timestamp, curr.timestamp)
     if dt is None:
         return None
-    dist = math.hypot(b.x - a.x, b.y - a.y)
+    dist = math.hypot((b.x - a.x) * scale[0], (b.y - a.y) * scale[1])
     return dist / dt
 
 

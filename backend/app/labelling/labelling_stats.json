@@ -1,0 +1,90 @@
+{
+  "config_version": "1.0.0",
+  "notes": "Wording shown to coaches in the labelling workspace. Edit freely; it is re-read on every request. Change a stat's id only together with its source, since saved labels refer to stats by id.",
+  "rating_options": [
+    { "id": "good", "label": "Good", "hint": "This part of the stroke looks right." },
+    { "id": "needs_work", "label": "Needs work", "hint": "The player should improve this." },
+    { "id": "looks_wrong", "label": "Looks wrong", "hint": "The number doesn't match what you see in the video." }
+  ],
+  "overall_ratings": [
+    { "value": 1, "label": "Poor" },
+    { "value": 2, "label": "Weak" },
+    { "value": 3, "label": "OK" },
+    { "value": 4, "label": "Good" },
+    { "value": 5, "label": "Excellent" }
+  ],
+  "stats": [
+    {
+      "id": "contact_elbow_angle",
+      "name": "Arm straightness at the hit",
+      "description": "Angle at the elbow when the racket meets the shuttle. 180° is a fully straight arm.",
+      "when": "At the hit",
+      "unit": "deg",
+      "source": { "kind": "metric", "field": "contact_elbow_angle_deg" }
+    },
+    {
+      "id": "contact_hand_height",
+      "name": "Height of the hit",
+      "description": "How far the hitting hand is above the shoulder, in torso lengths (shoulder to hip). Uses the highest hand position within 2 frames of the hit.",
+      "when": "At the hit",
+      "unit": "torso_lengths_above_shoulder",
+      "source": { "kind": "hand_height_at_contact" }
+    },
+    {
+      "id": "contact_shoulder_angle",
+      "name": "Arm raise at the hit",
+      "description": "Angle between the body and the upper arm at the hit. Bigger means the arm is lifted higher.",
+      "when": "At the hit",
+      "unit": "deg",
+      "source": { "kind": "metric", "field": "contact_shoulder_angle_deg" }
+    },
+    {
+      "id": "contact_knee_angle",
+      "name": "Knee bend at the hit",
+      "description": "Angle at the knee when the racket meets the shuttle. 180° is a straight leg.",
+      "when": "At the hit",
+      "unit": "deg",
+      "source": { "kind": "metric", "field": "contact_knee_angle_deg" }
+    },
+    {
+      "id": "preparation_knee_angle",
+      "name": "Knee bend while getting ready",
+      "description": "Average knee angle while getting ready. 180° is standing straight.",
+      "when": "While getting ready",
+      "unit": "deg",
+      "source": { "kind": "metric", "field": "preparation_knee_angle_deg" }
+    },
+    {
+      "id": "preparation_elbow_angle",
+      "name": "Elbow while getting ready",
+      "description": "Average elbow angle of the hitting arm while getting ready.",
+      "when": "While getting ready",
+      "unit": "deg",
+      "source": { "kind": "metric", "field": "preparation_elbow_angle_deg" }
+    },
+    {
+      "id": "leg_drive",
+      "name": "Push from the legs",
+      "description": "How much the knee straightens from its deepest bend into the hit.",
+      "when": "From the deepest knee bend to the hit",
+      "unit": "deg",
+      "source": { "kind": "metric", "field": "knee_contribution_deg" }
+    },
+    {
+      "id": "hand_speed",
+      "name": "Hand speed",
+      "description": "Fastest hand speed in the swing, in torso lengths per second so camera distance doesn't matter.",
+      "when": "Fastest moment of the swing",
+      "unit": "torso_lengths_per_s",
+      "source": { "kind": "metric", "field": "peak_wrist_speed_body_norm" }
+    },
+    {
+      "id": "follow_through",
+      "name": "Follow-through",
+      "description": "Share of the hand speed kept just after the hit. 1 means no slowing down.",
+      "when": "Just after the hit",
+      "unit": "ratio",
+      "source": { "kind": "metric", "field": "follow_through_speed_ratio" }
+    }
+  ]
+}

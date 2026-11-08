@@ -113,7 +113,73 @@ const ISSUE_COPY: Record<string, IssueCoachingCopy> = {
     coachingFocus:
       "Land soft, bring the racket back to ready, and find your base quickly.",
   },
+  KINETIC_CHAIN_ORDER: {
+    title: "Your arm may be leading your body turn",
+    whatHappened:
+      "In this swing your elbow seemed to straighten fastest before your trunk turned fastest.",
+    whyItMatters:
+      "Power usually builds from the body outward: trunk turn first, then the arm. Starting with the arm can cost speed.",
+    coachingFocus:
+      "Start the swing by turning your chest toward the net, and let the arm follow.",
+  },
+  LOW_CONTACT_POINT: {
+    title: "Contact may be below head height",
+    whatHappened:
+      "At the estimated contact moment your racket hand looked lower than your head.",
+    whyItMatters:
+      "Overhead strokes are usually hit with the arm reaching above the head, which gives a steeper, stronger angle.",
+    coachingFocus:
+      "Move under the shuttle earlier so you can reach up and hit it above your head.",
+  },
+  LATE_ELBOW_ACCELERATION: {
+    title: "Your elbow may be accelerating late",
+    whatHappened:
+      "Your elbow seemed to reach its fastest speed a little after the estimated contact moment.",
+    whyItMatters:
+      "Peak arm speed is most useful at or just before contact, not after the shuttle has gone.",
+    coachingFocus:
+      "Time the whip so the arm is at full speed as you meet the shuttle.",
+  },
+  LOW_RACKET_PREPARATION: {
+    title: "Racket preparation may be low",
+    whatHappened:
+      "At the end of your backswing your racket hand looked lower than your shoulder.",
+    whyItMatters:
+      "Getting the racket up early gives you room to swing up and through the shuttle.",
+    coachingFocus:
+      "Lift the racket hand to shoulder height or above as you turn to prepare.",
+  },
+  BENT_ELBOW_AT_CONTACT: {
+    title: "Your elbow may be quite bent at contact",
+    whatHappened:
+      "From the side view your elbow looked quite bent at the estimated contact moment.",
+    whyItMatters:
+      "A strongly bent elbow can shorten your reach. Some bend is normal, especially on fast smashes.",
+    coachingFocus:
+      "Check on video whether you are reaching up to the shuttle or letting it drop onto you.",
+  },
+  LIMITED_LEG_DRIVE: {
+    title: "You may be using little leg drive",
+    whatHappened:
+      "From the side view your knees straightened very little from your deepest bend to contact.",
+    whyItMatters:
+      "Pushing up through the legs helps start the swing and adds to its power.",
+    coachingFocus:
+      "Bend a little more in preparation, then push up as the swing starts.",
+  },
+  STIFF_PREPARATION_KNEE: {
+    title: "Your knees may be quite straight in preparation",
+    whatHappened:
+      "From the side view your knees looked almost straight while you were getting ready.",
+    whyItMatters:
+      "A slight knee bend makes it easier to move to the shuttle and push into the swing.",
+    coachingFocus:
+      "Settle into a slight athletic bend before the racket starts back.",
+  },
 };
+
+export const TENTATIVE_HINT_NOTE =
+  "Tentative hint: this rule has not been validated against coach-labelled data yet. Treat it as something to check, not a confirmed fault.";
 
 const SEVERITY_RANK: Record<string, number> = {
   MAJOR: 3,
@@ -198,6 +264,18 @@ export function formatPlayerMeasurement(
   const unit = String(issue.unit || "").toLowerCase();
   const code = issue.code;
 
+  if (code === "KINETIC_CHAIN_ORDER") {
+    const frames = Number(value);
+    if (fps && fps > 0) {
+      return `elbow extension peaked about ${Math.round((frames / fps) * 1000)} ms before the trunk turn`;
+    }
+    return "elbow extension peaked before the trunk turn";
+  }
+  if (code === "LOW_CONTACT_POINT") return "hand stayed below head height around contact";
+  if (code === "LOW_RACKET_PREPARATION") {
+    return "hand below shoulder height at the end of the backswing";
+  }
+
   if (
     unit.includes("frame") ||
     code === "POOR_ARM_ACCELERATION_TIMING" ||
@@ -269,6 +347,10 @@ export function sortFindingsByPriority(
   findings: TechniqueIssueView[]
 ): TechniqueIssueView[] {
   return [...findings].sort((a, b) => {
+    // Tier 2 side-view hints never outrank Tier 1 / untiered findings.
+    const ta = a.tier === 2 ? 1 : 0;
+    const tb = b.tier === 2 ? 1 : 0;
+    if (ta !== tb) return ta - tb;
     const sa = SEVERITY_RANK[String(a.status || a.severity || "").toUpperCase()] || 0;
     const sb = SEVERITY_RANK[String(b.status || b.severity || "").toUpperCase()] || 0;
     if (sb !== sa) return sb - sa;

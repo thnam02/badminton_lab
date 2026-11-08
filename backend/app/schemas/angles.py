@@ -16,6 +16,8 @@ class AngleFrame:
     right_elbow: float | None = None
     right_knee: float | None = None
     right_shoulder: float | None = None
+    # Hip flexion proxy (shoulder–hip–knee), degrees.
+    right_hip: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -25,6 +27,7 @@ class AngleFrame:
                 "right_elbow": self.right_elbow,
                 "right_knee": self.right_knee,
                 "right_shoulder": self.right_shoulder,
+                "right_hip": self.right_hip,
             },
         }
 

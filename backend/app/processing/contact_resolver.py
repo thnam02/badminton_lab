@@ -18,6 +18,33 @@ from app.schemas.racket import RacketTrajectory
 from app.schemas.shuttle import ShuttleTrajectory
 
 
+WARNING_CONTACT_NOT_VERIFIED_BY_SHUTTLE = "CONTACT_NOT_VERIFIED_BY_SHUTTLE"
+
+
+def shuttle_detected_near(
+    shuttle: ShuttleTrajectory | None,
+    frame_index: int,
+    *,
+    radius: int | None = None,
+) -> bool:
+    """True when at least ``contact_min_visible_frames`` detected (visible,
+    non-interpolated) shuttle points fall within ``radius`` frames of
+    ``frame_index``."""
+    if shuttle is None:
+        return False
+    r = settings.contact_search_radius if radius is None else radius
+    detected = sum(
+        1
+        for p in shuttle.frames
+        if abs(p.frame_index - frame_index) <= r
+        and p.visible
+        and not p.interpolated
+        and p.x is not None
+        and p.y is not None
+    )
+    return detected >= settings.contact_min_visible_frames
+
+
 @dataclass(slots=True)
 class _CandidateScore:
     frame_index: int
@@ -175,6 +202,7 @@ def resolve_contact(
             racket_by,
             frame_index,
             peak_frame=kinematic_frame_index,
+            frame_height=pose.pixel_scale()[1] if pose is not None else 1.0,
         )
         w = 0.20
         evidence.append(
@@ -371,6 +399,7 @@ def _local_motion_score(
     frame_index: int,
     *,
     peak_frame: int,
+    frame_height: float = 1.0,
 ) -> float:
     wrist_term = 0.0
     if motion_frame is not None and motion_frame.right_wrist_speed is not None:
@@ -378,8 +407,9 @@ def _local_motion_score(
         # lack a global peak value here; still rewards energetic frames nearby.
         offset = abs(frame_index - peak_frame)
         wrist_term = math.exp(-0.35 * offset)
-        # Boost if absolute speed looks non-trivial.
-        speed = float(motion_frame.right_wrist_speed)
+        # Boost if absolute speed looks non-trivial; the 2.0 factor expects
+        # frame heights / second, not pixels / second.
+        speed = float(motion_frame.right_wrist_speed) / frame_height
         if math.isfinite(speed) and speed > 0:
             wrist_term = min(1.0, 0.5 * wrist_term + 0.5 * min(1.0, speed * 2.0))
 

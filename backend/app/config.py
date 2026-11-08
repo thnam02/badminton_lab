@@ -105,6 +105,9 @@ class Settings(BaseSettings):
 
     upload_dir: Path = ROOT_DIR / "uploads"
     output_dir: Path = ROOT_DIR / "outputs"
+    # Coach labelling data (batches, reviews, comments, video records). Video
+    # files themselves stay under output_dir.
+    database_url: str = "postgresql+psycopg:///badminton_lab"
     cors_origins: str = "http://localhost:3000"
 
 

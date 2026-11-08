@@ -15,7 +15,25 @@ from app.schemas.contact import (
 )
 
 # Bump when the coaching-facing evidence shape changes.
-EVIDENCE_VERSION = "1.0.0"
+# 1.2.0: camera_view field; handedness is user-declared (RIGHT/LEFT/UNKNOWN).
+# 1.3.0: swing_count / swing_candidates; contact carries
+#        contact_peak_confidence and warnings.
+# 1.4.0: contact.shuttle_verified.
+# 1.5.0: tiered rules — technique_issues carry tier / reference_validated /
+#        unvalidated_prior / tentative / source_metrics; Tier 3 display_metrics.
+# 1.6.0: implausible_measurements / measurement_warnings (plausibility gate).
+# 1.7.0: composite_scores.chain_score is always null with chain_unavailable_reason.
+# 1.8.0: rule_coverage (which tiered rules ran, and why not).
+# 1.9.0: composite_scores.power_score is always null with power_unavailable_reason;
+#        peak_wrist_speed_body_norm display metric.
+# 1.10.0: angles, speeds and torso length use pixel-scaled keypoints
+#         (peak_wrist_speed in pixels / second).
+EVIDENCE_VERSION = "1.10.0"
+
+EVIDENCE_DEFAULT_NOTES = (
+    "Assembled from already-computed analysis artifacts; "
+    "no biomechanics or CV recalculation."
+)
 
 STROKE_TYPE_SMASH = "SMASH"
 
@@ -34,6 +52,9 @@ class ContactEvidence:
         "shuttle/racket evidence is unavailable or unreliable."
     )
     evidence: list[dict[str, Any]] = field(default_factory=list)
+    contact_peak_confidence: float | None = None
+    warnings: list[str] = field(default_factory=list)
+    shuttle_verified: bool = False
 
     @classmethod
     def from_contact_event(cls, event: ContactEvent) -> ContactEvidence:
@@ -45,6 +66,9 @@ class ContactEvidence:
             kinematic_frame_index=event.kinematic_frame_index,
             notes=event.notes,
             evidence=[e.to_dict() for e in event.evidence],
+            contact_peak_confidence=event.contact_peak_confidence,
+            warnings=list(event.warnings),
+            shuttle_verified=event.shuttle_verified,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -55,6 +79,9 @@ class ContactEvidence:
             "timestamp": self.timestamp,
             "kinematic_frame_index": self.kinematic_frame_index,
             "notes": self.notes,
+            "contact_peak_confidence": self.contact_peak_confidence,
+            "warnings": list(self.warnings),
+            "shuttle_verified": self.shuttle_verified,
         }
         if self.evidence:
             payload["evidence"] = list(self.evidence)
@@ -65,7 +92,9 @@ class ContactEvidence:
 class EvidencePackage:
     """Deterministic analysis snapshot consumed by a later coaching layer.
 
-    Does not embed full raw pose sequences.
+    Does not embed full raw pose sequences. When ``handedness == "LEFT"`` every
+    ``right_*`` metric refers to the racket arm (labels swapped after pose
+    estimation); ``notes`` says so explicitly.
     """
 
     evidence_version: str
@@ -81,11 +110,19 @@ class EvidencePackage:
     technique_issues: list[dict[str, Any]]
     technique_confidence: float
     keyframes: list[dict[str, Any]]
+    composite_scores: dict[str, Any] = field(default_factory=dict)
+    # Tier 3 metrics shown for context only; never technique issues.
+    display_metrics: list[dict[str, Any]] = field(default_factory=list)
+    # Metric values excluded as physiologically implausible (tracking errors).
+    implausible_measurements: list[dict[str, Any]] = field(default_factory=list)
+    measurement_warnings: list[str] = field(default_factory=list)
+    rule_coverage: list[dict[str, Any]] = field(default_factory=list)
+    camera_view: str | None = None
+    # Distinct swings found in the clip; only the chosen one is analysed.
+    swing_count: int | None = None
+    swing_candidates: list[dict[str, Any]] = field(default_factory=list)
     keyframes_output_dir: str | None = None
-    notes: str = (
-        "Assembled from already-computed analysis artifacts; "
-        "no biomechanics or CV recalculation."
-    )
+    notes: str = EVIDENCE_DEFAULT_NOTES
     extra: dict[str, Any] = field(default_factory=dict)
     analysis_id: str = ""
     snapshot_id: str = ""
@@ -100,6 +137,7 @@ class EvidencePackage:
             "video": self.video,
             "stroke_type": self.stroke_type,
             "handedness": self.handedness,
+            "camera_view": self.camera_view,
             "analysis_confidence": self.analysis_confidence,
             "video_quality": self.video_quality,
             "phase_boundaries": self.phase_boundaries,
@@ -109,6 +147,13 @@ class EvidencePackage:
             "technique_issues": self.technique_issues,
             "technique_confidence": self.technique_confidence,
             "keyframes": self.keyframes,
+            "composite_scores": self.composite_scores,
+            "display_metrics": list(self.display_metrics),
+            "implausible_measurements": list(self.implausible_measurements),
+            "measurement_warnings": list(self.measurement_warnings),
+            "rule_coverage": list(self.rule_coverage),
+            "swing_count": self.swing_count,
+            "swing_candidates": list(self.swing_candidates),
             "keyframes_output_dir": self.keyframes_output_dir,
             "notes": self.notes,
         }

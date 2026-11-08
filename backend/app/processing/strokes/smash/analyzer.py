@@ -1,11 +1,10 @@
-"""Smash stroke analyzer — wraps existing smash phases/metrics/evaluator."""
+"""Smash stroke analyzer — smash phases/metrics with the tiered rule set."""
 
 from __future__ import annotations
 
 from app.processing.phases import detect_smash_phases
 from app.processing.stroke_metrics import compute_stroke_metrics_from_final
-from app.processing.technique import evaluate_technique_from_final
-from app.processing.technique_config import reference_profile_from_settings
+from app.processing.tiered_technique import evaluate_tiered_from_final
 from app.schemas.angles import AngleSequence
 from app.schemas.final_analysis import FinalAnalysisState
 from app.schemas.motion import MotionSequence
@@ -17,7 +16,7 @@ from app.schemas.technique import TechniqueEvaluation
 
 
 class SmashAnalyzer:
-    """FOREHAND_SMASH strategy — preserves existing smash behavior."""
+    """FOREHAND_SMASH strategy."""
 
     stroke_type = StrokeType.FOREHAND_SMASH
 
@@ -45,23 +44,18 @@ class SmashAnalyzer:
         metrics: StrokeMetrics,
         *,
         quality_confidence: float | None = None,
+        pose_confidence: float | None = None,
         handedness: str | None = None,
         camera_view: str | None = None,
         skill_level: str | None = None,
     ) -> TechniqueEvaluation:
-        q = quality_confidence
-        if q is None:
-            q = float(state.video_quality.analysis_confidence)
-        return evaluate_technique_from_final(
+        return evaluate_tiered_from_final(
             state,
             metrics,
-            profile=reference_profile_from_settings(
-                stroke_type="SMASH",
-                handedness=handedness,
-            ),
             stroke_type="SMASH",
             handedness=handedness,
             camera_view=camera_view,
             skill_level=skill_level,
-            quality_confidence=q,
+            quality_confidence=quality_confidence,
+            pose_confidence=pose_confidence,
         )

@@ -2,23 +2,6 @@
 
 export type ConfidenceLevel = "HIGH" | "MODERATE" | "LOW";
 
-export type AnalysisSummary = {
-  analysis_id: string;
-  created_at?: string | null;
-  stroke_type?: string | null;
-  stroke_type_raw?: string | null;
-  handedness?: string | null;
-  handedness_raw?: string | null;
-  analysis_confidence?: number | null;
-  main_issue?: string | null;
-  pose_video_url?: string | null;
-  snapshot_id?: string | null;
-  reference_profile_id?: string | null;
-  analysis_status?: string | null;
-  coaching_status?: string | null;
-  mesh_status?: string | null;
-};
-
 export type PhaseSegment = {
   id: string;
   label: string;
@@ -38,6 +21,11 @@ export type ContactEvent = {
   contact_type: string;
   label: string;
   notes?: string | null;
+  /** True only when shuttle detections confirm the contact moment. */
+  shuttle_verified: boolean;
+  swing_count?: number | null;
+  chosen_swing_timestamp?: number | null;
+  warnings?: string[];
   available: boolean;
 };
 
@@ -67,6 +55,37 @@ export type TechniqueIssueView = {
   video_quality_confidence?: number | null;
   reference_confidence?: number | null;
   combined_confidence?: number | null;
+  /** 1 = principle rule, 2 = side-view angle hint; null for retired rules. */
+  tier?: number | null;
+  reference_validated?: boolean | null;
+  /** Tier 2 hint or judged against an unvalidated reference. */
+  tentative?: boolean;
+};
+
+export type DisplayMetric = {
+  id: string;
+  label: string;
+  value: number;
+  unit: string;
+  /** e.g. "Low reliability in 2D video." */
+  note?: string | null;
+};
+
+/** Which checks ran: side-view-only (Tier 2) checks are skipped for other views. */
+export type AssessmentScope = {
+  camera_view: string;
+  limited_view: boolean;
+  limited_view_message?: string | null;
+  tier2_skipped: boolean;
+  not_assessed: { code: string; title: string }[];
+  /** False for analyses recorded before rule coverage existed. */
+  coverage_known?: boolean;
+  checked_count?: number;
+  applicable_count?: number;
+  /** Applicable rules that could not run, with a short user-facing reason. */
+  unchecked?: { code: string; label: string; reason: string }[];
+  /** True only when every applicable rule ran. */
+  complete?: boolean;
 };
 
 export type ReferenceComparisonData = {
@@ -132,6 +151,18 @@ export type ConfidenceSummary = {
   message?: string | null;
 };
 
+export type CompositeScoresView = {
+  available: boolean;
+  /** Always null: chain timing is not assessable from 2D video. */
+  chain_score?: number | null;
+  chain_unavailable_reason?: string | null;
+  /** Always null: wrist speed has no calibrated scale yet. */
+  power_score?: number | null;
+  power_unavailable_reason?: string | null;
+  base_score?: number | null;
+  notes?: string | null;
+};
+
 export type AnalysisResult = {
   analysis_id: string;
   created_at?: string;
@@ -139,6 +170,7 @@ export type AnalysisResult = {
   stroke_type_raw?: string;
   handedness?: string | null;
   handedness_raw?: string | null;
+  camera_view?: string | null;
   reference_profile_id?: string;
   snapshot_id?: string;
   analysis_status: string;
@@ -164,6 +196,10 @@ export type AnalysisResult = {
   findings: TechniqueIssueView[];
   insufficient_evidence: TechniqueIssueView[];
   metrics: { id: string; label: string; value: number; unit: string }[];
+  /** Tier 3: shown for context only, never a technique issue. */
+  display_metrics?: DisplayMetric[];
+  assessment_scope?: AssessmentScope | null;
+  composite_scores?: CompositeScoresView | null;
   reference_comparisons: ReferenceComparisonData[];
   coaching: CoachingReportView;
   keyframes: { label: string; timestamp?: number; url?: string | null }[];
@@ -171,6 +207,26 @@ export type AnalysisResult = {
   artifacts: Record<string, boolean>;
   main_issue?: string | null;
   analysis_confidence?: number;
+};
+
+export type AnalysisSummary = {
+  analysis_id: string;
+  created_at?: string | null;
+  stroke_type?: string | null;
+  stroke_type_raw?: string | null;
+  handedness?: string | null;
+  handedness_raw?: string | null;
+  /** Present only for indexed analyses with a declared (non-UNKNOWN) view. */
+  camera_view?: string | null;
+  analysis_confidence?: number | null;
+  main_issue?: string | null;
+  pose_video_url?: string | null;
+  snapshot_id?: string | null;
+  reference_profile_id?: string | null;
+  analysis_status?: string | null;
+  coaching_status?: string | null;
+  mesh_status?: string | null;
+  composite_scores?: CompositeScoresView | null;
 };
 
 export type CompareResponse = {
@@ -184,6 +240,8 @@ export type CompareResponse = {
     left: number | null;
     right: number | null;
     change: string;
+    /** Shown instead of values when the metric cannot be assessed. */
+    unavailable_note?: string | null;
   }[];
 };
 

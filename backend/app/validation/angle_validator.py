@@ -9,7 +9,7 @@ from pathlib import Path
 from app.processing.angles import compute_joint_angle
 from app.schemas.angles import AngleFrame, AngleSequence
 from app.schemas.phases import PhaseSequence
-from app.schemas.pose import Keypoint, PoseFrame, PoseSequence
+from app.schemas.pose import UNIT_SCALE, Keypoint, PixelScale, PoseFrame, PoseSequence
 from app.validation.angle_annotations import (
     AnnotatedAngleFrame,
     AngleValidationAnnotationSet,
@@ -79,10 +79,13 @@ class AngleValidator:
             else {}
         )
         frame_results: list[FrameAngleValidationResult] = []
+        # Annotated keypoints share the video's normalized space, so derived GT
+        # angles need the same pixel scaling as the pipeline.
+        scale = smoothed_pose.pixel_scale() if smoothed_pose is not None else UNIT_SCALE
 
         for ann in annotations.frames:
             gt_angles = resolve_ground_truth_angles(
-                ann, confidence_threshold=self.confidence_threshold
+                ann, confidence_threshold=self.confidence_threshold, scale=scale
             )
             pred_frame = pred_by.get(ann.frame_index)
             pose_frame = pose_by.get(ann.frame_index)
@@ -94,6 +97,7 @@ class AngleValidator:
                     pred_frame=pred_frame,
                     pose_frame=pose_frame,
                     phase=phase,
+                    scale=scale,
                 )
             )
 
@@ -119,6 +123,7 @@ class AngleValidator:
         pred_frame: AngleFrame | None,
         pose_frame: PoseFrame | None,
         phase: str | None,
+        scale: PixelScale = UNIT_SCALE,
     ) -> FrameAngleValidationResult:
         details: list[AngleErrorDetail] = []
         abs_errors: list[float] = []
@@ -136,6 +141,7 @@ class AngleValidator:
                 pred_frame=pred_frame,
                 pose_frame=pose_frame,
                 confidence_threshold=self.confidence_threshold,
+                scale=scale,
             )
             pose_conf = _angle_pose_confidence(angle_name, pose_frame)
             if frame_conf is None and pose_conf is not None:
@@ -368,6 +374,7 @@ def resolve_ground_truth_angles(
     ann: AnnotatedAngleFrame,
     *,
     confidence_threshold: float = 0.0,
+    scale: PixelScale = UNIT_SCALE,
 ) -> dict[str, float]:
     """Prefer direct annotated angles; fill gaps from annotated keypoints."""
     out = dict(ann.angles)
@@ -387,6 +394,7 @@ def resolve_ground_truth_angles(
             vertex,
             distal,
             confidence_threshold=confidence_threshold,
+            scale=scale,
         )
         if derived is not None:
             out[angle_name] = float(derived)
@@ -399,6 +407,7 @@ def _predicted_angle(
     pred_frame: AngleFrame | None,
     pose_frame: PoseFrame | None,
     confidence_threshold: float,
+    scale: PixelScale = UNIT_SCALE,
 ) -> float | None:
     if angle_name in PIPELINE_ANGLE_NAMES and pred_frame is not None:
         value = getattr(pred_frame, angle_name, None)
@@ -414,6 +423,7 @@ def _predicted_angle(
         vertex,
         distal,
         confidence_threshold=confidence_threshold,
+        scale=scale,
     )
 
 

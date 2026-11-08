@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -21,16 +21,44 @@ class ForehandClearMetrics:
     # Preparation
     preparation_elbow_angle_deg: float | None = None
     preparation_knee_angle_deg: float | None = None
+    # Contact knee angle minus the deepest knee bend while loading (degrees).
+    knee_contribution_deg: float | None = None
+    loading_min_knee_angle_deg: float | None = None
 
     # Backswing / cocking
     backswing_min_elbow_angle_deg: float | None = None
     backswing_wrist_y_travel: float | None = None
 
     # Acceleration
+    # Peak |right elbow angular velocity| from motion peaks (degrees / second).
     peak_elbow_omega: float | None = None
+    # Peak right-wrist linear speed (pixels / second; not m/s).
     peak_wrist_speed: float | None = None
+    # Torso-length-normalised peak wrist speed (see StrokeMetrics).
+    swing_median_torso_length: float | None = None
+    peak_wrist_speed_body_norm: float | None = None
     peak_elbow_omega_offset_frames: int | None = None
+    peak_shoulder_omega_offset_frames: int | None = None
+    peak_hip_omega_offset_frames: int | None = None
+    kinetic_chain_hip_shoulder_gap_frames: int | None = None
+    kinetic_chain_shoulder_elbow_gap_frames: int | None = None
+    kinetic_chain_order: str | None = None
+    # Swing-window peak offsets and posture y values (see StrokeMetrics).
+    swing_peak_elbow_omega_offset_frames: int | None = None
+    swing_peak_shoulder_omega_offset_frames: int | None = None
+    swing_elbow_lead_over_shoulder_frames: int | None = None
+    contact_nose_y_normalized: float | None = None
+    contact_window_min_wrist_y_normalized: float | None = None
+    backswing_end_wrist_y_normalized: float | None = None
+    backswing_end_shoulder_y_normalized: float | None = None
+    # Accel phase length / (prep start → contact) frame span; dimensionless [0, 1].
     acceleration_phase_fraction: float | None = None
+    # Peak shoulder-line vs hip-line angle (deg, [0, 90]) in prep/backswing — 2D X-factor proxy.
+    peak_trunk_rotation_deg: float | None = None
+    peak_trunk_rotation_velocity_deg_s: float | None = None
+    acceleration_peak_trunk_rotation_velocity_offset_frames: int | None = None
+    acceleration_peak_elbow_extension_offset_frames: int | None = None
+    acceleration_elbow_extension_lead_over_trunk_frames: int | None = None
 
     # Contact
     contact_elbow_angle_deg: float | None = None
@@ -47,6 +75,10 @@ class ForehandClearMetrics:
     # Recovery
     recovery_frame_count: int | None = None
     recovery_duration_s: float | None = None
+
+    # Values removed by the plausibility gate (see app.processing.plausibility).
+    implausible_measurements: list[dict[str, Any]] = field(default_factory=list)
+    measurement_warnings: list[str] = field(default_factory=list)
 
     # Provenance
     analysis_id: str = ""

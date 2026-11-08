@@ -51,9 +51,17 @@ export async function fetchCompare(
   return (await res.json()) as CompareResponse;
 }
 
+export type Handedness = "RIGHT" | "LEFT" | "UNKNOWN";
+export type CameraView = "SIDE" | "FRONT" | "REAR" | "UNKNOWN";
+
 export async function startAnalyze(
   file: File,
-  opts?: { meshOverlay?: boolean; strokeType?: string }
+  opts?: {
+    meshOverlay?: boolean;
+    strokeType?: string;
+    handedness?: Handedness;
+    cameraView?: CameraView;
+  }
 ): Promise<AnalyzeStartResponse> {
   const form = new FormData();
   form.append("video", file);
@@ -62,6 +70,8 @@ export async function startAnalyze(
   const qs = new URLSearchParams({
     mesh_overlay: mesh,
     stroke_type: stroke,
+    handedness: opts?.handedness || "UNKNOWN",
+    camera_view: opts?.cameraView || "UNKNOWN",
   });
   const res = await fetch(`${API_BASE}/analyze?${qs}`, {
     method: "POST",

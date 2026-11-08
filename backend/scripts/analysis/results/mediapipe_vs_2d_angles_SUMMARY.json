@@ -1,0 +1,1742 @@
+{
+  "aggregate": {
+    "n_clips": 21,
+    "overall_per_joint": {
+      "right_elbow": {
+        "mean_mad_vs_2d_raw_deg": 31.697474748064785,
+        "mean_jitter_3d_deg": 7.942663839189495,
+        "mean_jitter_2d_raw_deg": 6.527658098796134,
+        "n": 21
+      },
+      "right_knee": {
+        "mean_mad_vs_2d_raw_deg": 11.570564759273555,
+        "mean_jitter_3d_deg": 2.9702222719134386,
+        "mean_jitter_2d_raw_deg": 3.373192228086021,
+        "n": 21
+      },
+      "right_shoulder": {
+        "mean_mad_vs_2d_raw_deg": 23.80024179661098,
+        "mean_jitter_3d_deg": 8.036939571934226,
+        "mean_jitter_2d_raw_deg": 4.248439126885512,
+        "n": 21
+      },
+      "right_hip": {
+        "mean_mad_vs_2d_raw_deg": 18.78085432036371,
+        "mean_jitter_3d_deg": 2.3090412509976654,
+        "mean_jitter_2d_raw_deg": 2.4046680377733107,
+        "n": 21
+      }
+    },
+    "mean_mad_by_filming_proxy": {
+      "front-on-ish": 21.189738568204596,
+      "oblique-ish": 22.62060159204132
+    },
+    "clips_by_filming_proxy": {
+      "front-on-ish": 17,
+      "oblique-ish": 4
+    }
+  },
+  "clips": [
+    {
+      "analysis_id": "158b00e1b4dd4426ae7d904d1ea568ba",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/158b00e1b4dd4426ae7d904d1ea568ba_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/158b00e1b4dd4426ae7d904d1ea568ba_pose.mp4",
+      "mp_frame_count": 97,
+      "mp_detected_frames": 97,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 96,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 32.01489836563618,
+          "max_abs_diff_vs_2d_raw_deg": 114.24281844514303,
+          "mad_vs_2d_smoothed_deg": 31.648136128031062,
+          "max_abs_diff_vs_2d_smoothed_deg": 114.80224462131349,
+          "jitter_mean_abs_delta_3d_deg": 9.252163759505832,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.257852354296714,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.736915898887838
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 9.90044618998051,
+          "max_abs_diff_vs_2d_raw_deg": 40.3665450394644,
+          "mad_vs_2d_smoothed_deg": 9.802019577040067,
+          "max_abs_diff_vs_2d_smoothed_deg": 39.4195759786265,
+          "jitter_mean_abs_delta_3d_deg": 2.754807612035933,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.3420119852978423,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.1621240383288893
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 29.881768190214878,
+          "max_abs_diff_vs_2d_raw_deg": 128.68277598252737,
+          "mad_vs_2d_smoothed_deg": 29.925482592808972,
+          "max_abs_diff_vs_2d_smoothed_deg": 128.66026807112547,
+          "jitter_mean_abs_delta_3d_deg": 9.775734233263249,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.229847194481068,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 4.047323279643852
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 20.40576084194458,
+          "max_abs_diff_vs_2d_raw_deg": 46.661933251344564,
+          "mad_vs_2d_smoothed_deg": 20.383441084056834,
+          "max_abs_diff_vs_2d_smoothed_deg": 47.478024992125924,
+          "jitter_mean_abs_delta_3d_deg": 1.7945615001538118,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.159793660212817,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.874415188307954
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 97,
+        "video_frame_count": 97,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 96,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/158b00e1b4dd4426ae7d904d1ea568ba_pose.mp4",
+          "frame_count": 97,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=0.79",
+        "shoulder_over_torso": 0.7901230955571413,
+        "pose_frame_index": 48,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/158b00e1b4dd4426ae7d904d1ea568ba_midframe_f0048.jpg"
+      }
+    },
+    {
+      "analysis_id": "3670048772924aeb96ece19283e64f9c",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/3670048772924aeb96ece19283e64f9c_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/3670048772924aeb96ece19283e64f9c_pose.mp4",
+      "mp_frame_count": 286,
+      "mp_detected_frames": 284,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 251,
+          "n_frames_compared_smoothed": 260,
+          "mad_vs_2d_raw_deg": 44.73954967953421,
+          "max_abs_diff_vs_2d_raw_deg": 155.39504812292228,
+          "mad_vs_2d_smoothed_deg": 43.22284044815236,
+          "max_abs_diff_vs_2d_smoothed_deg": 146.4815553737272,
+          "jitter_mean_abs_delta_3d_deg": 11.364481513921408,
+          "jitter_mean_abs_delta_2d_raw_deg": 8.430956330714599,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 8.73421713983496
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 284,
+          "n_frames_compared_smoothed": 284,
+          "mad_vs_2d_raw_deg": 11.42085754675254,
+          "max_abs_diff_vs_2d_raw_deg": 46.2302155787884,
+          "mad_vs_2d_smoothed_deg": 11.307628449367764,
+          "max_abs_diff_vs_2d_smoothed_deg": 46.575924827769285,
+          "jitter_mean_abs_delta_3d_deg": 3.581911209224768,
+          "jitter_mean_abs_delta_2d_raw_deg": 1.8320958545819843,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.2009652309570513
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 280,
+          "n_frames_compared_smoothed": 284,
+          "mad_vs_2d_raw_deg": 27.6708001375507,
+          "max_abs_diff_vs_2d_raw_deg": 120.47554804391217,
+          "mad_vs_2d_smoothed_deg": 27.882252109530647,
+          "max_abs_diff_vs_2d_smoothed_deg": 140.43163075693792,
+          "jitter_mean_abs_delta_3d_deg": 5.158548312296228,
+          "jitter_mean_abs_delta_2d_raw_deg": 5.704682858363514,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.917056660933351
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 284,
+          "n_frames_compared_smoothed": 284,
+          "mad_vs_2d_raw_deg": 19.488337272622942,
+          "max_abs_diff_vs_2d_raw_deg": 66.83676539169883,
+          "mad_vs_2d_smoothed_deg": 19.581575796056725,
+          "max_abs_diff_vs_2d_smoothed_deg": 66.63391484993943,
+          "jitter_mean_abs_delta_3d_deg": 4.011768400992754,
+          "jitter_mean_abs_delta_2d_raw_deg": 1.4057169095130566,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.1606152685166626
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 286,
+        "video_frame_count": 286,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 285,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/3670048772924aeb96ece19283e64f9c_pose.mp4",
+          "frame_count": 286,
+          "fps": 30.0,
+          "width": 1280,
+          "height": 720
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "oblique-ish",
+        "reason": "shoulder/torso=0.40",
+        "shoulder_over_torso": 0.39763037501448123,
+        "pose_frame_index": 143,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/3670048772924aeb96ece19283e64f9c_midframe_f0143.jpg"
+      }
+    },
+    {
+      "analysis_id": "42e19ff79c724b31b18b66a4917166e8",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/42e19ff79c724b31b18b66a4917166e8_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/42e19ff79c724b31b18b66a4917166e8_pose.mp4",
+      "mp_frame_count": 286,
+      "mp_detected_frames": 271,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 247,
+          "n_frames_compared_smoothed": 257,
+          "mad_vs_2d_raw_deg": 41.12398587736648,
+          "max_abs_diff_vs_2d_raw_deg": 128.1792842809994,
+          "mad_vs_2d_smoothed_deg": 39.32923772288887,
+          "max_abs_diff_vs_2d_smoothed_deg": 129.1105110028164,
+          "jitter_mean_abs_delta_3d_deg": 10.008947802242558,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.5744433969031135,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 9.81638573495147
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 271,
+          "n_frames_compared_smoothed": 271,
+          "mad_vs_2d_raw_deg": 10.578921059826094,
+          "max_abs_diff_vs_2d_raw_deg": 44.74265596378058,
+          "mad_vs_2d_smoothed_deg": 10.311219496359865,
+          "max_abs_diff_vs_2d_smoothed_deg": 45.65134332960105,
+          "jitter_mean_abs_delta_3d_deg": 3.1763025854544376,
+          "jitter_mean_abs_delta_2d_raw_deg": 1.953402305182421,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.8193724562277351
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 269,
+          "n_frames_compared_smoothed": 271,
+          "mad_vs_2d_raw_deg": 17.077865121007147,
+          "max_abs_diff_vs_2d_raw_deg": 118.65176568513368,
+          "mad_vs_2d_smoothed_deg": 18.636495168170118,
+          "max_abs_diff_vs_2d_smoothed_deg": 118.05093633522415,
+          "jitter_mean_abs_delta_3d_deg": 5.201305218595483,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.964322553229682,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.818128746101184
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 271,
+          "n_frames_compared_smoothed": 271,
+          "mad_vs_2d_raw_deg": 19.51257789680465,
+          "max_abs_diff_vs_2d_raw_deg": 79.50442411863445,
+          "mad_vs_2d_smoothed_deg": 19.215500800318384,
+          "max_abs_diff_vs_2d_smoothed_deg": 79.2465733506208,
+          "jitter_mean_abs_delta_3d_deg": 3.6980635365461914,
+          "jitter_mean_abs_delta_2d_raw_deg": 1.752095903650426,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.8953999795673937
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 286,
+        "video_frame_count": 286,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 285,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/42e19ff79c724b31b18b66a4917166e8_pose.mp4",
+          "frame_count": 286,
+          "fps": 30.0,
+          "width": 984,
+          "height": 720
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "oblique-ish",
+        "reason": "shoulder/torso=0.40",
+        "shoulder_over_torso": 0.40108470341913227,
+        "pose_frame_index": 143,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/42e19ff79c724b31b18b66a4917166e8_midframe_f0143.jpg"
+      }
+    },
+    {
+      "analysis_id": "4ae625ee39a447058d45fbe986462890",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/4ae625ee39a447058d45fbe986462890_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/4ae625ee39a447058d45fbe986462890_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 28.428876473282934,
+          "max_abs_diff_vs_2d_raw_deg": 101.6351444546198,
+          "mad_vs_2d_smoothed_deg": 28.12182671797892,
+          "max_abs_diff_vs_2d_smoothed_deg": 100.72611901780255,
+          "jitter_mean_abs_delta_3d_deg": 6.058656008182085,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 12.564434841064251,
+          "max_abs_diff_vs_2d_raw_deg": 44.18961074265657,
+          "mad_vs_2d_smoothed_deg": 12.440577783992707,
+          "max_abs_diff_vs_2d_smoothed_deg": 40.51907429851279,
+          "jitter_mean_abs_delta_3d_deg": 3.361335224796129,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 21.12058594396582,
+          "max_abs_diff_vs_2d_raw_deg": 105.93064835968481,
+          "mad_vs_2d_smoothed_deg": 21.25911010419874,
+          "max_abs_diff_vs_2d_smoothed_deg": 104.82186188299092,
+          "jitter_mean_abs_delta_3d_deg": 6.656927295606132,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 18.524778740506317,
+          "max_abs_diff_vs_2d_raw_deg": 43.49436904353911,
+          "mad_vs_2d_smoothed_deg": 18.309178593850987,
+          "max_abs_diff_vs_2d_smoothed_deg": 42.53213551287517,
+          "jitter_mean_abs_delta_3d_deg": 2.139254996026935,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/4ae625ee39a447058d45fbe986462890_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/4ae625ee39a447058d45fbe986462890_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "5d562c02eb0845d48d93667c3c88cc8d",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/5d562c02eb0845d48d93667c3c88cc8d_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/5d562c02eb0845d48d93667c3c88cc8d_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 31.36941470604188,
+          "max_abs_diff_vs_2d_raw_deg": 111.48687344457105,
+          "mad_vs_2d_smoothed_deg": 31.119730522382078,
+          "max_abs_diff_vs_2d_smoothed_deg": 111.87998483634613,
+          "jitter_mean_abs_delta_3d_deg": 7.17955668633966,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 11.802494965204811,
+          "max_abs_diff_vs_2d_raw_deg": 42.64969562897619,
+          "mad_vs_2d_smoothed_deg": 11.695233696216109,
+          "max_abs_diff_vs_2d_smoothed_deg": 39.048470371143154,
+          "jitter_mean_abs_delta_3d_deg": 3.2084392446198087,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 25.457612172337207,
+          "max_abs_diff_vs_2d_raw_deg": 124.17684173289186,
+          "mad_vs_2d_smoothed_deg": 25.622341444542652,
+          "max_abs_diff_vs_2d_smoothed_deg": 123.98215667053265,
+          "jitter_mean_abs_delta_3d_deg": 7.6951947179719875,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 19.08711550439315,
+          "max_abs_diff_vs_2d_raw_deg": 45.59783576777474,
+          "mad_vs_2d_smoothed_deg": 18.88851212162006,
+          "max_abs_diff_vs_2d_smoothed_deg": 44.6356022371108,
+          "jitter_mean_abs_delta_3d_deg": 2.210443677401885,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/5d562c02eb0845d48d93667c3c88cc8d_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/5d562c02eb0845d48d93667c3c88cc8d_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "603483d3e16d40de9b475e1e2be8eed6",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/603483d3e16d40de9b475e1e2be8eed6_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/603483d3e16d40de9b475e1e2be8eed6_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 27.17311331723411,
+          "max_abs_diff_vs_2d_raw_deg": 124.64341970049057,
+          "mad_vs_2d_smoothed_deg": 26.969307928349462,
+          "max_abs_diff_vs_2d_smoothed_deg": 124.74406312020481,
+          "jitter_mean_abs_delta_3d_deg": 6.742920682062762,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 11.814759564611677,
+          "max_abs_diff_vs_2d_raw_deg": 38.47404270344147,
+          "mad_vs_2d_smoothed_deg": 11.722202113296145,
+          "max_abs_diff_vs_2d_smoothed_deg": 38.830583502815955,
+          "jitter_mean_abs_delta_3d_deg": 2.59497026088847,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 19.631297018103275,
+          "max_abs_diff_vs_2d_raw_deg": 93.18316135544734,
+          "mad_vs_2d_smoothed_deg": 19.807026567154875,
+          "max_abs_diff_vs_2d_smoothed_deg": 93.67763451009986,
+          "jitter_mean_abs_delta_3d_deg": 6.879317355592057,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 18.342173466382945,
+          "max_abs_diff_vs_2d_raw_deg": 44.106953574476194,
+          "mad_vs_2d_smoothed_deg": 18.165768615682406,
+          "max_abs_diff_vs_2d_smoothed_deg": 43.38681108299468,
+          "jitter_mean_abs_delta_3d_deg": 2.036994949814383,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/603483d3e16d40de9b475e1e2be8eed6_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/603483d3e16d40de9b475e1e2be8eed6_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "6fa947861ec247a197edf207491b03c5",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/6fa947861ec247a197edf207491b03c5_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/6fa947861ec247a197edf207491b03c5_pose.mp4",
+      "mp_frame_count": 97,
+      "mp_detected_frames": 97,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 96,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 32.01489836563618,
+          "max_abs_diff_vs_2d_raw_deg": 114.24281844514303,
+          "mad_vs_2d_smoothed_deg": 31.648136128031062,
+          "max_abs_diff_vs_2d_smoothed_deg": 114.80224462131349,
+          "jitter_mean_abs_delta_3d_deg": 9.252163759505832,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.257852354296714,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.736915898887838
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 9.90044618998051,
+          "max_abs_diff_vs_2d_raw_deg": 40.3665450394644,
+          "mad_vs_2d_smoothed_deg": 9.802019577040067,
+          "max_abs_diff_vs_2d_smoothed_deg": 39.4195759786265,
+          "jitter_mean_abs_delta_3d_deg": 2.754807612035933,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.3420119852978423,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.1621240383288893
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 29.881768190214878,
+          "max_abs_diff_vs_2d_raw_deg": 128.68277598252737,
+          "mad_vs_2d_smoothed_deg": 29.925482592808972,
+          "max_abs_diff_vs_2d_smoothed_deg": 128.66026807112547,
+          "jitter_mean_abs_delta_3d_deg": 9.775734233263249,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.229847194481068,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 4.047323279643852
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 20.40576084194458,
+          "max_abs_diff_vs_2d_raw_deg": 46.661933251344564,
+          "mad_vs_2d_smoothed_deg": 20.383441084056834,
+          "max_abs_diff_vs_2d_smoothed_deg": 47.478024992125924,
+          "jitter_mean_abs_delta_3d_deg": 1.7945615001538118,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.159793660212817,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.874415188307954
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 97,
+        "video_frame_count": 97,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 96,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/6fa947861ec247a197edf207491b03c5_pose.mp4",
+          "frame_count": 97,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=0.79",
+        "shoulder_over_torso": 0.7901230955571413,
+        "pose_frame_index": 48,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/6fa947861ec247a197edf207491b03c5_midframe_f0048.jpg"
+      }
+    },
+    {
+      "analysis_id": "73a6e021e83c40d08a4985f5979d3c24",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/73a6e021e83c40d08a4985f5979d3c24_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/73a6e021e83c40d08a4985f5979d3c24_pose.mp4",
+      "mp_frame_count": 97,
+      "mp_detected_frames": 97,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 96,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 32.01489836563618,
+          "max_abs_diff_vs_2d_raw_deg": 114.24281844514303,
+          "mad_vs_2d_smoothed_deg": 31.648136128031062,
+          "max_abs_diff_vs_2d_smoothed_deg": 114.80224462131349,
+          "jitter_mean_abs_delta_3d_deg": 9.252163759505832,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.257852354296714,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.736915898887838
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 9.90044618998051,
+          "max_abs_diff_vs_2d_raw_deg": 40.3665450394644,
+          "mad_vs_2d_smoothed_deg": 9.802019577040067,
+          "max_abs_diff_vs_2d_smoothed_deg": 39.4195759786265,
+          "jitter_mean_abs_delta_3d_deg": 2.754807612035933,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.3420119852978423,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.1621240383288893
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 29.881768190214878,
+          "max_abs_diff_vs_2d_raw_deg": 128.68277598252737,
+          "mad_vs_2d_smoothed_deg": 29.925482592808972,
+          "max_abs_diff_vs_2d_smoothed_deg": 128.66026807112547,
+          "jitter_mean_abs_delta_3d_deg": 9.775734233263249,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.229847194481068,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 4.047323279643852
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 20.40576084194458,
+          "max_abs_diff_vs_2d_raw_deg": 46.661933251344564,
+          "mad_vs_2d_smoothed_deg": 20.383441084056834,
+          "max_abs_diff_vs_2d_smoothed_deg": 47.478024992125924,
+          "jitter_mean_abs_delta_3d_deg": 1.7945615001538118,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.159793660212817,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.874415188307954
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 97,
+        "video_frame_count": 97,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 96,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/73a6e021e83c40d08a4985f5979d3c24_pose.mp4",
+          "frame_count": 97,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=0.79",
+        "shoulder_over_torso": 0.7901230955571413,
+        "pose_frame_index": 48,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/73a6e021e83c40d08a4985f5979d3c24_midframe_f0048.jpg"
+      }
+    },
+    {
+      "analysis_id": "7af5ea7182e347bfae1d95fd08343f99",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/7af5ea7182e347bfae1d95fd08343f99_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/7af5ea7182e347bfae1d95fd08343f99_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 33.520000000869416,
+          "max_abs_diff_vs_2d_raw_deg": 114.15983885322674,
+          "mad_vs_2d_smoothed_deg": 33.28810773880125,
+          "max_abs_diff_vs_2d_smoothed_deg": 114.26048227294099,
+          "jitter_mean_abs_delta_3d_deg": 8.684944033801981,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 12.920944060125596,
+          "max_abs_diff_vs_2d_raw_deg": 38.307247186307606,
+          "mad_vs_2d_smoothed_deg": 12.819359897729695,
+          "max_abs_diff_vs_2d_smoothed_deg": 38.220609448030174,
+          "jitter_mean_abs_delta_3d_deg": 3.0594089764768557,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 26.593315609243657,
+          "max_abs_diff_vs_2d_raw_deg": 128.2229437735797,
+          "mad_vs_2d_smoothed_deg": 26.709563085256,
+          "max_abs_diff_vs_2d_smoothed_deg": 127.24871077878115,
+          "jitter_mean_abs_delta_3d_deg": 10.181836972782055,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 19.89406276021795,
+          "max_abs_diff_vs_2d_raw_deg": 43.56382232287615,
+          "mad_vs_2d_smoothed_deg": 19.701751232367307,
+          "max_abs_diff_vs_2d_smoothed_deg": 42.60158879221221,
+          "jitter_mean_abs_delta_3d_deg": 2.4290640564282246,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/7af5ea7182e347bfae1d95fd08343f99_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/7af5ea7182e347bfae1d95fd08343f99_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "7cb302ba4a244f04a6c2f057254b57ff",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/7cb302ba4a244f04a6c2f057254b57ff_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/7cb302ba4a244f04a6c2f057254b57ff_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 27.00952403036151,
+          "max_abs_diff_vs_2d_raw_deg": 106.83054282345603,
+          "mad_vs_2d_smoothed_deg": 26.777807832225662,
+          "max_abs_diff_vs_2d_smoothed_deg": 106.74870357971047,
+          "jitter_mean_abs_delta_3d_deg": 5.884859257293353,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 11.8837978303719,
+          "max_abs_diff_vs_2d_raw_deg": 39.36906306280254,
+          "mad_vs_2d_smoothed_deg": 11.75270283610402,
+          "max_abs_diff_vs_2d_smoothed_deg": 37.6903751648979,
+          "jitter_mean_abs_delta_3d_deg": 2.890520788736545,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 20.540959833105212,
+          "max_abs_diff_vs_2d_raw_deg": 100.79279763038315,
+          "mad_vs_2d_smoothed_deg": 20.725014634916445,
+          "max_abs_diff_vs_2d_smoothed_deg": 99.81856463558461,
+          "jitter_mean_abs_delta_3d_deg": 6.979289915795491,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 18.683972590484267,
+          "max_abs_diff_vs_2d_raw_deg": 44.75557710786356,
+          "mad_vs_2d_smoothed_deg": 18.46683045710655,
+          "max_abs_diff_vs_2d_smoothed_deg": 43.79334357719962,
+          "jitter_mean_abs_delta_3d_deg": 2.19943586534661,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/7cb302ba4a244f04a6c2f057254b57ff_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/7cb302ba4a244f04a6c2f057254b57ff_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "813bee5f599a43d2aef0a465ce53d665",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/813bee5f599a43d2aef0a465ce53d665_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/813bee5f599a43d2aef0a465ce53d665_pose.mp4",
+      "mp_frame_count": 264,
+      "mp_detected_frames": 264,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 219,
+          "n_frames_compared_smoothed": 219,
+          "mad_vs_2d_raw_deg": 28.796893810613067,
+          "max_abs_diff_vs_2d_raw_deg": 104.76194741386627,
+          "mad_vs_2d_smoothed_deg": 29.734969672139858,
+          "max_abs_diff_vs_2d_smoothed_deg": 144.25932208199887,
+          "jitter_mean_abs_delta_3d_deg": 8.748912390977074,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.491492508574933,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.214121872710614
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 260,
+          "n_frames_compared_smoothed": 264,
+          "mad_vs_2d_raw_deg": 18.010727561549373,
+          "max_abs_diff_vs_2d_raw_deg": 42.617553789819254,
+          "mad_vs_2d_smoothed_deg": 19.05395122568316,
+          "max_abs_diff_vs_2d_smoothed_deg": 63.591665036535176,
+          "jitter_mean_abs_delta_3d_deg": 2.426773092287671,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.8197212743177937,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.7012938011596486
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 243,
+          "n_frames_compared_smoothed": 256,
+          "mad_vs_2d_raw_deg": 23.07223016792909,
+          "max_abs_diff_vs_2d_raw_deg": 140.26421836702974,
+          "mad_vs_2d_smoothed_deg": 27.856345027799637,
+          "max_abs_diff_vs_2d_smoothed_deg": 145.2873989323502,
+          "jitter_mean_abs_delta_3d_deg": 13.544135740843116,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.006356135100906,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 7.723635932033822
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 260,
+          "n_frames_compared_smoothed": 264,
+          "mad_vs_2d_raw_deg": 9.859624669149191,
+          "max_abs_diff_vs_2d_raw_deg": 24.5236749423116,
+          "mad_vs_2d_smoothed_deg": 14.247155973155406,
+          "max_abs_diff_vs_2d_smoothed_deg": 146.8370039428726,
+          "jitter_mean_abs_delta_3d_deg": 2.0394489329244836,
+          "jitter_mean_abs_delta_2d_raw_deg": 1.8026615589479922,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.5142631018972543
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 264,
+        "video_frame_count": 264,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 263,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/813bee5f599a43d2aef0a465ce53d665_pose.mp4",
+          "frame_count": 264,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=0.95",
+        "shoulder_over_torso": 0.9481477436398013,
+        "pose_frame_index": 132,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/813bee5f599a43d2aef0a465ce53d665_midframe_f0132.jpg"
+      }
+    },
+    {
+      "analysis_id": "822f2c6b465e43e1bff6c1fa124d75aa",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/822f2c6b465e43e1bff6c1fa124d75aa_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/822f2c6b465e43e1bff6c1fa124d75aa_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 30.52140889551759,
+          "max_abs_diff_vs_2d_raw_deg": 117.48369126034159,
+          "mad_vs_2d_smoothed_deg": 30.286009988367404,
+          "max_abs_diff_vs_2d_smoothed_deg": 117.4979670633451,
+          "jitter_mean_abs_delta_3d_deg": 7.208244312897791,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 11.539614366865598,
+          "max_abs_diff_vs_2d_raw_deg": 55.52250863752994,
+          "mad_vs_2d_smoothed_deg": 11.434511688631883,
+          "max_abs_diff_vs_2d_smoothed_deg": 54.82260495589358,
+          "jitter_mean_abs_delta_3d_deg": 3.120984914039823,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 23.550802971948276,
+          "max_abs_diff_vs_2d_raw_deg": 119.63493338189397,
+          "mad_vs_2d_smoothed_deg": 23.67038613192235,
+          "max_abs_diff_vs_2d_smoothed_deg": 120.41382324066382,
+          "jitter_mean_abs_delta_3d_deg": 8.647150952152236,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 18.863031238886762,
+          "max_abs_diff_vs_2d_raw_deg": 46.75573623250497,
+          "mad_vs_2d_smoothed_deg": 18.649371496529625,
+          "max_abs_diff_vs_2d_smoothed_deg": 45.793502701841035,
+          "jitter_mean_abs_delta_3d_deg": 2.2228063134625033,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/822f2c6b465e43e1bff6c1fa124d75aa_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/822f2c6b465e43e1bff6c1fa124d75aa_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "8e57554e4ba845f39645973315df88ab",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/8e57554e4ba845f39645973315df88ab_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/8e57554e4ba845f39645973315df88ab_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 30.52140889551759,
+          "max_abs_diff_vs_2d_raw_deg": 117.48369126034159,
+          "mad_vs_2d_smoothed_deg": 30.286009988367404,
+          "max_abs_diff_vs_2d_smoothed_deg": 117.4979670633451,
+          "jitter_mean_abs_delta_3d_deg": 7.208244312897791,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 11.539614366865598,
+          "max_abs_diff_vs_2d_raw_deg": 55.52250863752994,
+          "mad_vs_2d_smoothed_deg": 11.434511688631883,
+          "max_abs_diff_vs_2d_smoothed_deg": 54.82260495589358,
+          "jitter_mean_abs_delta_3d_deg": 3.120984914039823,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 23.550802971948276,
+          "max_abs_diff_vs_2d_raw_deg": 119.63493338189397,
+          "mad_vs_2d_smoothed_deg": 23.67038613192235,
+          "max_abs_diff_vs_2d_smoothed_deg": 120.41382324066382,
+          "jitter_mean_abs_delta_3d_deg": 8.647150952152236,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 18.863031238886762,
+          "max_abs_diff_vs_2d_raw_deg": 46.75573623250497,
+          "mad_vs_2d_smoothed_deg": 18.649371496529625,
+          "max_abs_diff_vs_2d_smoothed_deg": 45.793502701841035,
+          "jitter_mean_abs_delta_3d_deg": 2.2228063134625033,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/8e57554e4ba845f39645973315df88ab_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/8e57554e4ba845f39645973315df88ab_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "92d6ef380b10484f8da93f08f6816903",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/92d6ef380b10484f8da93f08f6816903_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/92d6ef380b10484f8da93f08f6816903_mesh_source.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 23.43479710376534,
+          "max_abs_diff_vs_2d_raw_deg": 90.81101396046178,
+          "mad_vs_2d_smoothed_deg": 23.173312502124276,
+          "max_abs_diff_vs_2d_smoothed_deg": 90.08593338692117,
+          "jitter_mean_abs_delta_3d_deg": 4.6971523789559315,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 12.254620220100271,
+          "max_abs_diff_vs_2d_raw_deg": 36.056465918840615,
+          "mad_vs_2d_smoothed_deg": 12.175164251901146,
+          "max_abs_diff_vs_2d_smoothed_deg": 36.20277912411504,
+          "jitter_mean_abs_delta_3d_deg": 2.669236788852362,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 16.592154931443762,
+          "max_abs_diff_vs_2d_raw_deg": 45.03245142026675,
+          "mad_vs_2d_smoothed_deg": 16.676641294193015,
+          "max_abs_diff_vs_2d_smoothed_deg": 44.42538534613816,
+          "jitter_mean_abs_delta_3d_deg": 4.528348155568498,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 17.225892187381,
+          "max_abs_diff_vs_2d_raw_deg": 42.24521073199978,
+          "mad_vs_2d_smoothed_deg": 17.004824377217258,
+          "max_abs_diff_vs_2d_smoothed_deg": 41.525068240518266,
+          "jitter_mean_abs_delta_3d_deg": 1.6665668675899823,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/92d6ef380b10484f8da93f08f6816903_mesh_source.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": false
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/92d6ef380b10484f8da93f08f6816903_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "c0dc93b64e5f452d974df1cf2560c5fe",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/c0dc93b64e5f452d974df1cf2560c5fe_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/c0dc93b64e5f452d974df1cf2560c5fe_pose.mp4",
+      "mp_frame_count": 286,
+      "mp_detected_frames": 271,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 247,
+          "n_frames_compared_smoothed": 257,
+          "mad_vs_2d_raw_deg": 41.12398587736648,
+          "max_abs_diff_vs_2d_raw_deg": 128.1792842809994,
+          "mad_vs_2d_smoothed_deg": 39.32923772288887,
+          "max_abs_diff_vs_2d_smoothed_deg": 129.1105110028164,
+          "jitter_mean_abs_delta_3d_deg": 10.008947802242558,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.5744433969031135,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 9.81638573495147
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 271,
+          "n_frames_compared_smoothed": 271,
+          "mad_vs_2d_raw_deg": 10.578921059826094,
+          "max_abs_diff_vs_2d_raw_deg": 44.74265596378058,
+          "mad_vs_2d_smoothed_deg": 10.311219496359865,
+          "max_abs_diff_vs_2d_smoothed_deg": 45.65134332960105,
+          "jitter_mean_abs_delta_3d_deg": 3.1763025854544376,
+          "jitter_mean_abs_delta_2d_raw_deg": 1.953402305182421,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.8193724562277351
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 269,
+          "n_frames_compared_smoothed": 271,
+          "mad_vs_2d_raw_deg": 17.077865121007147,
+          "max_abs_diff_vs_2d_raw_deg": 118.65176568513368,
+          "mad_vs_2d_smoothed_deg": 18.636495168170118,
+          "max_abs_diff_vs_2d_smoothed_deg": 118.05093633522415,
+          "jitter_mean_abs_delta_3d_deg": 5.201305218595483,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.964322553229682,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.818128746101184
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 271,
+          "n_frames_compared_smoothed": 271,
+          "mad_vs_2d_raw_deg": 19.51257789680465,
+          "max_abs_diff_vs_2d_raw_deg": 79.50442411863445,
+          "mad_vs_2d_smoothed_deg": 19.215500800318384,
+          "max_abs_diff_vs_2d_smoothed_deg": 79.2465733506208,
+          "jitter_mean_abs_delta_3d_deg": 3.6980635365461914,
+          "jitter_mean_abs_delta_2d_raw_deg": 1.752095903650426,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.8953999795673937
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 286,
+        "video_frame_count": 286,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 285,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/c0dc93b64e5f452d974df1cf2560c5fe_pose.mp4",
+          "frame_count": 286,
+          "fps": 30.0,
+          "width": 984,
+          "height": 720
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "oblique-ish",
+        "reason": "shoulder/torso=0.40",
+        "shoulder_over_torso": 0.40108470341913227,
+        "pose_frame_index": 143,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/c0dc93b64e5f452d974df1cf2560c5fe_midframe_f0143.jpg"
+      }
+    },
+    {
+      "analysis_id": "c36aa2cad1054d36851ea1ec2a9c6193",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/c36aa2cad1054d36851ea1ec2a9c6193_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/c36aa2cad1054d36851ea1ec2a9c6193_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 28.428876473282934,
+          "max_abs_diff_vs_2d_raw_deg": 101.6351444546198,
+          "mad_vs_2d_smoothed_deg": 28.12182671797892,
+          "max_abs_diff_vs_2d_smoothed_deg": 100.72611901780255,
+          "jitter_mean_abs_delta_3d_deg": 6.058656008182085,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 12.564434841064251,
+          "max_abs_diff_vs_2d_raw_deg": 44.18961074265657,
+          "mad_vs_2d_smoothed_deg": 12.440577783992707,
+          "max_abs_diff_vs_2d_smoothed_deg": 40.51907429851279,
+          "jitter_mean_abs_delta_3d_deg": 3.361335224796129,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 21.12058594396582,
+          "max_abs_diff_vs_2d_raw_deg": 105.93064835968481,
+          "mad_vs_2d_smoothed_deg": 21.25911010419874,
+          "max_abs_diff_vs_2d_smoothed_deg": 104.82186188299092,
+          "jitter_mean_abs_delta_3d_deg": 6.656927295606132,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 18.524778740506317,
+          "max_abs_diff_vs_2d_raw_deg": 43.49436904353911,
+          "mad_vs_2d_smoothed_deg": 18.309178593850987,
+          "max_abs_diff_vs_2d_smoothed_deg": 42.53213551287517,
+          "jitter_mean_abs_delta_3d_deg": 2.139254996026935,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/c36aa2cad1054d36851ea1ec2a9c6193_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/c36aa2cad1054d36851ea1ec2a9c6193_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "c8eac0f3e6ff405c8a4bc11eaae39023",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/c8eac0f3e6ff405c8a4bc11eaae39023_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/c8eac0f3e6ff405c8a4bc11eaae39023_pose.mp4",
+      "mp_frame_count": 117,
+      "mp_detected_frames": 117,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 117,
+          "n_frames_compared_smoothed": 117,
+          "mad_vs_2d_raw_deg": 30.71026136717854,
+          "max_abs_diff_vs_2d_raw_deg": 86.88373387106688,
+          "mad_vs_2d_smoothed_deg": 30.38704314910339,
+          "max_abs_diff_vs_2d_smoothed_deg": 86.76166390073324,
+          "jitter_mean_abs_delta_3d_deg": 8.081391063991013,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.232844015178749,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 6.070598143759613
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 117,
+          "n_frames_compared_smoothed": 117,
+          "mad_vs_2d_raw_deg": 10.500321789848092,
+          "max_abs_diff_vs_2d_raw_deg": 35.60628322843549,
+          "mad_vs_2d_smoothed_deg": 10.42928618184793,
+          "max_abs_diff_vs_2d_smoothed_deg": 34.78011039797397,
+          "jitter_mean_abs_delta_3d_deg": 2.8123289101247466,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.489701746799534,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.308589520498073
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 117,
+          "n_frames_compared_smoothed": 117,
+          "mad_vs_2d_raw_deg": 22.605103206005012,
+          "max_abs_diff_vs_2d_raw_deg": 123.14958306740812,
+          "mad_vs_2d_smoothed_deg": 22.62573087439778,
+          "max_abs_diff_vs_2d_smoothed_deg": 122.47216678253318,
+          "jitter_mean_abs_delta_3d_deg": 9.83480630221466,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.014077170007106,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.8991592306610636
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 117,
+          "n_frames_compared_smoothed": 117,
+          "mad_vs_2d_raw_deg": 18.20769456316039,
+          "max_abs_diff_vs_2d_raw_deg": 43.90248681063052,
+          "mad_vs_2d_smoothed_deg": 18.159808064238923,
+          "max_abs_diff_vs_2d_smoothed_deg": 44.11499732706514,
+          "jitter_mean_abs_delta_3d_deg": 2.1747790996072416,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.4780068414947274,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.1385896977697967
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 117,
+        "video_frame_count": 117,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 116,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/c8eac0f3e6ff405c8a4bc11eaae39023_pose.mp4",
+          "frame_count": 117,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "oblique-ish",
+        "reason": "shoulder/torso=0.50",
+        "shoulder_over_torso": 0.5010102086749474,
+        "pose_frame_index": 58,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/c8eac0f3e6ff405c8a4bc11eaae39023_midframe_f0058.jpg"
+      }
+    },
+    {
+      "analysis_id": "d01f82c76a0746209235c9b8655aad90",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/d01f82c76a0746209235c9b8655aad90_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/d01f82c76a0746209235c9b8655aad90_pose.mp4",
+      "mp_frame_count": 97,
+      "mp_detected_frames": 97,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 96,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 32.01489836563618,
+          "max_abs_diff_vs_2d_raw_deg": 114.24281844514303,
+          "mad_vs_2d_smoothed_deg": 31.648136128031062,
+          "max_abs_diff_vs_2d_smoothed_deg": 114.80224462131349,
+          "jitter_mean_abs_delta_3d_deg": 9.252163759505832,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.257852354296714,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.736915898887838
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 9.90044618998051,
+          "max_abs_diff_vs_2d_raw_deg": 40.3665450394644,
+          "mad_vs_2d_smoothed_deg": 9.802019577040067,
+          "max_abs_diff_vs_2d_smoothed_deg": 39.4195759786265,
+          "jitter_mean_abs_delta_3d_deg": 2.754807612035933,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.3420119852978423,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.1621240383288893
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 29.881768190214878,
+          "max_abs_diff_vs_2d_raw_deg": 128.68277598252737,
+          "mad_vs_2d_smoothed_deg": 29.925482592808972,
+          "max_abs_diff_vs_2d_smoothed_deg": 128.66026807112547,
+          "jitter_mean_abs_delta_3d_deg": 9.775734233263249,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.229847194481068,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 4.047323279643852
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 20.40576084194458,
+          "max_abs_diff_vs_2d_raw_deg": 46.661933251344564,
+          "mad_vs_2d_smoothed_deg": 20.383441084056834,
+          "max_abs_diff_vs_2d_smoothed_deg": 47.478024992125924,
+          "jitter_mean_abs_delta_3d_deg": 1.7945615001538118,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.159793660212817,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.874415188307954
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 97,
+        "video_frame_count": 97,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 96,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/d01f82c76a0746209235c9b8655aad90_pose.mp4",
+          "frame_count": 97,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=0.79",
+        "shoulder_over_torso": 0.7901230955571413,
+        "pose_frame_index": 48,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/d01f82c76a0746209235c9b8655aad90_midframe_f0048.jpg"
+      }
+    },
+    {
+      "analysis_id": "deb9b6a9bb90405bb8bf4ead4bc15d13",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/deb9b6a9bb90405bb8bf4ead4bc15d13_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/deb9b6a9bb90405bb8bf4ead4bc15d13_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 27.300966667205724,
+          "max_abs_diff_vs_2d_raw_deg": 100.82385067776683,
+          "mad_vs_2d_smoothed_deg": 27.11270179108797,
+          "max_abs_diff_vs_2d_smoothed_deg": 99.91482524094957,
+          "jitter_mean_abs_delta_3d_deg": 5.4196508851225405,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 11.702669955561134,
+          "max_abs_diff_vs_2d_raw_deg": 38.572052524181046,
+          "mad_vs_2d_smoothed_deg": 11.599190448573724,
+          "max_abs_diff_vs_2d_smoothed_deg": 38.485414785903615,
+          "jitter_mean_abs_delta_3d_deg": 2.8313556855907276,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 19.276643455858558,
+          "max_abs_diff_vs_2d_raw_deg": 85.55433515749517,
+          "mad_vs_2d_smoothed_deg": 19.495876122700746,
+          "max_abs_diff_vs_2d_smoothed_deg": 87.00831514687376,
+          "jitter_mean_abs_delta_3d_deg": 6.3896207205587245,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 18.692372247334568,
+          "max_abs_diff_vs_2d_raw_deg": 43.909372225226775,
+          "mad_vs_2d_smoothed_deg": 18.47546172787557,
+          "max_abs_diff_vs_2d_smoothed_deg": 42.94713869456284,
+          "jitter_mean_abs_delta_3d_deg": 2.417863550603209,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/deb9b6a9bb90405bb8bf4ead4bc15d13_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/deb9b6a9bb90405bb8bf4ead4bc15d13_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "f67cdce0380c4242917a9ee3ed789a3e",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/f67cdce0380c4242917a9ee3ed789a3e_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/f67cdce0380c4242917a9ee3ed789a3e_pose.mp4",
+      "mp_frame_count": 184,
+      "mp_detected_frames": 184,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 31.36941470604188,
+          "max_abs_diff_vs_2d_raw_deg": 111.48687344457105,
+          "mad_vs_2d_smoothed_deg": 31.119730522382078,
+          "max_abs_diff_vs_2d_smoothed_deg": 111.87998483634613,
+          "jitter_mean_abs_delta_3d_deg": 7.17955668633966,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.498852604996431,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.689253942992471
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 11.802494965204811,
+          "max_abs_diff_vs_2d_raw_deg": 42.64969562897619,
+          "mad_vs_2d_smoothed_deg": 11.695233696216109,
+          "max_abs_diff_vs_2d_smoothed_deg": 39.048470371143154,
+          "jitter_mean_abs_delta_3d_deg": 3.2084392446198087,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.825332125204825,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.253308301775929
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 25.457612172337207,
+          "max_abs_diff_vs_2d_raw_deg": 124.17684173289186,
+          "mad_vs_2d_smoothed_deg": 25.622341444542652,
+          "max_abs_diff_vs_2d_smoothed_deg": 123.98215667053265,
+          "jitter_mean_abs_delta_3d_deg": 7.6951947179719875,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.037656765659957,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.554357137791524
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 184,
+          "n_frames_compared_smoothed": 184,
+          "mad_vs_2d_raw_deg": 19.08711550439315,
+          "max_abs_diff_vs_2d_raw_deg": 45.59783576777474,
+          "mad_vs_2d_smoothed_deg": 18.88851212162006,
+          "max_abs_diff_vs_2d_smoothed_deg": 44.6356022371108,
+          "jitter_mean_abs_delta_3d_deg": 2.210443677401885,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.773498488628983,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 2.175712140850636
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 184,
+        "video_frame_count": 184,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 183,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/f67cdce0380c4242917a9ee3ed789a3e_pose.mp4",
+          "frame_count": 184,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=1.08",
+        "shoulder_over_torso": 1.0806100418268205,
+        "pose_frame_index": 92,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/f67cdce0380c4242917a9ee3ed789a3e_midframe_f0092.jpg"
+      }
+    },
+    {
+      "analysis_id": "ffedda8a64914f55aaa40b3b89fde763",
+      "backend": "mediapipe_solutions_pose_complexity_2",
+      "landmarks_source": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/ffedda8a64914f55aaa40b3b89fde763_mediapipe_world.npz",
+      "video": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/ffedda8a64914f55aaa40b3b89fde763_pose.mp4",
+      "mp_frame_count": 97,
+      "mp_detected_frames": 97,
+      "two_d_note": "Pipeline discards pre-smoothing angles; raw series recomputed from *_pose.json. Smoothed series recomputed from *_pose_smoothed.json (same formula as production).",
+      "per_joint": {
+        "right_elbow": {
+          "n_frames_compared_raw": 96,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 32.01489836563618,
+          "max_abs_diff_vs_2d_raw_deg": 114.24281844514303,
+          "mad_vs_2d_smoothed_deg": 31.648136128031062,
+          "max_abs_diff_vs_2d_smoothed_deg": 114.80224462131349,
+          "jitter_mean_abs_delta_3d_deg": 9.252163759505832,
+          "jitter_mean_abs_delta_2d_raw_deg": 6.257852354296714,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 5.736915898887838
+        },
+        "right_knee": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 9.90044618998051,
+          "max_abs_diff_vs_2d_raw_deg": 40.3665450394644,
+          "mad_vs_2d_smoothed_deg": 9.802019577040067,
+          "max_abs_diff_vs_2d_smoothed_deg": 39.4195759786265,
+          "jitter_mean_abs_delta_3d_deg": 2.754807612035933,
+          "jitter_mean_abs_delta_2d_raw_deg": 3.3420119852978423,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 3.1621240383288893
+        },
+        "right_shoulder": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 29.881768190214878,
+          "max_abs_diff_vs_2d_raw_deg": 128.68277598252737,
+          "mad_vs_2d_smoothed_deg": 29.925482592808972,
+          "max_abs_diff_vs_2d_smoothed_deg": 128.66026807112547,
+          "jitter_mean_abs_delta_3d_deg": 9.775734233263249,
+          "jitter_mean_abs_delta_2d_raw_deg": 4.229847194481068,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 4.047323279643852
+        },
+        "right_hip": {
+          "n_frames_compared_raw": 97,
+          "n_frames_compared_smoothed": 97,
+          "mad_vs_2d_raw_deg": 20.40576084194458,
+          "max_abs_diff_vs_2d_raw_deg": 46.661933251344564,
+          "mad_vs_2d_smoothed_deg": 20.383441084056834,
+          "max_abs_diff_vs_2d_smoothed_deg": 47.478024992125924,
+          "jitter_mean_abs_delta_3d_deg": 1.7945615001538118,
+          "jitter_mean_abs_delta_2d_raw_deg": 2.159793660212817,
+          "jitter_mean_abs_delta_2d_smoothed_deg": 1.874415188307954
+        }
+      },
+      "frame_alignment": {
+        "ok": true,
+        "pose_frame_count": 97,
+        "video_frame_count": 97,
+        "count_match": true,
+        "pose_index_start": 0,
+        "pose_index_end": 96,
+        "contiguous_from_zero": true,
+        "fps_ok": true,
+        "fps_note": "pose_implied_fps=30.000 video_fps=30.000",
+        "video": {
+          "path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/outputs/ffedda8a64914f55aaa40b3b89fde763_pose.mp4",
+          "frame_count": 97,
+          "fps": 30.0,
+          "width": 720,
+          "height": 1280
+        },
+        "video_is_annotated_pose_mp4": true
+      },
+      "filming_angle_proxy": {
+        "label": "front-on-ish",
+        "reason": "shoulder/torso=0.79",
+        "shoulder_over_torso": 0.7901230955571413,
+        "pose_frame_index": 48,
+        "keyframe_path": "/Users/hainamtran/Desktop/Badminton/badminton-analytics/backend/scripts/analysis/results/ffedda8a64914f55aaa40b3b89fde763_midframe_f0048.jpg"
+      }
+    }
+  ]
+}

@@ -1,5 +1,8 @@
 """Technique evaluation against selected ReferenceProfile distributions.
 
+Retired from the production analyzers (which use ``tiered_technique``); kept
+for reference-distribution A/B validation tooling and its tests.
+
 Uses C2/versioned profile percentiles with C4 calibrated severity/confidence.
 Hard-coded settings thresholds apply only when selection returns
 ``match_level=none``. Legacy hard-coded rules remain in ``technique_legacy`` (C5).
@@ -45,6 +48,7 @@ from app.schemas.technique_calibration import (
     SeverityCalibrationConfig,
     build_evaluation_confidence,
     calibrate_issue_status,
+    continuous_severity_score,
     default_severity_calibration,
 )
 
@@ -255,6 +259,8 @@ def _measurement_confidence(
     parts = [float(metrics.phase_confidence), float(pose_confidence)]
     if quality_confidence is not None:
         parts.append(float(max(0.0, min(1.0, quality_confidence))))
+    if metrics.contact_confidence is not None:
+        parts.append(float(max(0.0, min(1.0, metrics.contact_confidence))))
     return float(sum(parts) / len(parts))
 
 
@@ -613,6 +619,24 @@ def _maybe_issue_from_distribution(
     elif reason:
         status_desc = f"{description} ({reason})"
 
+    sev_score = continuous_severity_score(
+        direction=metric.direction,
+        percentile_position=percentile_position,
+        robust_z=robust_z,
+        config=calib,
+    )
+    # Continuous reporting detail (status buckets remain discrete for UI).
+    cont_bits: list[str] = []
+    if percentile_position is not None:
+        cont_bits.append(f"~{percentile_position:.0f}th percentile vs reference")
+    if deviation is not None and metric.median is not None:
+        cont_bits.append(
+            f"deviation {deviation:+.1f}{metric.unit} from median {metric.median:.1f}"
+        )
+    cont_bits.append(f"severity_score={sev_score:.2f}")
+    if cont_bits:
+        status_desc = f"{status_desc} [{' · '.join(cont_bits)}]"
+
     return TechniqueIssue(
         code=code,
         phase=phase,
@@ -645,6 +669,7 @@ def _maybe_issue_from_distribution(
         status=status.value,
         uncertain=uncertain,
         status_reason=reason,
+        severity_score=sev_score,
     )
 
 

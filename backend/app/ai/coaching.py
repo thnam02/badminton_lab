@@ -7,12 +7,14 @@ Never recalculates biomechanics — explains EvidencePackage only.
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import mimetypes
 from pathlib import Path
 from typing import Any
 
 from app.ai.prompts import SYSTEM_INSTRUCTIONS, build_user_prompt
+from app.ai.issue_selection import is_tentative, select_top_issues
 from app.ai.schema_models import CoachingReportModel
 from app.config import settings
 from app.schemas.coaching import (
@@ -27,6 +29,12 @@ from app.schemas.final_analysis import FinalAnalysisState
 from app.schemas.provenance import AnalysisSnapshot
 
 logger = logging.getLogger(__name__)
+
+
+TENTATIVE_CAVEAT = (
+    "Issues marked tentative use unvalidated thresholds and a provisional "
+    "reference; treat them as hints to check, not confirmed faults."
+)
 
 
 class CoachingConfigError(RuntimeError):
@@ -191,12 +199,16 @@ def build_skipped_report(evidence: EvidencePackage, *, reason: str) -> CoachingR
 def build_fallback_report(evidence: EvidencePackage, *, reason: str) -> CoachingReport:
     """Deterministic fallback: surface top technique issues without LLM prose."""
     prioritized: list[PrioritizedIssue] = []
+    any_tentative = False
     for idx, issue in enumerate(evidence.technique_issues[:3]):
         code = str(issue.get("code", "UNKNOWN"))
         description = str(
             issue.get("description")
             or "See deterministic technique evaluation for details."
         )
+        if is_tentative(issue):
+            any_tentative = True
+            description = f"Possible issue (tentative hint, not a definite fault): {description}"
         prioritized.append(
             PrioritizedIssue(
                 issue_code=code,
@@ -217,6 +229,7 @@ def build_fallback_report(evidence: EvidencePackage, *, reason: str) -> Coaching
         caveats=[
             reason,
             "Fallback report does not invent drills or visual interpretations.",
+            *([TENTATIVE_CAVEAT] if any_tentative else []),
         ],
         model=None,
         evidence_version=evidence.evidence_version,
@@ -228,8 +241,15 @@ def _sanitize_against_evidence(
     report: CoachingReport,
     evidence: EvidencePackage,
 ) -> CoachingReport:
-    """Drop invented issue codes; keep at most 3 priorities."""
-    known = {str(i.get("code")) for i in evidence.technique_issues if i.get("code")}
+    """Drop invented / unreliable issue codes; keep at most 3 priorities."""
+    known = {
+        str(i.get("code"))
+        for i in evidence.technique_issues
+        if i.get("code")
+        and not i.get("uncertain")
+        and str(i.get("status") or "").upper()
+        not in {"INSUFFICIENT_EVIDENCE", "NO_ISSUE"}
+    }
     filtered = [
         item
         for item in report.prioritized_issues
@@ -245,6 +265,26 @@ def _sanitize_against_evidence(
         ]
     report.prioritized_issues = filtered
     return report
+
+
+def validate_coaching_report(
+    report: CoachingReportModel, evidence: dict[str, Any]
+) -> list[str]:
+    """Check model issue codes / metric hints against the prompt evidence payload."""
+    valid_codes = {
+        str(i.get("code"))
+        for i in evidence.get("technique_issues", [])
+        if i.get("code")
+    }
+    valid_metrics = set((evidence.get("metrics") or {}).keys())
+    warnings: list[str] = []
+    for issue in report.prioritized_issues:
+        if issue.issue_code not in valid_codes:
+            warnings.append(f"Hallucinated issue_code: {issue.issue_code}")
+        for hint in issue.related_metric_hints:
+            if hint not in valid_metrics:
+                warnings.append(f"Unknown metric hint: {hint}")
+    return warnings
 
 
 def _call_responses_api(
@@ -263,11 +303,17 @@ def _call_responses_api(
     if include_keyframes:
         keyframe_paths = _existing_keyframe_paths(evidence)
 
+    # Prompt payload only: filter/rank issues. On-disk EvidencePackage stays full.
+    prompt_evidence = evidence.to_dict()
+    prompt_evidence["technique_issues"] = select_top_issues(
+        list(prompt_evidence.get("technique_issues") or [])
+    )
+
     user_content: list[dict[str, Any]] = [
         {
             "type": "input_text",
             "text": build_user_prompt(
-                evidence.to_dict(),
+                prompt_evidence,
                 keyframe_count=len(keyframe_paths),
             ),
         }
@@ -288,11 +334,37 @@ def _call_responses_api(
         parsed = _extract_parsed_from_response(response)
     if parsed is None:
         raise CoachingParseError("Responses API returned no parsed CoachingReportModel")
-    if isinstance(parsed, CoachingReportModel):
-        return parsed
     if isinstance(parsed, dict):
-        return validate_coaching_model(parsed)
-    raise CoachingParseError(f"Unexpected parsed type: {type(parsed)!r}")
+        parsed = validate_coaching_model(parsed)
+    if not isinstance(parsed, CoachingReportModel):
+        raise CoachingParseError(f"Unexpected parsed type: {type(parsed)!r}")
+
+    validation_warnings = validate_coaching_report(parsed, prompt_evidence)
+    for warning in validation_warnings:
+        logger.warning("Coaching report validation: %s", warning)
+    logger.info(
+        "observability %s",
+        json.dumps(
+            {
+                "event": "coaching_report_validated",
+                "analysis_id": getattr(evidence, "analysis_id", "") or "",
+                "video": evidence.video,
+                "hallucinated_issue_code_count": sum(
+                    1
+                    for w in validation_warnings
+                    if w.startswith("Hallucinated issue_code:")
+                ),
+                "unknown_metric_hint_count": sum(
+                    1
+                    for w in validation_warnings
+                    if w.startswith("Unknown metric hint:")
+                ),
+                "prompt_issue_count": len(prompt_evidence.get("technique_issues") or []),
+            },
+            sort_keys=True,
+        ),
+    )
+    return parsed
 
 
 def _extract_parsed_from_response(response: Any) -> Any | None:

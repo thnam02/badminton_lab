@@ -87,8 +87,17 @@ def test_package_contains_versioned_coaching_fields(tmp_path: Path) -> None:
     assert "frame_phases" not in package.to_dict()
     assert package.metrics == metrics.to_dict()
     assert package.video_quality == quality.to_dict()
-    assert package.technique_issues == [i.to_dict() for i in technique.issues]
+    assert [
+        {k: v for k, v in i.items() if k not in ("tentative", "source_metrics")}
+        for i in package.technique_issues
+    ] == [i.to_dict() for i in technique.issues]
+    assert all("tentative" in i and "source_metrics" in i for i in package.technique_issues)
     assert package.keyframes == [kf.to_dict() for kf in keyframes.keyframes]
+    assert "chain_score" in package.composite_scores
+    assert "power_score" in package.composite_scores
+    assert "base_score" in package.composite_scores
+    assert "available" in package.composite_scores
+    assert package.to_dict()["composite_scores"] == package.composite_scores
     assert "frames" not in package.to_dict()  # no raw pose sequence
     assert "keypoints" not in package.to_dict()
 
@@ -98,6 +107,7 @@ def test_package_contains_versioned_coaching_fields(tmp_path: Path) -> None:
     text = out.read_text(encoding="utf-8")
     assert '"evidence_version"' in text
     assert EVIDENCE_VERSION in text
+    assert '"composite_scores"' in text
 
 
 def test_all_issue_measured_values_match_stroke_metrics() -> None:
@@ -208,3 +218,119 @@ def test_unusable_quality_zeros_analysis_confidence() -> None:
         keyframes=_keyframes(),
     )
     assert package.analysis_confidence == pytest.approx(0.0)
+
+
+def _tiered_package(**overrides):
+    from app.processing.tiered_technique import evaluate_tiered
+
+    _, _, _, phases, metrics = _build_pipeline()
+    values = dict(
+        swing_peak_elbow_omega_offset_frames=4,
+        swing_peak_shoulder_omega_offset_frames=8,
+        contact_wrist_y_normalized=0.50,
+        contact_window_min_wrist_y_normalized=0.50,
+        contact_nose_y_normalized=0.40,
+        backswing_end_wrist_y_normalized=0.55,
+        backswing_end_shoulder_y_normalized=0.45,
+        contact_elbow_angle_deg=120.0,
+        knee_contribution_deg=2.0,
+        preparation_knee_angle_deg=175.0,
+        contact_shoulder_angle_deg=110.0,
+        peak_trunk_rotation_deg=20.0,
+        preparation_elbow_angle_deg=95.0,
+        follow_through_speed_ratio=0.4,
+    )
+    values.update(overrides)
+    for key, value in values.items():
+        setattr(metrics, key, value)
+    technique = evaluate_tiered(
+        metrics, camera_view="SIDE", quality_confidence=0.9, pose_confidence=0.9
+    )
+    package = package_evidence(
+        video_quality=_quality(),
+        phases=phases,
+        metrics=metrics,
+        technique=technique,
+        keyframes=_keyframes(),
+    )
+    return metrics, technique, package
+
+
+def test_tiered_issues_carry_tier_and_tentative_flags() -> None:
+    _, technique, package = _tiered_package()
+    assert package.evidence_version == "1.10.0"
+    packaged = {i["code"]: i for i in package.technique_issues}
+    assert set(packaged) == {i.code for i in technique.issues}
+    assert len(packaged) == 6
+    for issue in packaged.values():
+        assert issue["tier"] in (1, 2)
+        assert issue["reference_validated"] is False
+        assert issue["unvalidated_prior"] is True
+        assert issue["tentative"] is True
+        assert issue["status"] != "MAJOR"
+        assert issue["source_metrics"]
+
+
+def test_tiered_measured_values_match_source_metrics() -> None:
+    metrics, technique, package = _tiered_package()
+    packaged = {i["code"]: i for i in package.technique_issues}
+    for issue in technique.issues:
+        fields = packaged[issue.code]["source_metrics"]
+        values = [float(package.metrics[f]) for f in fields]
+        expected = values[0] if len(values) == 1 else values[0] - values[1]
+        assert issue.measured_value == pytest.approx(expected)
+        assert packaged[issue.code]["measured_value"] == pytest.approx(expected)
+
+
+def test_display_metrics_are_tier3_and_never_issues() -> None:
+    _, technique, package = _tiered_package(
+        peak_wrist_speed=1200.0,
+        peak_wrist_speed_body_norm=8.5,
+        acceleration_elbow_extension_lead_over_trunk_frames=3,
+        peak_trunk_rotation_velocity_deg_s=400.0,
+    )
+    display = {d["metric_id"]: d for d in package.display_metrics}
+    assert {
+        "contact_shoulder_angle_deg",
+        "peak_trunk_rotation_deg",
+        "preparation_elbow_angle_deg",
+        "follow_through_speed_ratio",
+        "peak_wrist_speed_body_norm",
+        "acceleration_elbow_extension_lead_over_trunk_frames",
+        "peak_trunk_rotation_velocity_deg_s",
+    } <= set(display)
+    # Raw pixel speed stays in metrics (diagnostics) but is never displayed.
+    assert "peak_wrist_speed" not in display
+    assert package.metrics["peak_wrist_speed"] == pytest.approx(1200.0)
+    assert display["peak_wrist_speed_body_norm"]["label"] == "Peak wrist speed"
+    assert display["peak_wrist_speed_body_norm"]["value"] == pytest.approx(8.5)
+    assert display["peak_wrist_speed_body_norm"]["unit"] == "torso lengths/s"
+    assert all(d["tier"] == 3 for d in display.values())
+    assert display["contact_shoulder_angle_deg"]["value"] == pytest.approx(110.0)
+    assert display["contact_shoulder_angle_deg"]["note"] is None
+    for key in ("acceleration_elbow_extension_lead_over_trunk_frames", "peak_trunk_rotation_velocity_deg_s"):
+        assert display[key]["note"] == "Low reliability in 2D video."
+    assert "KINETIC_CHAIN_ORDER" not in {i["code"] for i in package.technique_issues}
+    issue_metrics = {f for i in package.technique_issues for f in i["source_metrics"]}
+    assert not issue_metrics & set(display)
+    assert package.to_dict()["display_metrics"] == package.display_metrics
+
+
+def test_evidence_records_implausible_measurements() -> None:
+    from app.processing.plausibility import apply_plausibility_gate
+
+    _, _, _, phases, metrics = _build_pipeline()
+    metrics.contact_elbow_angle_deg = 7.2
+    apply_plausibility_gate(metrics)
+    technique = evaluate_technique(metrics, profile=build_provisional_smash_right_side())
+    package = package_evidence(
+        video_quality=_quality(),
+        phases=phases,
+        metrics=metrics,
+        technique=technique,
+        keyframes=_keyframes(),
+    )
+    payload = package.to_dict()
+    assert payload["measurement_warnings"] == ["IMPLAUSIBLE_MEASUREMENT"]
+    assert payload["implausible_measurements"][0]["metric"] == "contact_elbow_angle_deg"
+    assert payload["metrics"]["contact_elbow_angle_deg"] is None

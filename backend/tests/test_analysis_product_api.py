@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from app.services.analysis_aggregator import (
     compare_analyses,
     get_analysis_result,
@@ -75,7 +77,8 @@ def _seed_analysis(root: Path, analysis_id: str, *, elbow: float = 149.0) -> Non
             "estimated_contact_frame_index": 66,
             "phase_confidence": 0.9,
             "contact_elbow_angle_deg": elbow,
-            "peak_wrist_speed": 1.7,
+            "peak_wrist_speed": 1150.0,
+            "peak_wrist_speed_body_norm": 10.5,
             "knee_contribution_deg": 12.0,
         },
     )
@@ -176,6 +179,165 @@ def test_aggregate_result_shape(tmp_path: Path) -> None:
     assert result["coaching"]["drills"][0]["title"] == "High-contact shadow smash"
     assert result["confidence"]["overall"] in {"HIGH", "MODERATE", "LOW"}
     assert result["reference_comparisons"]
+    # Pre-1.1.0 / missing evidence composite_scores → not available (never 0).
+    assert result["composite_scores"]["available"] is False
+    assert result["composite_scores"]["chain_score"] is None
+
+
+def _seed_contact_warnings(root: Path, analysis_id: str) -> None:
+    _write(
+        root / f"{analysis_id}_contact.json",
+        {
+            "contact_type": "KINEMATIC_ESTIMATE",
+            "confidence": 0.81,
+            "frame_index": 135,
+            "timestamp": 4.5,
+            "notes": "KINEMATIC_ESTIMATE from peak right-wrist speed.",
+            "shuttle_verified": False,
+            "warnings": ["MULTIPLE_SWINGS_DETECTED", "CONTACT_NOT_VERIFIED_BY_SHUTTLE"],
+            "swing_candidates": [
+                {"frame_index": 135, "timestamp": 4.5, "chosen": True},
+                {"frame_index": 23, "timestamp": 0.77, "chosen": False},
+            ],
+        },
+    )
+    _write(
+        root / f"{analysis_id}_pose_video_quality.json",
+        {
+            "analysis_confidence": 0.89,
+            "pose_confidence": 0.9,
+            "warnings": [
+                "HANDEDNESS_UNKNOWN",
+                "UNSTABLE_CAMERA",
+                "MULTIPLE_SWINGS_DETECTED",
+                "CONTACT_NOT_VERIFIED_BY_SHUTTLE",
+                "LOW_RACKET_ARM_AT_CONTACT",
+                "SOME_FUTURE_CODE",
+            ],
+        },
+    )
+
+
+def test_estimated_contact_plumbing_and_wording(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "est001")
+    _seed_contact_warnings(tmp_path, "est001")
+    result = get_analysis_result("est001", output_dir=tmp_path)
+    contact = result["contact"]
+    assert contact["shuttle_verified"] is False
+    assert contact["swing_count"] == 2
+    assert contact["chosen_swing_timestamp"] == pytest.approx(4.5)
+    assert contact["label"] == "Estimated contact (not verified by shuttle)"
+    assert contact["notes"] == (
+        "Contact time is estimated from your arm speed. The shuttle wasn't tracked "
+        "at that moment, so it may be a few frames off."
+    )
+    component = next(c for c in result["confidence"]["components"] if c["id"] == "contact")
+    assert component["label"] == "Contact timing (estimated)"
+
+
+def test_limitations_map_codes_to_sentences_by_priority(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "lim001")
+    _seed_contact_warnings(tmp_path, "lim001")
+    limitations = get_analysis_result("lim001", output_dir=tmp_path)["limitations"]
+    assert limitations == [
+        "We found 2 swings and analysed the one at 0:04.50.",
+        "Your racket arm was hard to see at contact, so arm measurements may be less accurate.",
+        "The camera moved during recording. A steady camera gives better results.",
+    ]
+    assert not any(note.isupper() or "_" in note for note in limitations)
+
+
+def test_limitations_cap_includes_non_warning_notes(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "cap001")
+    _seed_contact_warnings(tmp_path, "cap001")
+    _write(
+        tmp_path / "cap001_contact.json",
+        {"contact_type": "KINEMATIC_ESTIMATE", "confidence": 0.0},
+    )
+    for name in ("phases", "stroke_metrics"):
+        (tmp_path / f"cap001_pose_{name}.json").unlink()
+    quality = json.loads((tmp_path / "cap001_pose_video_quality.json").read_text())
+    quality["analysis_confidence"] = 0.3
+    _write(tmp_path / "cap001_pose_video_quality.json", quality)
+    limitations = get_analysis_result("cap001", output_dir=tmp_path)["limitations"]
+    assert limitations == [
+        "Your racket arm was hard to see at contact, so arm measurements may be less accurate.",
+        "We could not reliably assess contact position in this video.",
+        "The camera moved during recording. A steady camera gives better results.",
+    ]
+
+
+def test_shuttle_verified_contact_wording(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "ver001")
+    _write(
+        tmp_path / "ver001_contact.json",
+        {
+            "contact_type": "TRACKED_CONTACT",
+            "confidence": 0.9,
+            "frame_index": 66,
+            "timestamp": 2.2,
+            "shuttle_verified": True,
+        },
+    )
+    result = get_analysis_result("ver001", output_dir=tmp_path)
+    assert result["contact"]["label"] == "Detected contact (shuttle-verified)"
+    assert result["contact"]["notes"] is None
+    assert result["contact"]["swing_count"] is None
+    assert result["limitations"] == []
+    component = next(c for c in result["confidence"]["components"] if c["id"] == "contact")
+    assert component["label"] == "Contact detection"
+
+
+def test_composite_scores_surface_when_evidence_has_them(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "comp001")
+    _write(
+        tmp_path / "comp001_pose_evidence.json",
+        {
+            "evidence_version": "1.1.0",
+            "stroke_type": "SMASH",
+            "composite_scores": {
+                "available": True,
+                "chain_score": 0.82,
+                "power_score": 0.71,
+                "base_score": 0.66,
+            },
+        },
+    )
+    result = get_analysis_result("comp001", output_dir=tmp_path)
+    assert result["composite_scores"]["available"] is True
+    # Older evidence still carries chain and power scores; both are hidden everywhere.
+    assert result["composite_scores"]["chain_score"] is None
+    assert result["composite_scores"]["chain_unavailable_reason"] == "requires 3D landmarks"
+    assert result["composite_scores"]["power_score"] is None
+    assert (
+        result["composite_scores"]["power_unavailable_reason"]
+        == "speed scale not yet calibrated"
+    )
+    assert result["composite_scores"]["base_score"] == pytest.approx(0.66)
+
+    summary = next(a for a in list_analyses(output_dir=tmp_path) if a["analysis_id"] == "comp001")
+    assert summary["composite_scores"]["chain_score"] is None
+    assert summary["composite_scores"]["chain_unavailable_reason"] == "requires 3D landmarks"
+    assert summary["composite_scores"]["power_score"] is None
+    assert (
+        summary["composite_scores"]["power_unavailable_reason"]
+        == "speed scale not yet calibrated"
+    )
+
+    _seed_analysis(tmp_path, "comp002")
+    cmp = compare_analyses("comp001", "comp002", output_dir=tmp_path)
+    chain_rows = [r for r in cmp["rows"] if r["label"] == "Chain score"]
+    assert len(chain_rows) == 1
+    assert chain_rows[0]["left"] is None
+    assert chain_rows[0]["right"] is None
+    assert chain_rows[0]["unavailable_note"] == "Not assessable from 2D video"
+    power_rows = [r for r in cmp["rows"] if r["label"] == "Power score"]
+    assert len(power_rows) == 1
+    assert power_rows[0]["left"] is None
+    assert power_rows[0]["right"] is None
+    assert power_rows[0]["unavailable_note"] == "Speed scale not yet calibrated"
+    base_rows = [r for r in cmp["rows"] if r["label"] == "Base score"]
+    assert base_rows[0]["left"] == pytest.approx(0.66)
 
 
 def test_coaching_unavailable_does_not_fail(tmp_path: Path) -> None:
@@ -202,7 +364,8 @@ def test_compare_compatible(tmp_path: Path) -> None:
     _seed_analysis(tmp_path, "right1", elbow=158.0)
     # bump wrist on right
     metrics = json.loads((tmp_path / "right1_pose_stroke_metrics.json").read_text())
-    metrics["peak_wrist_speed"] = 1.91
+    metrics["peak_wrist_speed"] = 1400.0
+    metrics["peak_wrist_speed_body_norm"] = 12.0
     (tmp_path / "right1_pose_stroke_metrics.json").write_text(json.dumps(metrics))
     cmp = compare_analyses("left1", "right1", output_dir=tmp_path)
     assert cmp["compatible"] is True
@@ -210,3 +373,183 @@ def test_compare_compatible(tmp_path: Path) -> None:
     assert "Elbow contact" in labels
     elbow = next(r for r in cmp["rows"] if r["label"] == "Elbow contact")
     assert elbow["change"] in {"Improved", "Changed", "Similar"}
+    # Wrist speed is compared in torso lengths / s; raw pixels / s never surface.
+    speed = [r for r in cmp["rows"] if r["label"] == "Peak wrist speed"]
+    assert len(speed) == 1
+    assert speed[0]["unit"] == "torso lengths/s"
+    assert speed[0]["left"] == pytest.approx(10.5)
+    assert speed[0]["right"] == pytest.approx(12.0)
+    result = get_analysis_result("right1", output_dir=tmp_path)
+    metric_ids = {m["id"] for m in result["metrics"]}
+    assert "peak_wrist_speed_body_norm" in metric_ids
+    assert "peak_wrist_speed" not in metric_ids
+
+
+def _seed_tiered(root: Path, analysis_id: str) -> None:
+    _seed_analysis(root, analysis_id)
+    _write(
+        root / f"{analysis_id}_pose_technique.json",
+        {
+            "video": f"{analysis_id}_pose.mp4",
+            "confidence": 0.8,
+            "reference_profile_id": "clear_right_side_provisional_v1",
+            "rule_version": "tiered_rules_v1",
+            "issues": [
+                {
+                    "code": "KINETIC_CHAIN_ORDER",
+                    "phase": "ACCELERATION",
+                    "severity": "MEDIUM",
+                    "status": "MODERATE",
+                    "confidence": 0.8,
+                    "combined_confidence": 0.8,
+                    "measured_value": 4.0,
+                    "unit": "frames",
+                    "reference_range": {"min": None, "max": 1.0},
+                    "tier": 1,
+                    "reference_validated": False,
+                    "unvalidated_prior": True,
+                },
+                {
+                    "code": "BENT_ELBOW_AT_CONTACT",
+                    "phase": "ESTIMATED_CONTACT",
+                    "severity": "LOW",
+                    "status": "MINOR",
+                    "confidence": 0.8,
+                    "combined_confidence": 0.8,
+                    "measured_value": 133.0,
+                    "unit": "deg",
+                    "reference_range": {"min": 140.0, "max": 180.0},
+                    "tier": 2,
+                    "reference_validated": True,
+                    "unvalidated_prior": True,
+                },
+            ],
+        },
+    )
+    _write(
+        root / f"{analysis_id}_pose_evidence.json",
+        {
+            "evidence_version": "1.5.0",
+            "display_metrics": [
+                {"metric_id": "contact_shoulder_angle_deg", "label": "Shoulder angle at contact", "unit": "deg", "value": 119.6, "tier": 3},
+                {"metric_id": "peak_wrist_speed", "label": "Peak wrist speed", "unit": "", "value": None, "tier": 3},
+            ],
+        },
+    )
+
+
+def test_tiered_issues_surface_tier_and_tentative(tmp_path: Path) -> None:
+    _seed_tiered(tmp_path, "tier111")
+    result = get_analysis_result("tier111", output_dir=tmp_path)
+    by_code = {i["code"]: i for i in result["issues"]}
+    chain = by_code["KINETIC_CHAIN_ORDER"]
+    assert chain["title"] == "Arm sequence order"
+    assert chain["tier"] == 1
+    assert chain["reference_validated"] is False
+    assert chain["tentative"] is True
+    hint = by_code["BENT_ELBOW_AT_CONTACT"]
+    assert hint["tier"] == 2
+    assert hint["tentative"] is True
+    # Thresholds are not reference-group distributions.
+    assert result["reference_comparisons"] == []
+    assert result["display_metrics"] == [
+        {
+            "id": "contact_shoulder_angle_deg",
+            "label": "Shoulder angle at contact",
+            "value": 119.6,
+            "unit": "deg",
+            "note": None,
+        }
+    ]
+
+
+def test_legacy_issues_are_not_tentative(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "old111")
+    result = get_analysis_result("old111", output_dir=tmp_path)
+    assert all(i["tentative"] is False and i["tier"] is None for i in result["issues"])
+    assert result["display_metrics"] == []
+
+
+def test_implausible_measurement_warning_becomes_limitation(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "imp111")
+    _write(
+        tmp_path / "imp111_pose_evidence.json",
+        {
+            "evidence_version": "1.6.0",
+            "measurement_warnings": ["IMPLAUSIBLE_MEASUREMENT"],
+            "implausible_measurements": [{"metric": "contact_elbow_angle_deg", "value": 7.2}],
+        },
+    )
+    result = get_analysis_result("imp111", output_dir=tmp_path)
+    assert any("physically impossible" in note for note in result["limitations"])
+
+
+def _seed_view(root: Path, analysis_id: str, view: str | None) -> None:
+    _seed_tiered(root, analysis_id)
+    tech_path = root / f"{analysis_id}_pose_technique.json"
+    tech = json.loads(tech_path.read_text())
+    tech["rule_version"] = "tiered_rules_v3"
+    tech["issues"] = []
+    _write(tech_path, tech)
+    _write(
+        root / f"{analysis_id}_pose_evidence.json",
+        {"evidence_version": "1.6.0", "camera_view": view},
+    )
+
+
+@pytest.mark.parametrize("view", ["FRONT", "REAR", "UNKNOWN", None])
+def test_limited_view_scope_lists_skipped_tier2_checks(tmp_path: Path, view) -> None:
+    _seed_view(tmp_path, "lim111", view)
+    scope = get_analysis_result("lim111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["limited_view"] is True
+    assert scope["tier2_skipped"] is True
+    assert scope["limited_view_message"] == (
+        "This camera angle allows only limited analysis. Film from the side, at hip "
+        "height, with your whole body in view, for a full technique assessment."
+    )
+    assert {c["code"] for c in scope["not_assessed"]} == {
+        "BENT_ELBOW_AT_CONTACT",
+        "LIMITED_LEG_DRIVE",
+        "STIFF_PREPARATION_KNEE",
+    }
+
+
+def test_side_view_scope_is_full(tmp_path: Path) -> None:
+    _seed_view(tmp_path, "side111", "SIDE")
+    scope = get_analysis_result("side111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["limited_view"] is False
+    assert scope["limited_view_message"] is None
+    assert scope["not_assessed"] == []
+
+
+def test_legacy_rule_analyses_are_not_marked_limited(tmp_path: Path) -> None:
+    _seed_analysis(tmp_path, "leg111")
+    scope = get_analysis_result("leg111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["limited_view"] is False
+
+
+def test_scope_reports_partial_coverage_with_reasons(tmp_path: Path) -> None:
+    _seed_view(tmp_path, "part111", "SIDE")
+    tech_path = tmp_path / "part111_pose_technique.json"
+    tech = json.loads(tech_path.read_text())
+    tech["rule_coverage"] = [
+        {"code": "LOW_CONTACT_POINT", "tier": 1, "label": "Contact height", "status": "checked", "reason": None},
+        {"code": "LOW_RACKET_PREPARATION", "tier": 1, "label": "Racket preparation height", "status": "not_checked", "reason": "missing"},
+        {"code": "BENT_ELBOW_AT_CONTACT", "tier": 2, "label": "Elbow angle at contact", "status": "not_checked", "reason": "implausible"},
+        {"code": "LIMITED_LEG_DRIVE", "tier": 2, "label": "Leg drive", "status": "checked", "reason": None},
+    ]
+    _write(tech_path, tech)
+    scope = get_analysis_result("part111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["coverage_known"] is True
+    assert scope["complete"] is False
+    assert (scope["checked_count"], scope["applicable_count"]) == (2, 4)
+    reasons = {u["code"]: u["reason"] for u in scope["unchecked"]}
+    assert reasons["BENT_ELBOW_AT_CONTACT"] == "Elbow angle at contact could not be measured reliably"
+    assert reasons["LOW_RACKET_PREPARATION"].startswith("Racket preparation height could not be measured")
+
+
+def test_scope_without_coverage_is_not_complete(tmp_path: Path) -> None:
+    _seed_view(tmp_path, "nocov111", "SIDE")
+    scope = get_analysis_result("nocov111", output_dir=tmp_path)["assessment_scope"]
+    assert scope["coverage_known"] is False
+    assert scope["complete"] is False

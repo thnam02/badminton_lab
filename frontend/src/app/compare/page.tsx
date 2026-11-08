@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { PageContainer } from "@/components/shell/PageContainer";
+import { Card } from "@/components/ui/Card";
+import {
+  buttonPrimary,
+  eyebrow,
+  inputBase,
+  pageTitle,
+} from "@/components/ui/styles";
 import { fetchAnalyses, fetchCompare, mediaUrl } from "@/lib/api";
 import { formatDate, formatMetric } from "@/lib/format";
 import type { AnalysisSummary, CompareResponse } from "@/lib/types";
@@ -62,19 +70,19 @@ function CompareInner() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
-      <header className="mb-8 space-y-2">
-        <h1 className="font-display text-3xl font-semibold">Compare sessions</h1>
-        <p className="text-sm text-[var(--muted)]">
+    <>
+      <header className="flex max-w-3xl flex-col gap-2.5">
+        <h1 className={pageTitle}>Compare sessions</h1>
+        <p className="text-text-muted">
           Compare two compatible local analyses. No overall improvement score.
         </p>
       </header>
 
-      <section className="grid gap-4 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-5 sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="text-[var(--muted)]">Previous</span>
+      <Card className="grid gap-4 sm:grid-cols-2">
+        <label className="block">
+          <span className="mb-1.5 block font-semibold">Previous</span>
           <select
-            className="mt-1 w-full rounded-md border border-[var(--border)] bg-white px-3 py-2"
+            className={inputBase}
             value={left}
             onChange={(e) => setLeft(e.target.value)}
           >
@@ -86,10 +94,10 @@ function CompareInner() {
             ))}
           </select>
         </label>
-        <label className="block text-sm">
-          <span className="text-[var(--muted)]">Current</span>
+        <label className="block">
+          <span className="mb-1.5 block font-semibold">Current</span>
           <select
-            className="mt-1 w-full rounded-md border border-[var(--border)] bg-white px-3 py-2"
+            className={inputBase}
             value={right}
             onChange={(e) => setRight(e.target.value)}
           >
@@ -105,68 +113,68 @@ function CompareInner() {
           type="button"
           disabled={!canCompare || loading}
           onClick={runCompare}
-          className="sm:col-span-2 rounded-md bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+          className={`${buttonPrimary} sm:col-span-2 sm:justify-self-start`}
         >
           {loading ? "Comparing…" : "Compare"}
         </button>
-      </section>
+      </Card>
 
       {error && (
-        <p className="mt-4 text-sm text-[var(--danger)]" role="alert">
+        <p className="text-danger" role="alert">
           {error}
         </p>
       )}
 
       {result && !result.compatible && (
-        <p className="mt-4 text-sm text-[var(--warning)]" role="status">
+        <p className="text-warn" role="status">
           {result.compatibility_reason}
         </p>
       )}
 
       {result?.compatible && (
-        <section className="mt-8 space-y-6">
-          <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)]">
+        <section className="flex flex-col gap-6">
+          <div className="overflow-x-auto rounded-card border border-border bg-surface">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-[var(--border)] text-xs uppercase tracking-wide text-[var(--muted)]">
+              <thead className="border-b border-border text-xs uppercase tracking-wide text-text-muted">
                 <tr>
-                  <th className="px-4 py-3">Metric</th>
-                  <th className="px-4 py-3">Previous</th>
-                  <th className="px-4 py-3">Current</th>
-                  <th className="px-4 py-3">Change</th>
+                  <th className="px-5 py-3 font-semibold">Metric</th>
+                  <th className="px-5 py-3 font-semibold">Previous</th>
+                  <th className="px-5 py-3 font-semibold">Current</th>
+                  <th className="px-5 py-3 font-semibold">Change</th>
                 </tr>
               </thead>
               <tbody>
                 {result.rows.map((row) => (
-                  <tr
-                    key={row.label}
-                    className="border-b border-[var(--border)] last:border-0"
-                  >
-                    <td className="px-4 py-3">{row.label}</td>
-                    <td className="px-4 py-3">
-                      {formatMetric(row.left, row.unit, 2)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {formatMetric(row.right, row.unit, 2)}
-                    </td>
-                    <td className="px-4 py-3 font-medium">{row.change}</td>
+                  <tr key={row.label} className="border-b border-border last:border-0">
+                    <td className="px-5 py-3 text-text-soft">{row.label}</td>
+                    {row.unavailable_note ? (
+                      <td colSpan={3} className="px-5 py-3 text-text-muted">
+                        {row.unavailable_note}
+                      </td>
+                    ) : (
+                      <>
+                        <td className="px-5 py-3">
+                          {row.left == null ? "n/a" : formatMetric(row.left, row.unit, 2)}
+                        </td>
+                        <td className="px-5 py-3">
+                          {row.right == null ? "n/a" : formatMetric(row.right, row.unit, 2)}
+                        </td>
+                        <td className="px-5 py-3 font-medium">{row.change}</td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2">
             {[result.left, result.right].map((side, idx) => (
-              <div
-                key={side.analysis_id}
-                className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4"
-              >
-                <p className="text-xs uppercase tracking-wide text-[var(--muted)]">
-                  {idx === 0 ? "Previous" : "Current"}
-                </p>
+              <Card key={side.analysis_id} as="div" className="flex flex-col gap-3">
+                <p className={eyebrow}>{idx === 0 ? "Previous" : "Current"}</p>
                 <Link
                   href={`/analysis/${side.analysis_id}`}
-                  className="mt-1 block font-medium text-[var(--accent)]"
+                  className="inline-flex min-h-11 items-center self-start font-medium"
                 >
                   Open analysis
                 </Link>
@@ -174,26 +182,30 @@ function CompareInner() {
                   <video
                     src={mediaUrl(side.pose_video_url) || undefined}
                     controls
-                    className="mt-3 aspect-video w-full rounded-md bg-black"
+                    className="aspect-video w-full rounded-xl bg-black"
                   />
                 )}
-              </div>
+              </Card>
             ))}
           </div>
         </section>
       )}
-    </main>
+    </>
   );
 }
 
 export default function ComparePage() {
   return (
-    <Suspense
-      fallback={
-        <p className="p-8 text-sm text-[var(--muted)]">Loading compare…</p>
-      }
-    >
-      <CompareInner />
-    </Suspense>
+    <PageContainer>
+      <Suspense
+        fallback={
+          <p className="text-text-muted" role="status">
+            Loading compare…
+          </p>
+        }
+      >
+        <CompareInner />
+      </Suspense>
+    </PageContainer>
   );
 }

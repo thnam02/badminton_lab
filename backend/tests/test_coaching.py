@@ -265,3 +265,42 @@ def test_sanitize_drops_unknown_issue_codes(monkeypatch: pytest.MonkeyPatch) -> 
     assert report.status == CoachingStatus.OK.value
     assert report.prioritized_issues == []
     assert any("unknown issue codes" in c.lower() for c in report.caveats)
+
+
+def test_prompt_treats_tier2_and_unvalidated_issues_as_tentative() -> None:
+    text = SYSTEM_INSTRUCTIONS.lower()
+    assert "tier=2" in text
+    assert "reference_validated=false" in text
+    assert "tentative" in text
+    assert "not definite faults" in text
+    assert "display_metrics" in text
+    user = build_user_prompt(_evidence().to_dict(), keyframe_count=0).lower()
+    assert "tentative" in user
+
+
+def test_fallback_marks_tentative_issues_as_hints() -> None:
+    evidence = _evidence(with_issues=True)
+    evidence.technique_issues[0].update(
+        {"code": "LOW_CONTACT_POINT", "tier": 1, "reference_validated": False, "tentative": True}
+    )
+    report = build_fallback_report(evidence, reason="timeout")
+    first = report.prioritized_issues[0]
+    assert first.issue_code == "LOW_CONTACT_POINT"
+    assert first.explanation.startswith("Possible issue (tentative hint")
+    assert any("tentative" in c for c in report.caveats)
+    # Issue without tier metadata is unchanged.
+    assert not report.prioritized_issues[1].explanation.startswith("Possible issue")
+
+
+def test_prompt_forbids_no_issue_claims_for_limited_views() -> None:
+    text = SYSTEM_INSTRUCTIONS.lower()
+    assert "camera_view is not side" in text
+    assert "never say the" in text and "no issues" in text
+    assert "not assessed from" in text
+
+
+def test_prompt_forbids_no_issue_claims_for_partial_assessment() -> None:
+    text = SYSTEM_INSTRUCTIONS.lower()
+    assert "rule_coverage" in text
+    assert 'status="not_checked"' in text
+    assert "assessment\n    is partial" in text or "assessment is partial" in text.replace("\n    ", " ")

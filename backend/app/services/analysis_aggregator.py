@@ -11,6 +11,15 @@ from pathlib import Path
 from typing import Any
 
 from app.config import settings
+from app.processing.composite_scores import (
+    CHAIN_UNAVAILABLE_REASON,
+    POWER_UNAVAILABLE_REASON,
+)
+from app.processing.technique_rules_config import (
+    TIER_BY_CODE,
+    TIER_HINT,
+    TIER_HINT_CAMERA_VIEW,
+)
 from app.services.analysis_index import (
     AnalysisIndexEntry,
     load_index,
@@ -29,6 +38,7 @@ from app.services.video_service import (
     technique_json_path_for,
     video_quality_json_path_for,
 )
+from app.services.warning_messages import warning_sentences
 
 # User-facing phase labels (backend ESTIMATED_CONTACT → Estimated contact).
 PHASE_LABELS = {
@@ -54,7 +64,31 @@ ISSUE_TITLES = {
     "RESTRICTED_FOLLOW_THROUGH": "Restricted follow-through",
     "SLOW_RECOVERY": "Slow recovery",
     "INSUFFICIENT_EVIDENCE": "Insufficient evidence",
+    # Tiered rules; retired codes above stay for history views.
+    "KINETIC_CHAIN_ORDER": "Arm sequence order",
+    "LOW_CONTACT_POINT": "Low contact point",
+    "LATE_ELBOW_ACCELERATION": "Late elbow acceleration",
+    "LOW_RACKET_PREPARATION": "Low racket preparation",
+    "BENT_ELBOW_AT_CONTACT": "Bent elbow at contact",
+    "LIMITED_LEG_DRIVE": "Limited leg drive",
+    "STIFF_PREPARATION_KNEE": "Little knee bend in preparation",
 }
+
+CONTACT_ESTIMATED_NOTE = (
+    "Contact time is estimated from your arm speed. The shuttle wasn't tracked "
+    "at that moment, so it may be a few frames off."
+)
+
+CHAIN_NOT_ASSESSABLE_LABEL = "Not assessable from 2D video"
+POWER_NOT_CALIBRATED_LABEL = "Speed scale not yet calibrated"
+
+LIMITED_VIEW_MESSAGE = (
+    "This camera angle allows only limited analysis. Film from the side, at hip "
+    "height, with your whole body in view, for a full technique assessment."
+)
+
+# Limitations are ordered highest priority first; only the top few are shown.
+MAX_LIMITATIONS = 3
 
 
 def list_analyses(*, output_dir: Path | None = None, limit: int = 50) -> list[dict[str, Any]]:
@@ -114,6 +148,7 @@ def get_analysis_result(
     coaching_norm = _normalize_coaching(coaching, issues_norm)
     metrics_norm = _normalize_metrics(metrics)
     references = _reference_comparisons(issues_norm, technique)
+    composite_scores = _normalize_composite_scores(evidence)
 
     handedness = (
         (evidence or {}).get("handedness")
@@ -142,7 +177,7 @@ def get_analysis_result(
         "stroke_type_raw": stroke_type,
         "handedness": _hand_label(handedness),
         "handedness_raw": handedness,
-        "camera_view": None,
+        "camera_view": (evidence or {}).get("camera_view"),
         "reference_profile_id": ref_profile,
         "snapshot_id": (snapshot or {}).get("snapshot_id")
         or (technique or {}).get("snapshot_id")
@@ -164,10 +199,13 @@ def get_analysis_result(
         ],
         "findings": [i for i in issues_norm if i.get("is_finding")],
         "metrics": metrics_norm,
+        "assessment_scope": _assessment_scope(evidence, technique),
+        "display_metrics": _normalize_display_metrics(evidence),
+        "composite_scores": composite_scores,
         "reference_comparisons": references,
         "coaching": coaching_norm,
         "keyframes": _normalize_keyframes(keyframes, analysis_id),
-        "limitations": _limitations(confidence, contact_norm, quality),
+        "limitations": _limitations(confidence, contact_norm, quality, evidence),
         "artifacts": {
             "phases": phases is not None,
             "metrics": metrics is not None,
@@ -246,6 +284,7 @@ def _discover_analyses(root: Path) -> list[dict[str, Any]]:
 
 
 def _summary_from_result(result: dict[str, Any]) -> dict[str, Any]:
+    composite = result.get("composite_scores") or {}
     return {
         "analysis_id": result["analysis_id"],
         "created_at": result.get("created_at"),
@@ -261,6 +300,51 @@ def _summary_from_result(result: dict[str, Any]) -> dict[str, Any]:
         "analysis_status": result.get("analysis_status"),
         "coaching_status": result.get("coaching_status"),
         "mesh_status": result.get("mesh_status"),
+        "composite_scores": {
+            "available": bool(composite.get("available")),
+            "chain_score": None,
+            "chain_unavailable_reason": composite.get("chain_unavailable_reason"),
+            "power_score": None,
+            "power_unavailable_reason": composite.get("power_unavailable_reason"),
+            "base_score": composite.get("base_score"),
+        },
+    }
+
+
+def _normalize_composite_scores(evidence: dict[str, Any] | None) -> dict[str, Any]:
+    """Product DTO for composite scores.
+
+    Missing field (pre-1.1.0 evidence) and ``available=False`` (insufficient
+    inputs on a current analysis) both surface as ``available=False`` — never
+    coerce null scores to 0.
+    """
+    empty = {
+        "available": False,
+        "chain_score": None,
+        "chain_unavailable_reason": CHAIN_UNAVAILABLE_REASON,
+        "power_score": None,
+        "power_unavailable_reason": POWER_UNAVAILABLE_REASON,
+        "base_score": None,
+        "notes": None,
+    }
+    if not evidence or "composite_scores" not in evidence:
+        return empty
+    raw = evidence.get("composite_scores")
+    if not isinstance(raw, dict):
+        return empty
+    # Chain and power are hidden for every analysis, including ones scored
+    # before they were withheld: kinetic-chain timing is unreliable in 2D and
+    # wrist speed has no calibrated scale yet.
+    base = raw.get("base_score")
+    available = bool(raw.get("available", base is not None)) and base is not None
+    return {
+        "available": available,
+        "chain_score": None,
+        "chain_unavailable_reason": CHAIN_UNAVAILABLE_REASON,
+        "power_score": None,
+        "power_unavailable_reason": POWER_UNAVAILABLE_REASON,
+        "base_score": float(base) if base is not None else None,
+        "notes": raw.get("notes"),
     }
 
 
@@ -325,21 +409,35 @@ def _normalize_contact(
         frame = metrics.get("estimated_contact_frame_index")
     contact_type = str(src.get("contact_type") or "KINEMATIC_ESTIMATE")
     tracked = contact_type.upper() in {"TRACKED", "TRACKED_CONTACT"}
+    # Artifacts written before shuttle verification existed: tracked ⇒ verified.
+    shuttle_verified = bool(src.get("shuttle_verified", tracked))
+    swings = [s for s in (src.get("swing_candidates") or []) if isinstance(s, dict)]
+    if not swings:
+        swings = [
+            s for s in ((evidence or {}).get("swing_candidates") or []) if isinstance(s, dict)
+        ]
+    swing_count = (evidence or {}).get("swing_count")
+    if swing_count is None and swings:
+        swing_count = len(swings)
+    chosen = next((s for s in swings if s.get("chosen")), None)
+    chosen_ts = (chosen or {}).get("timestamp")
+    if chosen_ts is None:
+        chosen_ts = timestamp
     return {
         "timestamp": float(timestamp) if timestamp is not None else None,
         "frame_index": int(frame) if frame is not None else None,
         "confidence": float(src.get("confidence") or 0.0),
         "contact_type": contact_type,
-        "label": "Detected contact" if tracked else "Estimated contact",
-        "notes": src.get("notes")
-        or (
-            None
-            if tracked
-            else (
-                "Contact timing was estimated from your movement because "
-                "shuttle/racket tracking was unavailable."
-            )
+        "label": (
+            "Detected contact (shuttle-verified)"
+            if shuttle_verified
+            else "Estimated contact (not verified by shuttle)"
         ),
+        "notes": None if shuttle_verified else CONTACT_ESTIMATED_NOTE,
+        "shuttle_verified": shuttle_verified,
+        "swing_count": int(swing_count) if swing_count is not None else None,
+        "chosen_swing_timestamp": float(chosen_ts) if chosen_ts is not None else None,
+        "warnings": [str(w) for w in (src.get("warnings") or [])],
         "available": timestamp is not None,
     }
 
@@ -410,6 +508,89 @@ def _normalize_issues(
                 "combined_confidence": raw.get("combined_confidence"),
                 "rule_version": raw.get("rule_version"),
                 "severity_calibration_version": raw.get("severity_calibration_version"),
+                "tier": raw.get("tier"),
+                "reference_validated": raw.get("reference_validated"),
+                "unvalidated_prior": bool(raw.get("unvalidated_prior")),
+                "tentative": _is_tentative_issue(raw),
+            }
+        )
+    return out
+
+
+def _is_tentative_issue(raw: dict[str, Any]) -> bool:
+    """Tier 2 hints and tiered issues judged against an unvalidated reference."""
+    if raw.get("tier") is None:
+        return False
+    return raw.get("tier") == 2 or raw.get("reference_validated") is not True
+
+
+def _assessment_scope(
+    evidence: dict[str, Any] | None, technique: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Which checks ran: Tier 2 hints run only for side-on views (tiered rules)."""
+    view = str((evidence or {}).get("camera_view") or "UNKNOWN").upper()
+    tiered = str((technique or {}).get("rule_version") or "").startswith("tiered_rules")
+    limited = tiered and view != TIER_HINT_CAMERA_VIEW
+    not_assessed = (
+        [
+            {"code": code, "title": ISSUE_TITLES.get(code, code)}
+            for code, tier in TIER_BY_CODE.items()
+            if tier == TIER_HINT
+        ]
+        if limited
+        else []
+    )
+    coverage = [c for c in (technique or {}).get("rule_coverage") or [] if isinstance(c, dict)]
+    applicable = [c for c in coverage if c.get("status") != "not_applicable"]
+    unchecked = [
+        {
+            "code": c.get("code"),
+            "label": c.get("label") or c.get("code"),
+            "reason": _unchecked_reason(c),
+        }
+        for c in applicable
+        if c.get("status") != "checked"
+    ]
+    return {
+        "camera_view": view,
+        "limited_view": limited,
+        "limited_view_message": LIMITED_VIEW_MESSAGE if limited else None,
+        "tier2_skipped": limited,
+        "not_assessed": not_assessed,
+        # Older analyses have no coverage record: completeness is unknown.
+        "coverage_known": bool(coverage),
+        "checked_count": len(applicable) - len(unchecked),
+        "applicable_count": len(applicable),
+        "unchecked": unchecked,
+        "complete": bool(coverage) and not unchecked,
+    }
+
+
+UNCHECKED_REASONS = {
+    "implausible": "{label} could not be measured reliably",
+    "missing": "{label} could not be measured (body points not tracked)",
+    "low_confidence": "{label}: measurement confidence was too low",
+}
+
+
+def _unchecked_reason(entry: dict[str, Any]) -> str:
+    label = str(entry.get("label") or entry.get("code") or "This item")
+    template = UNCHECKED_REASONS.get(str(entry.get("reason")), "{label} could not be checked")
+    return template.format(label=label)
+
+
+def _normalize_display_metrics(evidence: dict[str, Any] | None) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for item in (evidence or {}).get("display_metrics") or []:
+        if not isinstance(item, dict) or item.get("value") is None:
+            continue
+        out.append(
+            {
+                "id": str(item.get("metric_id") or ""),
+                "label": str(item.get("label") or item.get("metric_id") or ""),
+                "value": item["value"],
+                "unit": str(item.get("unit") or ""),
+                "note": item.get("note"),
             }
         )
     return out
@@ -426,9 +607,21 @@ def _normalize_metrics(metrics: dict[str, Any] | None) -> list[dict[str, Any]]:
         ("preparation_elbow_angle_deg", "Preparation elbow", "deg"),
         ("preparation_knee_angle_deg", "Preparation knee", "deg"),
         ("backswing_min_elbow_angle_deg", "Backswing elbow (min)", "deg"),
-        ("peak_wrist_speed", "Peak wrist speed", ""),
+        ("peak_wrist_speed_body_norm", "Peak wrist speed", "torso lengths/s"),
         ("peak_elbow_omega", "Peak elbow angular velocity", ""),
         ("peak_elbow_omega_offset_frames", "Elbow peak timing offset", "frames"),
+        ("peak_shoulder_omega_offset_frames", "Shoulder peak timing offset", "frames"),
+        ("peak_hip_omega_offset_frames", "Hip peak timing offset", "frames"),
+        (
+            "kinetic_chain_hip_shoulder_gap_frames",
+            "Hip→shoulder peak gap",
+            "frames",
+        ),
+        (
+            "kinetic_chain_shoulder_elbow_gap_frames",
+            "Shoulder→elbow peak gap",
+            "frames",
+        ),
         ("follow_through_speed_ratio", "Follow-through speed retention", ""),
         ("acceleration_phase_fraction", "Acceleration phase fraction", ""),
         ("contact_wrist_y_normalized", "Contact wrist height", ""),
@@ -457,6 +650,9 @@ def _reference_comparisons(
     out: list[dict[str, Any]] = []
     for issue in issues:
         if issue.get("measured_value") is None:
+            continue
+        # Tiered rules use fixed thresholds, not a reference-group distribution.
+        if issue.get("tier") is not None:
             continue
         if issue.get("reference_median") is None and issue.get("reference_low") is None:
             continue
@@ -600,7 +796,11 @@ def _normalize_confidence(
             {"id": "pose", "label": "Pose tracking", "level": _band(pose), "score": pose},
             {
                 "id": "contact",
-                "label": "Contact detection",
+                "label": (
+                    "Contact detection"
+                    if contact.get("shuttle_verified")
+                    else "Contact timing (estimated)"
+                ),
                 "level": _band(contact_c),
                 "score": contact_c,
             },
@@ -623,7 +823,7 @@ def _normalize_confidence(
                 "score": ref_c,
             },
         ],
-        "message": _confidence_message(overall, q),
+        "message": _confidence_message(overall, q, contact),
     }
 
 
@@ -658,6 +858,7 @@ def _limitations(
     confidence: dict[str, Any],
     contact: dict[str, Any],
     quality: dict[str, Any] | None,
+    evidence: dict[str, Any] | None = None,
 ) -> list[str]:
     notes: list[str] = []
     if confidence.get("overall") == "LOW":
@@ -667,19 +868,15 @@ def _limitations(
         )
     if not contact.get("available"):
         notes.append("We could not reliably assess contact position in this video.")
-    elif str(contact.get("contact_type") or "").upper() in {
-        "KINEMATIC",
-        "KINEMATIC_ESTIMATE",
-        "ESTIMATED",
-    }:
-        notes.append(
-            "Contact timing was estimated from your movement because "
-            "shuttle/racket tracking was unavailable."
-        )
-    if quality and quality.get("warnings"):
-        for w in quality.get("warnings") or []:
-            notes.append(str(w))
-    return notes
+    codes = [
+        *((quality or {}).get("warnings") or []),
+        *(contact.get("warnings") or []),
+        *((evidence or {}).get("measurement_warnings") or []),
+    ]
+    for sentence in warning_sentences(codes, contact):
+        if sentence not in notes:
+            notes.append(sentence)
+    return notes[:MAX_LIMITATIONS]
 
 
 def _overlay_modes(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -723,6 +920,9 @@ def _compatibility(
         return False, "Different stroke types cannot be compared."
     lh = str(left.get("handedness_raw") or "").upper()
     rh = str(right.get("handedness_raw") or "").upper()
+    # UNKNOWN is "not declared", not a third handedness.
+    lh = "" if lh == "UNKNOWN" else lh
+    rh = "" if rh == "UNKNOWN" else rh
     if lh and rh and lh != rh:
         return False, "Different handedness cannot be compared."
     return True, "Compatible for metric comparison."
@@ -733,7 +933,7 @@ def _comparison_rows(
 ) -> list[dict[str, Any]]:
     keys = [
         ("contact_elbow_angle_deg", "Elbow contact", "deg"),
-        ("peak_wrist_speed", "Peak wrist speed", ""),
+        ("peak_wrist_speed_body_norm", "Peak wrist speed", "torso lengths/s"),
         ("knee_contribution_deg", "Knee contribution", "deg"),
         ("phase_confidence", "Phase confidence", ""),
     ]
@@ -743,6 +943,42 @@ def _comparison_rows(
     left_pct = _issue_percentile(left, "INSUFFICIENT_ELBOW_EXTENSION")
     right_pct = _issue_percentile(right, "INSUFFICIENT_ELBOW_EXTENSION")
     rows: list[dict[str, Any]] = []
+
+    left_comp = left.get("composite_scores") or {}
+    right_comp = right.get("composite_scores") or {}
+    rows.append(
+        {
+            "label": "Chain score",
+            "unit": "",
+            "left": None,
+            "right": None,
+            "change": "n/a",
+            "unavailable_note": CHAIN_NOT_ASSESSABLE_LABEL,
+        }
+    )
+    rows.append(
+        {
+            "label": "Power score",
+            "unit": "",
+            "left": None,
+            "right": None,
+            "change": "n/a",
+            "unavailable_note": POWER_NOT_CALIBRATED_LABEL,
+        }
+    )
+    lv = left_comp.get("base_score") if left_comp.get("available") else None
+    rv = right_comp.get("base_score") if right_comp.get("available") else None
+    if lv is not None or rv is not None:
+        rows.append(
+            {
+                "label": "Base score",
+                "unit": "",
+                "left": lv,
+                "right": rv,
+                "change": _change_label(lv, rv, higher_is_better=True),
+            }
+        )
+
     for key, label, unit in keys:
         lv = left_map.get(key)
         rv = right_map.get(key)
@@ -795,7 +1031,7 @@ def _change_label(
     left: float | None, right: float | None, *, higher_is_better: bool
 ) -> str:
     if left is None or right is None:
-        return "Changed"
+        return "n/a"
     delta = float(right) - float(left)
     if abs(delta) < 1e-6 or abs(delta) / max(abs(float(left)), 1e-6) < 0.03:
         return "Similar"
@@ -832,12 +1068,14 @@ def _band(score: float) -> str:
     return "LOW"
 
 
-def _confidence_message(overall: float, quality: dict[str, Any]) -> str | None:
+def _confidence_message(
+    overall: float, quality: dict[str, Any], contact: dict[str, Any]
+) -> str | None:
     if overall >= 0.75:
         return None
-    reasons = quality.get("limitation_notes") or quality.get("warnings") or []
+    reasons = warning_sentences(list(quality.get("warnings") or []), contact)
     if reasons:
-        return str(reasons[0])
+        return reasons[0]
     if overall < 0.5:
         return (
             "Some findings may be less reliable because tracking confidence "
@@ -856,6 +1094,8 @@ def _hand_label(raw: str | None) -> str | None:
     if raw is None or str(raw).strip() == "":
         return None
     key = str(raw).upper()
+    if key == "UNKNOWN":
+        return "Handedness not specified"
     if key.startswith("R"):
         return "Right-handed"
     if key.startswith("L"):

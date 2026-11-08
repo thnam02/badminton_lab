@@ -323,5 +323,84 @@ def _adverse_severity_rank(
     return max(rank_from_p, rank_from_z)
 
 
+def continuous_severity_score(
+    *,
+    direction: str,
+    percentile_position: float | None,
+    robust_z: float | None,
+    config: SeverityCalibrationConfig | None = None,
+) -> float:
+    """Continuous adverse severity in [0, 1] (0 = in-range, 1 = extreme).
+
+    Complements discrete IssueStatus buckets for reporting; does not replace them.
+    """
+    cfg = config or default_severity_calibration()
+    score_p = 0.0
+    if percentile_position is not None:
+        p = float(percentile_position)
+        if direction == "higher_is_better":
+            # Lower percentiles are more adverse.
+            if p >= cfg.central_percentile_low:
+                score_p = 0.0
+            elif p <= cfg.major_percentile_max:
+                # Map [0, major_max] → [1.0, ~0.85]
+                score_p = 0.85 + 0.15 * (1.0 - p / max(cfg.major_percentile_max, 1e-6))
+            elif p <= cfg.moderate_percentile_max:
+                t = (cfg.moderate_percentile_max - p) / max(
+                    cfg.moderate_percentile_max - cfg.major_percentile_max, 1e-6
+                )
+                score_p = 0.55 + 0.30 * t
+            elif p <= cfg.minor_percentile_max:
+                t = (cfg.minor_percentile_max - p) / max(
+                    cfg.minor_percentile_max - cfg.moderate_percentile_max, 1e-6
+                )
+                score_p = 0.25 + 0.30 * t
+            else:
+                t = (cfg.central_percentile_low - p) / max(
+                    cfg.central_percentile_low - cfg.minor_percentile_max, 1e-6
+                )
+                score_p = 0.05 + 0.20 * t
+        elif direction == "lower_is_better":
+            inv = 100.0 - p
+            score_p = continuous_severity_score(
+                direction="higher_is_better",
+                percentile_position=inv,
+                robust_z=None,
+                config=cfg,
+            )
+        else:  # in_range — distance outside central band
+            if cfg.central_percentile_low <= p <= cfg.central_percentile_high:
+                score_p = 0.0
+            elif p < cfg.central_percentile_low:
+                score_p = continuous_severity_score(
+                    direction="higher_is_better",
+                    percentile_position=p,
+                    robust_z=None,
+                    config=cfg,
+                )
+            else:
+                score_p = continuous_severity_score(
+                    direction="higher_is_better",
+                    percentile_position=100.0 - p,
+                    robust_z=None,
+                    config=cfg,
+                )
+
+    score_z = 0.0
+    if robust_z is not None:
+        z = abs(float(robust_z))
+        adverse = True
+        if direction == "higher_is_better" and robust_z > 0:
+            adverse = False
+        if direction == "lower_is_better" and robust_z < 0:
+            adverse = False
+        if adverse and z > 0:
+            score_z = float(min(1.0, z / max(cfg.major_abs_z, 1e-6)))
+
+    if percentile_position is None:
+        return _clamp01(score_z)
+    return _clamp01(max(score_p, score_z))
+
+
 def _clamp01(value: float) -> float:
     return float(max(0.0, min(1.0, value)))

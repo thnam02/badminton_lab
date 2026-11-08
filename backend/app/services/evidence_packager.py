@@ -5,9 +5,28 @@ Performs no biomechanics, pose estimation, or other CV calculations.
 
 from __future__ import annotations
 
+import json
+import logging
+from collections import Counter
+from typing import Any
+
+from app.processing.capture_context import HANDEDNESS_LEFT, RACKET_ARM_NOTE
+from app.processing.composite_scores import compute_composite_scores
+from app.processing.technique_rules_config import (
+    BENT_ELBOW_AT_CONTACT,
+    LATE_ELBOW_ACCELERATION,
+    LIMITED_LEG_DRIVE,
+    LOW_CONTACT_POINT,
+    LOW_RACKET_PREPARATION,
+    STIFF_PREPARATION_KNEE,
+    TIER_DISPLAY,
+    TIER_DISPLAY_METRICS,
+    TIER_HINT,
+)
 from app.schemas.contact import ContactEvent
 from app.schemas.evidence import (
     CONTACT_TYPE_KINEMATIC,
+    EVIDENCE_DEFAULT_NOTES,
     EVIDENCE_VERSION,
     STROKE_TYPE_SMASH,
     ContactEvidence,
@@ -23,7 +42,8 @@ from app.schemas.provenance import (
 )
 from app.schemas.technique import TechniqueEvaluation, TechniqueIssue
 from app.schemas.video_quality import VideoQualityReport
-from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 # Maps technique issue codes → metrics field that supplies measured_value.
@@ -42,7 +62,62 @@ ISSUE_PRIMARY_METRIC: dict[str, str] = {
     "POOR_PROXIMAL_DISTAL_TIMING": "peak_elbow_omega_offset_frames",
     "RESTRICTED_FOLLOW_THROUGH": "follow_through_speed_ratio",
     "SLOW_RECOVERY": "recovery_frame_count",
+    # Tiered rules (measured_value is the metric itself)
+    LATE_ELBOW_ACCELERATION: "swing_peak_elbow_omega_offset_frames",
+    BENT_ELBOW_AT_CONTACT: "contact_elbow_angle_deg",
+    LIMITED_LEG_DRIVE: "knee_contribution_deg",
+    STIFF_PREPARATION_KNEE: "preparation_knee_angle_deg",
 }
+
+# Tiered rules whose measured_value is a difference of two metrics.
+ISSUE_DERIVED_METRICS: dict[str, tuple[str, str]] = {
+    LOW_CONTACT_POINT: ("contact_window_min_wrist_y_normalized", "contact_nose_y_normalized"),
+    LOW_RACKET_PREPARATION: (
+        "backswing_end_wrist_y_normalized",
+        "backswing_end_shoulder_y_normalized",
+    ),
+}
+
+
+def issue_source_metrics(issue: TechniqueIssue) -> list[str]:
+    """Metric fields an issue's measured_value is computed from."""
+    derived = ISSUE_DERIVED_METRICS.get(issue.code)
+    if derived is not None:
+        return list(derived)
+    primary = issue_source_metric(issue)
+    return [primary] if primary else []
+
+
+def is_tentative_issue(issue: TechniqueIssue) -> bool:
+    """Tier 2 hints and issues judged against an unvalidated reference."""
+    return issue.tier == TIER_HINT or not issue.reference_validated
+
+
+def _packaged_issue(issue: TechniqueIssue) -> dict[str, Any]:
+    payload = issue.to_dict()
+    payload["tentative"] = is_tentative_issue(issue)
+    payload["source_metrics"] = issue_source_metrics(issue)
+    return payload
+
+
+def build_display_metrics(metrics_dict: dict[str, Any]) -> list[dict[str, Any]]:
+    """Tier 3 metrics present in ``metrics_dict`` (display only)."""
+    out: list[dict[str, Any]] = []
+    for metric_id, label, unit, note in TIER_DISPLAY_METRICS:
+        value = metrics_dict.get(metric_id)
+        if value is None:
+            continue
+        out.append(
+            {
+                "metric_id": metric_id,
+                "label": label,
+                "unit": unit,
+                "value": value,
+                "tier": TIER_DISPLAY,
+                "note": note,
+            }
+        )
+    return out
 
 
 def issue_source_metric(issue: TechniqueIssue) -> str:
@@ -71,6 +146,7 @@ class EvidencePackager:
         snapshot: AnalysisSnapshot,
         stroke_type: str = STROKE_TYPE_SMASH,
         handedness: str | None = None,
+        camera_view: str | None = None,
         evidence_version: str = EVIDENCE_VERSION,
     ) -> EvidencePackage:
         """Build evidence exclusively from ``FinalAnalysisState`` + derived artifacts."""
@@ -90,6 +166,7 @@ class EvidencePackager:
             keyframes=keyframes,
             stroke_type=stroke_type,
             handedness=handedness,
+            camera_view=camera_view,
             evidence_version=evidence_version,
             contact=state.contact,
         )
@@ -99,6 +176,7 @@ class EvidencePackager:
             artifact_schema_version=evidence_version,
         )
         validate_object_provenance(package, snapshot)
+        _log_evidence_observability(package)
         return package
 
 
@@ -112,6 +190,7 @@ class EvidencePackager:
         keyframes: KeyframeSet,
         stroke_type: str = STROKE_TYPE_SMASH,
         handedness: str | None = None,
+        camera_view: str | None = None,
         evidence_version: str = EVIDENCE_VERSION,
         contact: ContactEvent | ContactEvidence | None = None,
     ) -> EvidencePackage:
@@ -129,6 +208,9 @@ class EvidencePackager:
             technique.confidence,
             video_quality.usable,
         )
+        metrics_dict = metrics.to_dict()
+        composite = compute_composite_scores(metrics_dict)
+        swings = list(contact.swing_candidates) if isinstance(contact, ContactEvent) else []
         return EvidencePackage(
             evidence_version=evidence_version,
             video=video,
@@ -139,11 +221,20 @@ class EvidencePackager:
             phase_boundaries=[seg.to_dict() for seg in phases.segments],
             phase_confidence=float(phases.confidence),
             contact=contact_evidence,
-            metrics=metrics.to_dict(),
-            technique_issues=[issue.to_dict() for issue in technique.issues],
+            metrics=metrics_dict,
+            technique_issues=[_packaged_issue(issue) for issue in technique.issues],
             technique_confidence=float(technique.confidence),
             keyframes=[kf.to_dict() for kf in keyframes.keyframes],
+            composite_scores=composite,
+            display_metrics=build_display_metrics(metrics_dict),
+            implausible_measurements=list(getattr(metrics, "implausible_measurements", [])),
+            measurement_warnings=list(getattr(metrics, "measurement_warnings", [])),
+            rule_coverage=list(technique.rule_coverage),
+            camera_view=camera_view,
+            swing_count=len(swings) if swings else None,
+            swing_candidates=swings,
             keyframes_output_dir=keyframes.output_dir or None,
+            notes=_evidence_notes(handedness, swings),
         )
 
 
@@ -156,6 +247,7 @@ def package_evidence_from_final(
     snapshot: AnalysisSnapshot,
     stroke_type: str = STROKE_TYPE_SMASH,
     handedness: str | None = None,
+    camera_view: str | None = None,
 ) -> EvidencePackage:
     """Module-level convenience wrapper around ``EvidencePackager.package_from_final``."""
     return EvidencePackager().package_from_final(
@@ -166,6 +258,7 @@ def package_evidence_from_final(
         snapshot=snapshot,
         stroke_type=stroke_type,
         handedness=handedness,
+        camera_view=camera_view,
     )
 
 
@@ -178,6 +271,7 @@ def package_evidence(
     keyframes: KeyframeSet,
     stroke_type: str = STROKE_TYPE_SMASH,
     handedness: str | None = None,
+    camera_view: str | None = None,
     contact: ContactEvent | ContactEvidence | None = None,
 ) -> EvidencePackage:
     """Module-level convenience wrapper around ``EvidencePackager``."""
@@ -189,8 +283,24 @@ def package_evidence(
         keyframes=keyframes,
         stroke_type=stroke_type,
         handedness=handedness,
+        camera_view=camera_view,
         contact=contact,
     )
+
+
+def _evidence_notes(handedness: str | None, swings: list[dict[str, Any]]) -> str:
+    parts = [EVIDENCE_DEFAULT_NOTES]
+    if str(handedness or "").upper() == HANDEDNESS_LEFT:
+        parts.append(RACKET_ARM_NOTE)
+    if len(swings) > 1:
+        chosen = next((s for s in swings if s.get("chosen")), None)
+        others = [s["frame_index"] for s in swings if not s.get("chosen")]
+        parts.append(
+            f"{len(swings)} swings detected; only the swing with contact at "
+            f"frame {chosen['frame_index'] if chosen else 'unknown'} was analysed "
+            f"(other swing peaks at frames {', '.join(str(f) for f in others)})."
+        )
+    return " ".join(parts)
 
 
 def _resolve_contact_evidence(
@@ -231,6 +341,36 @@ def _analysis_confidence(
         float(technique_confidence),
     ]
     return float(max(0.0, min(1.0, sum(parts) / len(parts))))
+
+
+def _log_evidence_observability(package: EvidencePackage) -> None:
+    """One JSON line per evidence package for later confidence calibration."""
+    status_counts: Counter[str] = Counter()
+    for issue in package.technique_issues:
+        status = str(issue.get("status") or "UNKNOWN").upper()
+        status_counts[status] += 1
+    quality = package.video_quality or {}
+    payload = {
+        "event": "evidence_package_built",
+        "analysis_id": package.analysis_id or "",
+        "video": package.video,
+        "stroke_type": package.stroke_type,
+        "video_quality_analysis_confidence": quality.get("analysis_confidence"),
+        "phase_confidence": package.phase_confidence,
+        "technique_confidence": package.technique_confidence,
+        "analysis_confidence": package.analysis_confidence,
+        "contact_type": package.contact.contact_type,
+        "technique_issue_status_counts": {
+            "MINOR": int(status_counts.get("MINOR", 0)),
+            "MODERATE": int(status_counts.get("MODERATE", 0)),
+            "MAJOR": int(status_counts.get("MAJOR", 0)),
+            "INSUFFICIENT_EVIDENCE": int(
+                status_counts.get("INSUFFICIENT_EVIDENCE", 0)
+            ),
+        },
+        "technique_issue_total": len(package.technique_issues),
+    }
+    logger.info("observability %s", json.dumps(payload, sort_keys=True))
 
 
 evidence_packager = EvidencePackager()

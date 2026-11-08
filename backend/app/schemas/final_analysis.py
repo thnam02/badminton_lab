@@ -233,7 +233,7 @@ def _validate_phase_ordering(phases: PhaseSequence) -> None:
 
 
 def _copy_pose_sequence(pose: PoseSequence) -> PoseSequence:
-    return PoseSequence(video=pose.video, frames=list(pose.frames))
+    return pose.with_frames(list(pose.frames))
 
 
 def _copy_angle_sequence(angles: AngleSequence) -> AngleSequence:
@@ -270,4 +270,8 @@ def _copy_contact_event(contact: ContactEvent) -> ContactEvent:
         kinematic_frame_index=contact.kinematic_frame_index,
         kinematic_timestamp=contact.kinematic_timestamp,
         notes=contact.notes,
+        contact_peak_confidence=contact.contact_peak_confidence,
+        warnings=list(contact.warnings),
+        swing_candidates=list(contact.swing_candidates),
+        shuttle_verified=contact.shuttle_verified,
     )

@@ -83,12 +83,32 @@ def compute_clear_metrics(
             motion_by, contact_idx
         )
 
+    from app.processing.stroke_metrics import (
+        _apply_kinetic_chain_fields,
+        _peak_omega_offset,
+        apply_body_normalised_speed,
+        apply_leg_drive_fields,
+        apply_swing_window_fields,
+    )
+
+    metrics.peak_shoulder_omega_offset_frames = _peak_omega_offset(
+        motion_by, contact_idx, attr="right_shoulder_angular_velocity"
+    )
+    metrics.peak_hip_omega_offset_frames = _peak_omega_offset(
+        motion_by, contact_idx, attr="right_hip_angular_velocity"
+    )
+    _apply_kinetic_chain_fields(metrics, motion)
+
     metrics.preparation_elbow_angle_deg = _phase_mean_angle(
         phases, angle_by, SmashPhase.PREPARATION, "elbow"
     )
     metrics.preparation_knee_angle_deg = _phase_mean_angle(
         phases, angle_by, SmashPhase.PREPARATION, "knee"
     )
+    apply_leg_drive_fields(metrics, angle_by, phases, contact_idx)
+    scale = pose.pixel_scale()
+    apply_swing_window_fields(metrics, pose_by, motion_by, phases, contact_idx, scale=scale)
+    apply_body_normalised_speed(metrics, pose_by, phases, contact_idx, scale=scale)
     metrics.backswing_min_elbow_angle_deg = _phase_extreme_angle(
         phases, angle_by, SmashPhase.BACKSWING, "elbow", mode="min"
     )
@@ -96,6 +116,10 @@ def compute_clear_metrics(
         phases, pose_by, SmashPhase.BACKSWING
     )
     metrics.acceleration_phase_fraction = _acceleration_fraction(phases, contact_idx)
+
+    from app.processing.trunk_rotation import peak_trunk_rotation_in_phases
+
+    metrics.peak_trunk_rotation_deg = peak_trunk_rotation_in_phases(pose, phases)
 
     follow_ratio, follow_frames = _follow_through_stats(motion_by, phases)
     metrics.follow_through_speed_ratio = follow_ratio
@@ -113,6 +137,9 @@ def compute_clear_metrics(
             max(0.0, rec_seg.end_timestamp - rec_seg.start_timestamp)
         )
 
+    from app.processing.plausibility import apply_plausibility_gate
+
+    apply_plausibility_gate(metrics)
     return metrics
 
 

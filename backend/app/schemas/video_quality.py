@@ -17,6 +17,9 @@ class VideoQualityMetrics:
     height: int | None = None
     full_body_coverage: float | None = None
     racket_arm_visibility: float | None = None
+    # Share of frames within the contact window with the racket-arm shoulder,
+    # elbow and wrist all detected (not interpolated) above threshold.
+    racket_arm_visibility_at_contact: float | None = None
     mean_pose_confidence: float | None = None
     missing_keypoint_fraction: float | None = None
     interpolated_keypoint_fraction: float | None = None

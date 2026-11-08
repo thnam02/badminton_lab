@@ -47,6 +47,12 @@ class ContactEvent:
     kinematic_frame_index: int | None = None
     kinematic_timestamp: float | None = None
     notes: str = ""
+    contact_peak_confidence: float | None = None
+    warnings: list[str] = field(default_factory=list)
+    # Distinct swings (frame_index, timestamp, speed, confidence, chosen).
+    swing_candidates: list[dict[str, Any]] = field(default_factory=list)
+    # True only when shuttle detections exist near the final contact frame.
+    shuttle_verified: bool = False
     analysis_id: str = ""
     snapshot_id: str = ""
     fingerprint: str = ""
@@ -63,6 +69,10 @@ class ContactEvent:
             "kinematic_frame_index": self.kinematic_frame_index,
             "kinematic_timestamp": self.kinematic_timestamp,
             "notes": self.notes,
+            "contact_peak_confidence": self.contact_peak_confidence,
+            "warnings": list(self.warnings),
+            "swing_candidates": list(self.swing_candidates),
+            "shuttle_verified": self.shuttle_verified,
             "evidence": [e.to_dict() for e in self.evidence],
         }
         payload.update(provenance_fields_from_object(self))

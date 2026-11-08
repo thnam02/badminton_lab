@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -22,20 +22,67 @@ class StrokeMetrics:
     contact_knee_angle_deg: float | None = None
     contact_shoulder_angle_deg: float | None = None
     contact_wrist_y_normalized: float | None = None
+    # Resolved contact confidence; None when metrics were built without a contact event.
+    contact_confidence: float | None = None
+    # Peak right-wrist linear speed from motion peaks (pixels / second; not m/s).
     peak_wrist_speed: float | None = None
+    # Median mid-shoulder → mid-hip distance over the analysed swing (pixels)
+    # and peak_wrist_speed divided by it (torso lengths / second), which removes
+    # the dependence on player distance from the camera and on resolution.
+    swing_median_torso_length: float | None = None
+    peak_wrist_speed_body_norm: float | None = None
 
-    # Knee contribution: knee extension from preparation to contact (degrees).
+    # Knee contribution: contact knee angle minus the deepest knee bend while
+    # loading (backswing start → frame before contact), degrees.
     knee_contribution_deg: float | None = None
+    loading_min_knee_angle_deg: float | None = None
     preparation_knee_angle_deg: float | None = None
+    preparation_elbow_angle_deg: float | None = None
 
     # Acceleration timing: frames from peak |elbow ω| to estimated contact.
     # Negative → peak before contact; positive → peak after contact.
     peak_elbow_omega_offset_frames: int | None = None
+    # Same timing offsets for shoulder / hip angular velocity peaks.
+    peak_shoulder_omega_offset_frames: int | None = None
+    peak_hip_omega_offset_frames: int | None = None
+    # Kinetic-chain sequencing: peak_joint_frame - earlier_joint_frame (frames).
+    # Positive gap ⇒ distal peak after proximal (expected proximal→distal order).
+    kinetic_chain_hip_shoulder_gap_frames: int | None = None
+    kinetic_chain_shoulder_elbow_gap_frames: int | None = None
+    # e.g. "hip_shoulder_elbow" when all three peaks exist.
+    kinetic_chain_order: str | None = None
+    # Peak |ω| offsets searched only inside the analysed swing
+    # (backswing start → follow-through end), unlike the whole-clip offsets above.
+    swing_peak_elbow_omega_offset_frames: int | None = None
+    swing_peak_shoulder_omega_offset_frames: int | None = None
+    # Arm-elevation timing: frames the elbow |ω| peak leads the shoulder |ω| peak.
+    swing_elbow_lead_over_shoulder_frames: int | None = None
+    # Normalized image y (grows downward) of nose at contact and of the racket-arm
+    # wrist / shoulder on the last backswing frame.
+    contact_nose_y_normalized: float | None = None
+    # Highest racket-arm wrist position (smallest y) within ±N frames of contact.
+    contact_window_min_wrist_y_normalized: float | None = None
+    backswing_end_wrist_y_normalized: float | None = None
+    backswing_end_shoulder_y_normalized: float | None = None
+    # Accel phase length / (prep start → contact) frame span; dimensionless fraction in [0, 1].
     acceleration_phase_fraction: float | None = None
+    # Peak shoulder-line vs hip-line angle (deg, [0, 90]) in prep/backswing — 2D X-factor proxy.
+    peak_trunk_rotation_deg: float | None = None
+    # Kinetic-chain timing during the hit (backswing end → contact), display only:
+    # peak |trunk rotation ω| (deg/s, low reliability in 2D), offsets of the trunk
+    # and elbow-extension peaks from contact, and how far the elbow leads the trunk.
+    peak_trunk_rotation_velocity_deg_s: float | None = None
+    acceleration_peak_trunk_rotation_velocity_offset_frames: int | None = None
+    acceleration_peak_elbow_extension_offset_frames: int | None = None
+    acceleration_elbow_extension_lead_over_trunk_frames: int | None = None
 
     # Follow-through: speed retention and duration after contact.
     follow_through_speed_ratio: float | None = None
     follow_through_frame_count: int | None = None
+
+    # Values removed by the plausibility gate (see app.processing.plausibility).
+    implausible_measurements: list[dict[str, Any]] = field(default_factory=list)
+    measurement_warnings: list[str] = field(default_factory=list)
 
     analysis_id: str = ""
     snapshot_id: str = ""
