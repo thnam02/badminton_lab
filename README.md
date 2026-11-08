@@ -116,6 +116,24 @@ Health check:
 curl http://localhost:8000/health
 ```
 
+### Coach labelling database (Postgres)
+
+Coach batches, reviews, per-stat comments, upload jobs and video records are
+stored in Postgres (video files themselves stay in `outputs/`). The default
+connection is `postgresql+psycopg:///badminton_lab` (local socket, current
+user); override it with `DATABASE_URL` in `backend/.env`.
+
+```bash
+cd backend && source .venv/bin/activate
+python -m app.labelling.cli init-db        # creates the database if missing, applies migrations
+python -m app.labelling.cli import-files   # one-off: moves older JSON labelling data in
+```
+
+After changing tables in `app/labelling/db.py`, add a migration with
+`alembic revision --autogenerate -m "..."` and apply it with `init-db`.
+Analysis endpoints don't use the database; coach endpoints return 503 until
+it is set up.
+
 ## 5. Run Next.js
 
 ```bash

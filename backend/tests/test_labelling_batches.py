@@ -50,9 +50,10 @@ def test_folder_batch_runs_each_clip_and_keeps_raw_videos(tmp_path: Path) -> Non
         ("id2", "b.mov", "labelling/videos/id2.mov"),
     ]
     assert (tmp_path / "outputs/labelling/videos/id2.mov").read_bytes() == b"video:b.mov"
-    saved = json.loads(store.path_for(batch.batch_id).read_text())
-    assert saved["batch_format_version"] == "1.0.0"
-    assert store.get(batch.batch_id).clips == batch.clips
+    saved = store.get(batch.batch_id)
+    assert saved.batch_format_version == "1.0.0"
+    assert saved.clips == batch.clips
+    assert saved.created_at
 
 
 def test_failed_clips_are_reported_and_skipped(tmp_path: Path) -> None:

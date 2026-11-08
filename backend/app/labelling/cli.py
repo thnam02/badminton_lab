@@ -10,6 +10,11 @@ an upload, and the original video is kept):
 From analyses that already exist (no processing):
 
     python -m app.labelling.cli create --analysis-ids <id> <id> --name "Quick check"
+
+Database (Postgres, settings.database_url / DATABASE_URL):
+
+    python -m app.labelling.cli init-db        # create + migrate
+    python -m app.labelling.cli import-files   # move older JSON data in
 """
 
 from __future__ import annotations
@@ -121,7 +126,34 @@ def main(argv: list[str] | None = None) -> int:
     create.add_argument("--stroke", default="FOREHAND_CLEAR")
     create.add_argument("--handedness", default="RIGHT")
     create.add_argument("--camera-view", default="SIDE")
+    sub.add_parser("init-db", help="Create the labelling database if needed and apply migrations")
+    sub.add_parser(
+        "import-files",
+        help="Move JSON batches / labels / jobs from outputs/labelling into the database",
+    )
     args = parser.parse_args(argv)
+
+    if args.command in ("init-db", "import-files"):
+        from app.labelling.database_setup import (
+            ensure_database_exists,
+            import_files,
+            upgrade_database,
+        )
+
+        if args.command == "init-db":
+            created = ensure_database_exists()
+            upgrade_database()
+            print(("Created and migrated" if created else "Migrated") + " the labelling database.")
+        else:
+            result = import_files()
+            print(
+                f"Imported {result['batches']} batches, {result['labels']} labels, "
+                f"{result['jobs']} upload jobs, {result['videos']} videos "
+                f"({result['skipped']} already in the database)."
+            )
+            if result["backup"]:
+                print(f"Original JSON files moved to {result['backup']}")
+        return 0
 
     try:
         if args.folder is not None:

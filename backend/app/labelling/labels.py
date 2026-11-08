@@ -1,18 +1,18 @@
-"""Coach labels for one clip, one JSON file per coach per clip.
-
-Stored at outputs/labelling/labels/{analysis_id}/{coach-slug}.json.
+"""Coach labels (reviews) for one clip: one row per coach per clip in the
+labelling database, with each stat's rating and comment as its own row.
 """
 
 from __future__ import annotations
 
-import json
 import re
-import threading
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.labelling.batches import is_safe_id, labelling_dir
+from sqlalchemy import Connection, Engine, delete, insert, select, update
+
+from app.labelling import db
+from app.labelling.batches import is_safe_id
+from app.labelling.db import get_engine, iso, parse_ts, utcnow
 
 LABEL_FORMAT_VERSION = "1.0.0"
 RATING_GOOD = "good"
@@ -26,8 +26,6 @@ STATUS_NOT_STARTED = "not_started"
 STATUS_IN_PROGRESS = "in_progress"
 STATUS_DONE = "done"
 
-_LOCK = threading.Lock()
-
 
 class LabelError(ValueError):
     """A label that cannot be saved; the message is user-facing."""
@@ -37,31 +35,40 @@ def coach_slug(coach: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", " ".join(coach.split()).casefold()).strip("-")
 
 
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 class LabelStore:
-    def __init__(self, output_dir: Path | None = None) -> None:
-        self.root = labelling_dir(output_dir) / "labels"
+    def __init__(self, output_dir: Path | None = None, engine: Engine | None = None) -> None:
+        del output_dir  # labels live in the database; kept for a uniform store signature
+        self.engine = engine or get_engine()
 
-    def _path(self, analysis_id: str, coach: str) -> Path:
+    @staticmethod
+    def _key(analysis_id: str, coach: str) -> str:
         slug = coach_slug(coach)
         if not slug:
             raise LabelError("Add your name before labelling.")
         if not is_safe_id(analysis_id):
             raise LabelError(f"Invalid analysis id {analysis_id!r}")
-        return self.root / analysis_id / f"{slug}.json"
+        return slug
 
     def get(self, analysis_id: str, coach: str) -> dict[str, Any] | None:
-        path = self._path(analysis_id, coach)
-        return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+        key = self._key(analysis_id, coach)
+        with self.engine.connect() as conn:
+            row = conn.execute(
+                select(db.labels).where(
+                    db.labels.c.analysis_id == analysis_id, db.labels.c.coach_key == key
+                )
+            ).first()
+            return _label(conn, row) if row is not None else None
 
     def for_clip(self, analysis_id: str) -> list[dict[str, Any]]:
-        folder = self.root / analysis_id
-        if not is_safe_id(analysis_id) or not folder.is_dir():
+        if not is_safe_id(analysis_id):
             return []
-        return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(folder.glob("*.json"))]
+        with self.engine.connect() as conn:
+            rows = conn.execute(
+                select(db.labels)
+                .where(db.labels.c.analysis_id == analysis_id)
+                .order_by(db.labels.c.coach_key)
+            ).all()
+            return [_label(conn, row) for row in rows]
 
     def save(
         self,
@@ -74,7 +81,7 @@ class LabelStore:
         batch_id: str | None = None,
     ) -> dict[str, Any]:
         coach = " ".join(str(body.get("coach") or "").split())
-        path = self._path(analysis_id, coach)
+        self._key(analysis_id, coach)
         label = {
             "label_format_version": LABEL_FORMAT_VERSION,
             "analysis_id": analysis_id,
@@ -88,18 +95,81 @@ class LabelStore:
             "overall_rating": _overall(body.get("overall_rating")),
             "feedback": _text(body.get("feedback"), MAX_FEEDBACK_CHARS, "Feedback"),
         }
-        with _LOCK:
-            previous = (
-                json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
-            )
-            now = _now()
-            label["created_at"] = (previous or {}).get("created_at") or now
-            label["updated_at"] = now
-            path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(label, indent=2), encoding="utf-8")
-            tmp.replace(path)
-        return label
+        return self.write(label)
+
+    def write(self, label: dict[str, Any]) -> dict[str, Any]:
+        """Insert or replace a complete label; keeps the original created_at."""
+        key = self._key(label["analysis_id"], label["coach"])
+        with self.engine.begin() as conn:
+            if label.get("batch_id") and conn.execute(
+                select(db.batches.c.batch_id).where(db.batches.c.batch_id == label["batch_id"])
+            ).first() is None:
+                label["batch_id"] = None
+            existing = conn.execute(
+                select(db.labels.c.label_id, db.labels.c.created_at).where(
+                    db.labels.c.analysis_id == label["analysis_id"],
+                    db.labels.c.coach_key == key,
+                )
+            ).first()
+            now = utcnow()
+            values = {
+                "coach": label["coach"],
+                "batch_id": label.get("batch_id"),
+                "system_contact_frame": label.get("system_contact_frame"),
+                "corrected_hit_frame": label.get("corrected_hit_frame"),
+                "overall_rating": label.get("overall_rating"),
+                "feedback": label.get("feedback") or "",
+                "label_format_version": label.get("label_format_version") or LABEL_FORMAT_VERSION,
+                "updated_at": parse_ts(label["updated_at"]) if label.get("updated_at") else now,
+            }
+            if existing is None:
+                created = parse_ts(label["created_at"]) if label.get("created_at") else now
+                label_id = conn.execute(
+                    insert(db.labels)
+                    .values(analysis_id=label["analysis_id"], coach_key=key, created_at=created, **values)
+                    .returning(db.labels.c.label_id)
+                ).scalar_one()
+            else:
+                label_id = existing.label_id
+                conn.execute(update(db.labels).where(db.labels.c.label_id == label_id).values(**values))
+                conn.execute(delete(db.stat_labels).where(db.stat_labels.c.label_id == label_id))
+            stats = label.get("stats") or {}
+            if stats:
+                conn.execute(
+                    insert(db.stat_labels),
+                    [
+                        {
+                            "label_id": label_id,
+                            "stat_id": stat_id,
+                            "rating": entry.get("rating"),
+                            "comment": entry.get("comment") or "",
+                        }
+                        for stat_id, entry in stats.items()
+                    ],
+                )
+            row = conn.execute(select(db.labels).where(db.labels.c.label_id == label_id)).one()
+            return _label(conn, row)
+
+
+def _label(conn: Connection, row: Any) -> dict[str, Any]:
+    stats = conn.execute(
+        select(db.stat_labels)
+        .where(db.stat_labels.c.label_id == row.label_id)
+        .order_by(db.stat_labels.c.stat_id)
+    ).all()
+    return {
+        "label_format_version": row.label_format_version,
+        "analysis_id": row.analysis_id,
+        "batch_id": row.batch_id,
+        "coach": row.coach,
+        "system_contact_frame": row.system_contact_frame,
+        "corrected_hit_frame": row.corrected_hit_frame,
+        "stats": {s.stat_id: {"rating": s.rating, "comment": s.comment} for s in stats},
+        "overall_rating": row.overall_rating,
+        "feedback": row.feedback,
+        "created_at": iso(row.created_at),
+        "updated_at": iso(row.updated_at),
+    }
 
 
 def _hit_frame(value: Any, system: int | None, frame_count: int | None) -> int | None:

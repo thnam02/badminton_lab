@@ -178,6 +178,7 @@ def _save(store: LabelStore, body: dict) -> dict:
 
 
 def test_label_format(tmp_path: Path) -> None:
+    BatchStore(tmp_path).save(Batch(batch_id="b1", name="B1"))
     store = LabelStore(tmp_path)
     label = _save(
         store,
@@ -197,10 +198,15 @@ def test_label_format(tmp_path: Path) -> None:
     assert label["stats"] == {"contact_elbow_angle": {"rating": "needs_work", "comment": "too bent"}}
     assert label["overall_rating"] == 3
     assert label["created_at"] and label["updated_at"]
-    assert (tmp_path / "labelling/labels/a1/linh-tran.json").is_file()
     again = _save(store, {"coach": "linh tran", "overall_rating": 4})
     assert again["created_at"] == label["created_at"]
     assert store.get("a1", "LINH TRAN")["overall_rating"] == 4
+
+
+def test_label_for_an_unknown_batch_is_kept_without_the_batch_link(tmp_path: Path) -> None:
+    label = _save(LabelStore(tmp_path), {"coach": "Linh", "overall_rating": 2})
+    assert label["batch_id"] is None
+    assert label["overall_rating"] == 2
 
 
 def test_hit_frame_equal_to_the_systems_is_stored_as_null(tmp_path: Path) -> None:

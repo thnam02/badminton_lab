@@ -29,3 +29,8 @@ progress>=1.6
 einops>=0.7.0
 timm==0.4.9
 scikit-image>=0.22.0
+
+# Coach labelling database (batches, reviews, comments, video records)
+sqlalchemy>=2.0,<3
+psycopg[binary]>=3.1,<4
+alembic>=1.13,<2

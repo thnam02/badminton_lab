@@ -7,7 +7,6 @@ because each analysis is heavy.
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import threading
@@ -18,7 +17,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, BinaryIO
 
+from sqlalchemy import Engine, delete, insert, select, update
+
+from app.labelling import db
 from app.labelling.batches import Batch, BatchClip, BatchStore, is_safe_id, labelling_dir, new_batch_id
+from app.labelling.db import get_engine, iso, parse_ts, utcnow
 from app.labelling.cli import VIDEO_SUFFIXES, Analyzer, analyze_clip
 
 JOB_FORMAT_VERSION = "1.0.0"
@@ -56,31 +59,95 @@ def _safe_filename(name: str) -> str:
 
 
 class JobStore:
-    def __init__(self, output_dir: Path | None = None) -> None:
+    """Upload jobs in the labelling database; staged clips wait on disk until analysed."""
+
+    def __init__(self, output_dir: Path | None = None, engine: Engine | None = None) -> None:
         self.output_dir = output_dir
         self.root = labelling_dir(output_dir) / "jobs"
-
-    def path_for(self, job_id: str) -> Path:
-        if not is_safe_id(job_id):
-            raise FileNotFoundError(f"Upload job '{job_id}' not found")
-        return self.root / f"{job_id}.json"
+        self.engine = engine or get_engine()
 
     def staging_dir(self, job_id: str) -> Path:
         return self.root / job_id
 
     def get(self, job_id: str) -> dict[str, Any]:
-        path = self.path_for(job_id)
-        if not path.is_file():
+        if not is_safe_id(job_id):
             raise FileNotFoundError(f"Upload job '{job_id}' not found")
-        return json.loads(path.read_text(encoding="utf-8"))
+        with self.engine.connect() as conn:
+            row = conn.execute(select(db.upload_jobs).where(db.upload_jobs.c.job_id == job_id)).first()
+            if row is None:
+                raise FileNotFoundError(f"Upload job '{job_id}' not found")
+            clips = conn.execute(
+                select(db.upload_job_clips)
+                .where(db.upload_job_clips.c.job_id == job_id)
+                .order_by(db.upload_job_clips.c.position)
+            ).all()
+        return {
+            "job_format_version": row.job_format_version,
+            "job_id": row.job_id,
+            "batch_id": row.batch_id,
+            "batch_name": row.batch_name,
+            "stroke_type": row.stroke_type,
+            "handedness": row.handedness,
+            "camera_view": row.camera_view,
+            "status": row.status,
+            "created_at": iso(row.created_at),
+            "updated_at": iso(row.updated_at),
+            "clips": [
+                {
+                    "source_file": c.source_file,
+                    "staged_file": c.staged_file,
+                    "status": c.status,
+                    "analysis_id": c.analysis_id,
+                    "error": c.error,
+                }
+                for c in clips
+            ],
+        }
 
     def save(self, job: dict[str, Any]) -> None:
-        job["updated_at"] = _now()
-        path = self.path_for(job["job_id"])
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(job, indent=2), encoding="utf-8")
-        tmp.replace(path)
+        """Create or replace the job and its clip progress."""
+        now = utcnow()
+        job["updated_at"] = iso(now)
+        values = {
+            "batch_id": job["batch_id"],
+            "batch_name": job["batch_name"],
+            "stroke_type": job["stroke_type"],
+            "handedness": job["handedness"],
+            "camera_view": job["camera_view"],
+            "status": job["status"],
+            "job_format_version": job.get("job_format_version") or JOB_FORMAT_VERSION,
+            "updated_at": now,
+        }
+        with self.engine.begin() as conn:
+            exists = conn.execute(
+                select(db.upload_jobs.c.job_id).where(db.upload_jobs.c.job_id == job["job_id"])
+            ).first()
+            if exists:
+                conn.execute(
+                    update(db.upload_jobs).where(db.upload_jobs.c.job_id == job["job_id"]).values(**values)
+                )
+            else:
+                conn.execute(
+                    insert(db.upload_jobs).values(
+                        job_id=job["job_id"], created_at=parse_ts(job.get("created_at")), **values
+                    )
+                )
+            conn.execute(delete(db.upload_job_clips).where(db.upload_job_clips.c.job_id == job["job_id"]))
+            conn.execute(
+                insert(db.upload_job_clips),
+                [
+                    {
+                        "job_id": job["job_id"],
+                        "position": i,
+                        "source_file": c["source_file"],
+                        "staged_file": c["staged_file"],
+                        "status": c["status"],
+                        "analysis_id": c.get("analysis_id"),
+                        "error": c.get("error"),
+                    }
+                    for i, c in enumerate(job["clips"], start=1)
+                ],
+            )
 
 
 def create_upload_job(
@@ -156,11 +223,10 @@ def run_job(
         try:
             analysis_id = analyzer(path, job["stroke_type"], job["handedness"], job["camera_view"])
             raw = batches.keep_raw_video(path, analysis_id)
-            batch = batches.get(job["batch_id"])
-            batch.clips.append(
-                BatchClip(analysis_id=analysis_id, source_file=clip["source_file"], raw_video=raw)
+            batches.add_clip(
+                job["batch_id"],
+                BatchClip(analysis_id=analysis_id, source_file=clip["source_file"], raw_video=raw),
             )
-            batches.save(batch)
             clip.update(status=CLIP_DONE, analysis_id=analysis_id)
         except Exception as exc:  # noqa: BLE001 — one bad clip must not stop the batch
             clip.update(status=CLIP_FAILED, error=_public_error(exc))

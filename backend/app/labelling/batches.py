@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
-import json
+import hashlib
 import re
 import shutil
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import Connection, Engine, delete, func, insert, select, update
+
 from app.config import settings
+from app.labelling import db
+from app.labelling.db import get_engine, iso, parse_ts, utcnow
 
 BATCH_FORMAT_VERSION = "1.0.0"
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
@@ -74,43 +77,134 @@ def new_batch_id(name: str) -> str:
 
 
 class BatchStore:
-    def __init__(self, output_dir: Path | None = None) -> None:
-        self.root = labelling_dir(output_dir)
-        self.batches_dir = self.root / "batches"
-        self.videos_dir = self.root / "videos"
+    """Batches in the labelling database; kept videos stay on disk under outputs/."""
 
-    def path_for(self, batch_id: str) -> Path:
-        return self.batches_dir / f"{_require_safe(batch_id, 'batch id')}.json"
+    def __init__(self, output_dir: Path | None = None, engine: Engine | None = None) -> None:
+        self.root = labelling_dir(output_dir)
+        self.videos_dir = self.root / "videos"
+        self.engine = engine or get_engine()
 
     def get(self, batch_id: str) -> Batch:
-        path = self.path_for(batch_id)
-        if not path.is_file():
-            raise FileNotFoundError(f"Batch '{batch_id}' not found")
-        return Batch.from_dict(json.loads(path.read_text(encoding="utf-8")))
+        _require_safe(batch_id, "batch id")
+        with self.engine.connect() as conn:
+            row = conn.execute(select(db.batches).where(db.batches.c.batch_id == batch_id)).first()
+            if row is None:
+                raise FileNotFoundError(f"Batch '{batch_id}' not found")
+            return _batch(conn, row)
 
     def list(self) -> list[Batch]:
-        if not self.batches_dir.is_dir():
-            return []
-        batches = [
-            Batch.from_dict(json.loads(p.read_text(encoding="utf-8")))
-            for p in sorted(self.batches_dir.glob("*.json"))
-        ]
-        return sorted(batches, key=lambda b: b.created_at, reverse=True)
+        with self.engine.connect() as conn:
+            rows = conn.execute(
+                select(db.batches).order_by(db.batches.c.created_at.desc())
+            ).all()
+            return [_batch(conn, row) for row in rows]
 
-    def save(self, batch: Batch) -> Path:
+    def save(self, batch: Batch) -> None:
+        """Create or replace the batch and its clip list."""
+        _require_safe(batch.batch_id, "batch id")
         for clip in batch.clips:
             _require_safe(clip.analysis_id, "analysis id")
-        if not batch.created_at:
-            batch.created_at = datetime.now(timezone.utc).isoformat()
-        path = self.path_for(batch.batch_id)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(batch.to_dict(), indent=2), encoding="utf-8")
-        return path
+        created = parse_ts(batch.created_at or None)
+        batch.created_at = iso(created) or ""
+        with self.engine.begin() as conn:
+            exists = conn.execute(
+                select(db.batches.c.batch_id).where(db.batches.c.batch_id == batch.batch_id)
+            ).first()
+            values = {
+                "name": batch.name,
+                "batch_format_version": batch.batch_format_version,
+                "created_at": created,
+            }
+            if exists:
+                conn.execute(
+                    update(db.batches).where(db.batches.c.batch_id == batch.batch_id).values(**values)
+                )
+            else:
+                conn.execute(insert(db.batches).values(batch_id=batch.batch_id, **values))
+            conn.execute(delete(db.batch_clips).where(db.batch_clips.c.batch_id == batch.batch_id))
+            if batch.clips:
+                conn.execute(
+                    insert(db.batch_clips),
+                    [
+                        {
+                            "batch_id": batch.batch_id,
+                            "position": i,
+                            "analysis_id": c.analysis_id,
+                            "source_file": c.source_file,
+                            "raw_video": c.raw_video,
+                        }
+                        for i, c in enumerate(batch.clips, start=1)
+                    ],
+                )
+
+    def add_clip(self, batch_id: str, clip: BatchClip) -> None:
+        """Append one clip; safe while other clips are being added."""
+        _require_safe(clip.analysis_id, "analysis id")
+        with self.engine.begin() as conn:
+            last = conn.execute(
+                select(func.max(db.batch_clips.c.position)).where(
+                    db.batch_clips.c.batch_id == batch_id
+                )
+            ).scalar()
+            conn.execute(
+                insert(db.batch_clips).values(
+                    batch_id=batch_id,
+                    position=(last or 0) + 1,
+                    analysis_id=clip.analysis_id,
+                    source_file=clip.source_file,
+                    raw_video=clip.raw_video,
+                )
+            )
 
     def keep_raw_video(self, source: Path, analysis_id: str) -> str:
-        """Copy the original clip next to the batch; returns a path under outputs/."""
+        """Copy the original clip under outputs/ and record it; returns its relative path."""
         _require_safe(analysis_id, "analysis id")
         self.videos_dir.mkdir(parents=True, exist_ok=True)
         dest = self.videos_dir / f"{analysis_id}{source.suffix.lower()}"
         shutil.copy2(source, dest)
-        return dest.relative_to(self.root.parent).as_posix()
+        rel = dest.relative_to(self.root.parent).as_posix()
+        self.register_video(dest, rel, analysis_id=analysis_id, original_filename=source.name)
+        return rel
+
+    def register_video(
+        self, path: Path, rel: str, *, analysis_id: str, original_filename: str, kind: str = "raw"
+    ) -> None:
+        values = {
+            "analysis_id": analysis_id,
+            "kind": kind,
+            "original_filename": original_filename,
+            "size_bytes": path.stat().st_size,
+            "sha256": _sha256(path),
+        }
+        with self.engine.begin() as conn:
+            found = conn.execute(select(db.videos.c.video_id).where(db.videos.c.path == rel)).first()
+            if found:
+                conn.execute(update(db.videos).where(db.videos.c.path == rel).values(**values))
+            else:
+                conn.execute(insert(db.videos).values(path=rel, created_at=utcnow(), **values))
+
+
+def _batch(conn: Connection, row: Any) -> Batch:
+    clips = conn.execute(
+        select(db.batch_clips)
+        .where(db.batch_clips.c.batch_id == row.batch_id)
+        .order_by(db.batch_clips.c.position)
+    ).all()
+    return Batch(
+        batch_id=row.batch_id,
+        name=row.name,
+        clips=[
+            BatchClip(analysis_id=c.analysis_id, source_file=c.source_file, raw_video=c.raw_video)
+            for c in clips
+        ],
+        created_at=iso(row.created_at) or "",
+        batch_format_version=row.batch_format_version,
+    )
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
