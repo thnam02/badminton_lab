@@ -28,8 +28,9 @@ export function StatRatingCard({ stat, options, value, onChange }: Props) {
   const [showComment, setShowComment] = useState(Boolean(comment));
 
   return (
-    <fieldset className="flex flex-col gap-3 rounded-[18px] border border-border bg-surface px-5 pb-5 pt-3">
-      <legend className="px-1.5 font-display text-lg font-bold">{stat.name}</legend>
+    <fieldset className="flex flex-col gap-3 rounded-[18px] border border-border bg-surface p-5">
+      {/* Floated so the title sits inside the card instead of on its top border. */}
+      <legend className="float-left w-full p-0 font-display text-lg font-bold">{stat.name}</legend>
       <p className="text-base text-text-muted">{stat.description}</p>
       <dl className="flex flex-wrap gap-x-6 gap-y-1 text-base">
         <div className="flex gap-1.5">
