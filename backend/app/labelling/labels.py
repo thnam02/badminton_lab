@@ -14,7 +14,9 @@ from app.labelling import db
 from app.labelling.batches import is_safe_id
 from app.labelling.db import get_engine, iso, parse_ts, utcnow
 
-LABEL_FORMAT_VERSION = "1.0.0"
+# 2.0.0: most_important_fix and general_comment.
+LABEL_FORMAT_VERSION = "2.0.0"
+FIX_NOT_LISTED = "not_listed"
 RATING_GOOD = "good"
 RATING_NEEDS_WORK = "needs_work"
 RATING_LOOKS_WRONG = "looks_wrong"
@@ -22,6 +24,7 @@ RATING_CANT_SEE = "cant_see"
 RATINGS = (RATING_GOOD, RATING_NEEDS_WORK, RATING_LOOKS_WRONG, RATING_CANT_SEE)
 MAX_COMMENT_CHARS = 1000
 MAX_FEEDBACK_CHARS = 4000
+MAX_GENERAL_COMMENT_CHARS = 4000
 
 STATUS_NOT_STARTED = "not_started"
 STATUS_IN_PROGRESS = "in_progress"
@@ -101,7 +104,11 @@ class LabelStore:
             ),
             "stats": stats,
             "overall_rating": _overall(body.get("overall_rating")),
+            "most_important_fix": _fix(body.get("most_important_fix"), allowed_ratings),
             "feedback": _text(body.get("feedback"), MAX_FEEDBACK_CHARS, "Feedback"),
+            "general_comment": _text(
+                body.get("general_comment"), MAX_GENERAL_COMMENT_CHARS, "General comment"
+            ),
         }
         return self.write(label)
 
@@ -127,6 +134,8 @@ class LabelStore:
                 "corrected_hit_frame": label.get("corrected_hit_frame"),
                 "overall_rating": label.get("overall_rating"),
                 "feedback": label.get("feedback") or "",
+                "most_important_fix": label.get("most_important_fix"),
+                "general_comment": label.get("general_comment") or "",
                 "label_format_version": label.get("label_format_version") or LABEL_FORMAT_VERSION,
                 "updated_at": parse_ts(label["updated_at"]) if label.get("updated_at") else now,
             }
@@ -174,7 +183,9 @@ def _label(conn: Connection, row: Any) -> dict[str, Any]:
         "corrected_hit_frame": row.corrected_hit_frame,
         "stats": {s.stat_id: {"rating": s.rating, "comment": s.comment} for s in stats},
         "overall_rating": row.overall_rating,
+        "most_important_fix": row.most_important_fix,
         "feedback": row.feedback,
+        "general_comment": row.general_comment,
         "created_at": iso(row.created_at),
         "updated_at": iso(row.updated_at),
     }
@@ -209,6 +220,15 @@ def _stats(
             "comment": _text((entry or {}).get("comment"), MAX_COMMENT_CHARS, "Comment"),
         }
     return out
+
+
+def _fix(value: Any, questions: dict[str, Any]) -> str | None:
+    if value in (None, ""):
+        return None
+    fix = str(value)
+    if fix != FIX_NOT_LISTED and fix not in questions:
+        raise LabelError(f"Unknown 'most important thing to fix' {fix!r}.")
+    return fix
 
 
 def _overall(value: Any) -> int | None:

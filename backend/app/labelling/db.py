@@ -94,6 +94,9 @@ labels = Table(
     Column("corrected_hit_frame", Integer),
     Column("overall_rating", SmallInteger),
     Column("feedback", Text, nullable=False, default=""),
+    # Question id, or "not_listed"; label format 2.0.0+.
+    Column("most_important_fix", String(100)),
+    Column("general_comment", Text, nullable=False, default="", server_default=""),
     Column("label_format_version", String(20), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),

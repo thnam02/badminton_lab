@@ -297,8 +297,16 @@ def test_label_format(tmp_path: Path) -> None:
                 "sideon": {"rating": "cant_see", "comment": ""},
             },
             "overall_rating": 3,
+            "most_important_fix": "elbow",
             "feedback": "Reach higher.",
+            "general_comment": " Camera a bit far away. ",
         },
+    )
+    assert label["label_format_version"] == "2.0.0"
+    assert (label["most_important_fix"], label["feedback"], label["general_comment"]) == (
+        "elbow",
+        "Reach higher.",
+        "Camera a bit far away.",
     )
     assert label["coach"] == "Linh Tran"
     assert label["batch_id"] == "b1"
@@ -313,6 +321,18 @@ def test_label_format(tmp_path: Path) -> None:
     again = _save(store, {"coach": "linh tran", "overall_rating": 4})
     assert again["created_at"] == label["created_at"]
     assert store.get("a1", "LINH TRAN")["overall_rating"] == 4
+
+
+def test_most_important_fix_can_be_something_not_listed(outputs: Path) -> None:
+    seed_analysis(outputs, "a1")
+    options = clip_view("a1")["fix_options"]
+    assert [o["id"] for o in options] == CLEAR_IDS + ["not_listed"]
+    assert options[-1]["title"] == "Something not listed"
+    saved = routes.put_clip_label(
+        "a1", routes.ClipLabelIn(coach="Linh", most_important_fix="not_listed", general_comment="ok")
+    )
+    assert saved["label"]["most_important_fix"] == "not_listed"
+    assert routes.get_clip_label("a1", coach="Linh")["label"]["general_comment"] == "ok"
 
 
 def test_label_for_an_unknown_batch_is_kept_without_the_batch_link(tmp_path: Path) -> None:
@@ -336,6 +356,7 @@ def test_hit_frame_equal_to_the_systems_is_stored_as_null(tmp_path: Path) -> Non
         ({"coach": "Linh", "stats": {"elbow": {"rating": "cant_see"}}}, "not an answer"),
         ({"coach": "Linh", "stats": {"sideon": {"rating": "looks_wrong"}}}, "not an answer"),
         ({"coach": "Linh", "overall_rating": 6}, "1 to 5"),
+        ({"coach": "Linh", "most_important_fix": "made_up"}, "most important thing to fix"),
         ({"coach": "  "}, "Add your name"),
     ],
 )

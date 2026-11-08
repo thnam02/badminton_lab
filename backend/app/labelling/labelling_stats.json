@@ -13,6 +13,7 @@
       { "id": "cant_see", "label": "Can't see", "hint": "You can't judge this from the video." }
     ]
   },
+  "fix_not_listed_label": "Something not listed",
   "overall_ratings": [
     { "value": 1, "label": "Poor" },
     { "value": 2, "label": "Weak" },

@@ -18,7 +18,7 @@ from app.labelling.clips import (
 )
 from app.labelling.labels import LabelStore, coach_slug, label_status
 
-EXPORT_FORMAT_VERSION = "1.1.0"
+EXPORT_FORMAT_VERSION = "2.0.0"
 
 COLUMNS = (
     "batch_id",
@@ -42,7 +42,10 @@ COLUMNS = (
     "rating",
     "comment",
     "overall_rating",
+    "most_important_fix",
+    "most_important_fix_title",
     "feedback",
+    "general_comment",
     "label_format_version",
     "label_updated_at",
 )
@@ -74,6 +77,7 @@ def export_batch(
             if wanted is None or coach_slug(lb.get("coach", "")) == wanted
         ]
         system = clip["system_contact_frame"]
+        fix_titles = {o["id"]: o["title"] for o in clip["fix_options"]}
         for label in clip_labels or [None]:
             lb = normalize_label(label, clip) or {}
             answers = lb.get("stats") or {}
@@ -90,7 +94,12 @@ def export_batch(
                 "corrected_hit_frame": corrected,
                 "hit_frame_used": corrected if corrected is not None else system,
                 "overall_rating": lb.get("overall_rating"),
+                "most_important_fix": lb.get("most_important_fix"),
+                "most_important_fix_title": fix_titles.get(
+                    lb.get("most_important_fix"), lb.get("most_important_fix")
+                ),
                 "feedback": lb.get("feedback", ""),
+                "general_comment": lb.get("general_comment", ""),
                 "label_format_version": lb.get("label_format_version"),
                 "label_updated_at": lb.get("updated_at"),
             }

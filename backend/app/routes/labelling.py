@@ -40,7 +40,9 @@ class ClipLabelIn(BaseModel):
     corrected_hit_frame: int | None = Field(default=None, ge=0)
     stats: dict[str, StatLabelIn] = Field(default_factory=dict)
     overall_rating: int | None = Field(default=None, ge=1, le=5)
+    most_important_fix: str | None = None
     feedback: str = ""
+    general_comment: str = ""
 
 
 def _clip(analysis_id: str) -> dict:

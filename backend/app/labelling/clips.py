@@ -297,6 +297,8 @@ def clip_view(analysis_id: str, output_dir: Path | None = None) -> dict[str, Any
         ],
         "rating_options": config["rating_options"][KIND_MEASURED],
         "overall_ratings": config["overall_ratings"],
+        "fix_options": [{"id": q["id"], "title": q["title"]} for q in questions]
+        + [{"id": "not_listed", "title": config["fix_not_listed_label"]}],
     }
 
 

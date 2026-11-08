@@ -43,7 +43,9 @@ def batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
                 "sideon": routes.StatLabelIn(rating="cant_see"),
             },
             overall_rating=3,
+            most_important_fix="elbow",
             feedback="Reach higher.",
+            general_comment="Camera is a bit far, angles look right.",
         ),
     )
     routes.put_clip_label("a1", routes.ClipLabelIn(coach="Minh", overall_rating=4))
@@ -52,7 +54,7 @@ def batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
     export = routes.get_batch_export(batch, format="json", coach=None)
-    assert export["export_format_version"] == "1.1.0"
+    assert export["export_format_version"] == "2.0.0"
     assert export["columns"] == list(COLUMNS)
     assert export["missing_clips"] == ["gone"]
     rows = export["rows"]
@@ -77,6 +79,12 @@ def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
     )
     assert elbow["label_status"] == "in_progress"
     assert (elbow["moment"], elbow["question_kind"]) == ("contact", "measured")
+    assert all(
+        (r["most_important_fix"], r["general_comment"])
+        == ("elbow", "Camera is a bit far, angles look right.")
+        for r in rows
+        if r["coach"] == "Linh"
+    )
     sideon = next(r for r in rows if r["coach"] == "Linh" and r["stat_id"] == "sideon")
     assert (sideon["rating"], sideon["question_kind"], sideon["system_value"]) == (
         "cant_see",
@@ -105,6 +113,12 @@ def test_csv_export_matches_json_and_quotes_free_text(batch: str) -> None:
     )
     assert elbow["comment"] == 'bent, "a lot"\nreach up'
     assert elbow["overall_rating"] == "3"
+    assert (elbow["most_important_fix"], elbow["most_important_fix_title"]) == (
+        "elbow",
+        "Arm straight at the hit",
+    )
+    assert elbow["general_comment"] == "Camera is a bit far, angles look right."
+    assert elbow["label_format_version"] == "2.0.0"
     unlabelled = next(r for r in parsed if r["analysis_id"] == "a2")
     assert unlabelled["rating"] == "" and unlabelled["coach"] == ""
 
