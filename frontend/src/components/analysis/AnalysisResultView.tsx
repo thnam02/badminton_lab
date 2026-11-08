@@ -33,6 +33,8 @@ import type { AnalysisResult, TechniqueIssueView } from "@/lib/types";
 
 type Props = {
   analysisId: string;
+  /** Start the video here (seconds), e.g. when a coach opens a clip at its hit frame. */
+  initialTime?: number;
 };
 
 const CONTACT_ESTIMATED_NOTE =
@@ -41,11 +43,11 @@ const CONTACT_ESTIMATED_NOTE =
 const autoFitGrid =
   "grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))]";
 
-export function AnalysisResultView({ analysisId }: Props) {
+export function AnalysisResultView({ analysisId, initialTime }: Props) {
   const [data, setData] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(initialTime ?? 0);
   const [activeIssue, setActiveIssue] = useState<string | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const videoRef = useRef<VideoPlayerHandle>(null);
@@ -106,6 +108,8 @@ export function AnalysisResultView({ analysisId }: Props) {
   }
 
   const videoSrc = mediaUrl(data.video.pose_video_url);
+  const playerSrc =
+    videoSrc && initialTime != null ? `${videoSrc}#t=${initialTime.toFixed(2)}` : videoSrc;
   const findings = data.findings || [];
   const insufficient = data.insufficient_evidence || [];
   const { main, other } = splitMainAndOther(findings);
@@ -131,7 +135,7 @@ export function AnalysisResultView({ analysisId }: Props) {
           <div className="relative">
             <VideoPlayer
               ref={videoRef}
-              src={videoSrc}
+              src={playerSrc}
               unavailableMessage="We could not load the annotated analysis video."
               onTimeUpdate={setCurrentTime}
             />
