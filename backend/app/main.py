@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.routes import analyze, analyses, coach, health, labelling
+from app.routes import analyze, analyses, health, labelling
 
 app = FastAPI(title="Badminton Pose Analyzer", version="0.1.0")
 
@@ -24,7 +24,6 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(analyze.router)
 app.include_router(analyses.router)
-app.include_router(coach.router)
 app.include_router(labelling.router)
 
 app.mount(
