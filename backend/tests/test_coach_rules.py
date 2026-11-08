@@ -326,12 +326,16 @@ def test_saving_needs_a_coach_name(tmp_path: Path) -> None:
 
 
 def test_live_analysis_never_imports_coach_rules() -> None:
-    """Drafts only change analysis after the dev team promotes them."""
+    """Drafts and coach labels only change analysis after the dev team promotes them."""
     app_dir = Path("app")
-    allowed = {app_dir / "routes" / "coach.py", app_dir / "main.py"}
+    allowed = {app_dir / "routes" / "coach.py", app_dir / "routes" / "labelling.py", app_dir / "main.py"}
     offenders = []
     for path in app_dir.rglob("*.py"):
-        if path.is_relative_to(app_dir / "coach") or path in allowed:
+        if (
+            path.is_relative_to(app_dir / "coach")
+            or path.is_relative_to(app_dir / "labelling")
+            or path in allowed
+        ):
             continue
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             names = (
@@ -341,7 +345,11 @@ def test_live_analysis_never_imports_coach_rules() -> None:
                 if isinstance(node, ast.ImportFrom)
                 else []
             )
-            if any(n == "app.coach" or n.startswith("app.coach.") for n in names):
+            if any(
+                n == pkg or n.startswith(f"{pkg}.")
+                for n in names
+                for pkg in ("app.coach", "app.labelling")
+            ):
                 offenders.append(str(path))
     assert offenders == []
 
