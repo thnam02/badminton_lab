@@ -100,6 +100,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+export type BatchSummary = {
+  batch_id: string;
+  name: string;
+  clip_count: number;
+  /** Clips this coach has finished. */
+  labelled_count: number;
+  created_at: string;
+};
+
+export async function fetchBatches(coach: string): Promise<BatchSummary[]> {
+  const qs = new URLSearchParams({ coach });
+  const data = await request<{ batches: BatchSummary[] }>(`/labelling/batches?${qs}`);
+  return data.batches || [];
+}
+
 export function fetchBatch(batchId: string, coach: string): Promise<LabellingBatch> {
   const qs = new URLSearchParams({ coach });
   return request(`/labelling/batches/${encodeURIComponent(batchId)}?${qs}`);

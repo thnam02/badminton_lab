@@ -260,7 +260,12 @@ def test_batch_endpoint_reports_labelled_clips(outputs: Path) -> None:
     assert batch["clips"][2]["missing"] is True
     assert routes.get_batch("set-1", coach="Minh")["labelled_count"] == 0
     assert routes.get_batch("set-1", coach=None)["labelled_count"] == 1
-    assert routes.get_batches()["batches"][0]["clip_count"] == 3
+    listed = routes.get_batches(coach="LINH")["batches"]
+    assert [(b["batch_id"], b["name"], b["clip_count"], b["labelled_count"]) for b in listed] == [
+        ("set-1", "Set 1", 3, 1)
+    ]
+    assert routes.get_batches(coach="Minh")["batches"][0]["labelled_count"] == 0
+    assert routes.get_batches(coach=None)["batches"][0]["labelled_count"] == 1
 
 
 def test_label_endpoints_round_trip_and_reject_bad_input(outputs: Path) -> None:

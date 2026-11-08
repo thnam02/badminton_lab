@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from app.labelling.batches import BatchStore
+from app.labelling.batches import Batch, BatchStore
 from app.labelling.clips import clip_view
 from app.labelling.export import export_batch, rows_to_csv
 from app.labelling.labels import (
@@ -47,25 +47,8 @@ def _available(clip: dict) -> list[str]:
     return [s["id"] for s in clip["stats"] if s["available"]]
 
 
-@router.get("/batches")
-def get_batches() -> dict:
-    batches = BatchStore().list()
-    return {
-        "count": len(batches),
-        "batches": [
-            {"batch_id": b.batch_id, "name": b.name, "clip_count": len(b.clips), "created_at": b.created_at}
-            for b in batches
-        ],
-    }
-
-
-@router.get("/batches/{batch_id}")
-def get_batch(batch_id: str, coach: str | None = Query(default=None)) -> dict:
-    """Clips in the batch and whether each is labelled (by this coach, if given)."""
-    try:
-        batch = BatchStore().get(batch_id)
-    except (FileNotFoundError, ValueError) as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+def _clip_statuses(batch: Batch, coach: str | None) -> list[dict]:
+    """Each clip's label status: this coach's if given, otherwise any coach's."""
     store = LabelStore()
     clips = []
     for position, entry in enumerate(batch.clips, start=1):
@@ -108,6 +91,36 @@ def get_batch(batch_id: str, coach: str | None = Query(default=None)) -> dict:
                 "coach_count": len(labels),
             }
         )
+    return clips
+
+
+@router.get("/batches")
+def get_batches(coach: str | None = Query(default=None)) -> dict:
+    """All batches with clip counts and labelled counts (for this coach, if given)."""
+    batches = BatchStore().list()
+    items = []
+    for b in batches:
+        clips = _clip_statuses(b, coach)
+        items.append(
+            {
+                "batch_id": b.batch_id,
+                "name": b.name,
+                "clip_count": len(b.clips),
+                "labelled_count": sum(1 for c in clips if c["labelled"]),
+                "created_at": b.created_at,
+            }
+        )
+    return {"count": len(items), "coach": coach, "batches": items}
+
+
+@router.get("/batches/{batch_id}")
+def get_batch(batch_id: str, coach: str | None = Query(default=None)) -> dict:
+    """Clips in the batch and whether each is labelled (by this coach, if given)."""
+    try:
+        batch = BatchStore().get(batch_id)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    clips = _clip_statuses(batch, coach)
     return {
         "batch_id": batch.batch_id,
         "name": batch.name,
