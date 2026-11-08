@@ -4,13 +4,20 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.labelling.batches import Batch, BatchStore
 from app.labelling.clips import clip_view
 from app.labelling.export import export_batch, rows_to_csv
+from app.labelling.jobs import JobStore, UploadError, create_upload_job, job_view, submit_job
+from app.processing.capture_context import (
+    InvalidCaptureContextError,
+    normalize_camera_view,
+    normalize_handedness,
+)
+from app.schemas.stroke_types import UnsupportedStrokeError, normalize_stroke_type
 from app.labelling.labels import (
     STATUS_DONE,
     STATUS_NOT_STARTED,
@@ -111,6 +118,38 @@ def get_batches(coach: str | None = Query(default=None)) -> dict:
             }
         )
     return {"count": len(items), "coach": coach, "batches": items}
+
+
+@router.post("/batches", status_code=202)
+def post_batch(
+    files: list[UploadFile] = File(...),
+    name: str = Form(...),
+    stroke_type: str = Form(default="FOREHAND_CLEAR"),
+    handedness: str = Form(default="RIGHT"),
+    camera_view: str = Form(default="SIDE"),
+) -> dict:
+    """Upload clips as a new batch; they are analysed one by one in the background."""
+    try:
+        job = create_upload_job(
+            [(f.filename or "", f.file) for f in files],
+            name=name,
+            stroke=normalize_stroke_type(stroke_type).value,
+            handedness=normalize_handedness(handedness),
+            camera_view=normalize_camera_view(camera_view),
+        )
+    except (UploadError, UnsupportedStrokeError, InvalidCaptureContextError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    submit_job(job["job_id"])
+    return job_view(job)
+
+
+@router.get("/jobs/{job_id}")
+def get_job(job_id: str) -> dict:
+    """Upload job progress, clip by clip."""
+    try:
+        return job_view(JobStore().get(job_id))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/batches/{batch_id}")

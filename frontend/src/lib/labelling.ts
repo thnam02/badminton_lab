@@ -115,6 +115,71 @@ export async function fetchBatches(coach: string): Promise<BatchSummary[]> {
   return data.batches || [];
 }
 
+export type UploadClipStatus = "queued" | "processing" | "done" | "failed";
+
+export type UploadJob = {
+  job_id: string;
+  batch_id: string;
+  batch_name: string;
+  stroke_type: string;
+  handedness: string;
+  camera_view: string;
+  status: "running" | "done" | "interrupted";
+  clips: {
+    source_file: string;
+    status: UploadClipStatus;
+    analysis_id: string | null;
+    error: string | null;
+  }[];
+  total: number;
+  done_count: number;
+  failed_count: number;
+  remaining_count: number;
+};
+
+export type BatchUploadInput = {
+  name: string;
+  strokeType: string;
+  handedness: string;
+  cameraView: string;
+  files: File[];
+};
+
+/** Upload clips as a new batch; XHR so upload progress (0–1) can be shown. */
+export function uploadBatch(
+  input: BatchUploadInput,
+  onProgress?: (fraction: number) => void
+): Promise<UploadJob> {
+  const form = new FormData();
+  form.append("name", input.name);
+  form.append("stroke_type", input.strokeType);
+  form.append("handedness", input.handedness);
+  form.append("camera_view", input.cameraView);
+  for (const file of input.files) form.append("files", file);
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE}/labelling/batches`);
+    xhr.responseType = "json";
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.response as UploadJob);
+      } else {
+        const detail = xhr.response?.detail;
+        reject(new Error(typeof detail === "string" ? detail : `Upload failed (${xhr.status})`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Upload failed: could not reach the server."));
+    xhr.send(form);
+  });
+}
+
+export function fetchUploadJob(jobId: string): Promise<UploadJob> {
+  return request(`/labelling/jobs/${encodeURIComponent(jobId)}`);
+}
+
 export function fetchBatch(batchId: string, coach: string): Promise<LabellingBatch> {
   const qs = new URLSearchParams({ coach });
   return request(`/labelling/batches/${encodeURIComponent(batchId)}?${qs}`);

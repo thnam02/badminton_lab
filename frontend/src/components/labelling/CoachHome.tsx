@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { CoachNameGate } from "@/components/labelling/CoachNameGate";
 import { Card } from "@/components/ui/Card";
 import { ChevronRightIcon } from "@/components/ui/icons";
-import { pageTitle } from "@/components/ui/styles";
+import { buttonPrimary, pageTitle } from "@/components/ui/styles";
 import { fetchBatches, type BatchSummary } from "@/lib/labelling";
 
 export function CoachHome() {
@@ -33,18 +33,23 @@ function BatchList({ coach, onChangeCoach }: { coach: string; onChangeCoach: () 
 
   return (
     <div className="flex flex-col gap-7">
-      <header className="flex flex-col gap-2">
-        <h1 className={pageTitle}>Clips to review</h1>
-        <p className="text-lg text-text-muted">
-          Reviewing as <strong className="text-text">{coach}</strong>{" "}
-          <button
-            type="button"
-            onClick={onChangeCoach}
-            className="ml-1 inline-flex min-h-12 items-center rounded-lg px-2 text-lg text-accent hover:bg-surface-2"
-          >
-            Not you?
-          </button>
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className={pageTitle}>Clips to review</h1>
+          <p className="text-lg text-text-muted">
+            Reviewing as <strong className="text-text">{coach}</strong>{" "}
+            <button
+              type="button"
+              onClick={onChangeCoach}
+              className="ml-1 inline-flex min-h-12 items-center rounded-lg px-2 text-lg text-accent hover:bg-surface-2"
+            >
+              Not you?
+            </button>
+          </p>
+        </div>
+        <Link href="/coach/new" className={`${buttonPrimary} px-6 text-base`}>
+          + Upload clips
+        </Link>
       </header>
 
       {error ? (
@@ -58,7 +63,11 @@ function BatchList({ coach, onChangeCoach }: { coach: string; onChangeCoach: () 
       ) : batches.length === 0 ? (
         <Card>
           <p className="text-lg text-text-muted">
-            No clips to review yet. The team will add a batch for you.
+            No clips to review yet.{" "}
+            <Link href="/coach/new" className="font-semibold">
+              Upload clips
+            </Link>{" "}
+            to create the first batch.
           </p>
         </Card>
       ) : (
