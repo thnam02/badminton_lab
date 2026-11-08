@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { HitFinder } from "@/components/labelling/HitFinder";
 import { StatRatingCard } from "@/components/labelling/StatRatingCard";
 import { Card } from "@/components/ui/Card";
-import { COACH_NAME_KEY } from "@/lib/coach";
 import { mediaUrl } from "@/lib/api";
 import {
+  COACH_NAME_KEY,
   EMPTY_DRAFT,
   exportUrl,
   fetchBatch,

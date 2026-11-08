@@ -10,10 +10,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from app.coach.matching import hand_height
-from app.coach.rule_builder_config import HIT_WRIST_WINDOW_FRAMES
 from app.config import settings
 from app.labelling.batches import is_safe_id, labelling_dir
+from app.processing.technique_rules_config import CONTACT_WRIST_WINDOW_FRAMES
 from app.schemas.stroke_types import stroke_type_label
 from app.services.video_service import (
     contact_json_path_for,
@@ -29,6 +28,21 @@ STATS_CONFIG_PATH = Path(__file__).with_name("labelling_stats.json")
 def load_stats_config(path: Path | None = None) -> dict[str, Any]:
     """Coach-facing wording; read on every call so edits apply without a restart."""
     return json.loads((path or STATS_CONFIG_PATH).read_text(encoding="utf-8"))
+
+
+def hand_height(frame: dict[str, Any] | None, threshold: float) -> float | None:
+    """Wrist height above the shoulder in torso lengths (image y grows downward)."""
+    if frame is None:
+        return None
+    kps = frame.get("keypoints") or {}
+    pts = [kps.get(n) for n in ("right_wrist", "right_shoulder", "right_hip")]
+    if any(p is None or float(p.get("confidence", 0.0)) < threshold for p in pts):
+        return None
+    wrist, shoulder, hip = (float(p["y"]) for p in pts)
+    torso = hip - shoulder
+    if torso <= 1e-6:
+        return None
+    return (shoulder - wrist) / torso
 
 
 def _read(path: Path) -> dict[str, Any] | None:
@@ -97,7 +111,9 @@ def stat_value(art: ClipArtifacts, source: dict[str, Any]) -> float | None:
         by_frame = {int(f["frame_index"]): f for f in art.pose.get("frames") or []}
         heights = [
             h
-            for idx in range(hit - HIT_WRIST_WINDOW_FRAMES, hit + HIT_WRIST_WINDOW_FRAMES + 1)
+            for idx in range(
+                hit - CONTACT_WRIST_WINDOW_FRAMES, hit + CONTACT_WRIST_WINDOW_FRAMES + 1
+            )
             if (h := hand_height(by_frame.get(idx), settings.pose_confidence_threshold))
             is not None
         ]

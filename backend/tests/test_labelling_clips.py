@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from fastapi import HTTPException
 from app.config import settings
 from app.labelling import clips as clips_module
 from app.labelling.batches import Batch, BatchClip, BatchStore
-from app.labelling.clips import clip_view, load_stats_config
+from app.labelling.clips import clip_view, hand_height, load_stats_config
 from app.labelling.labels import RATINGS, LabelError, LabelStore, label_status
 from app.routes import labelling as routes
 
@@ -94,6 +95,35 @@ def test_clip_view_reads_saved_artifacts(outputs: Path) -> None:
     assert _stat(view, "contact_hand_height")["value"] == pytest.approx(0.35)
     assert _stat(view, "hand_speed")["available"] is False
     assert [o["id"] for o in view["rating_options"]] == list(RATINGS)
+
+
+def test_hand_height_is_in_torso_lengths_above_the_shoulder() -> None:
+    frame = {"keypoints": {"right_wrist": _kp(0.33), "right_shoulder": _kp(0.4), "right_hip": _kp(0.6)}}
+    assert hand_height(frame, 0.5) == pytest.approx(0.35)
+    frame["keypoints"]["right_wrist"] = {"x": 0.5, "y": 0.33, "confidence": 0.2}
+    assert hand_height(frame, 0.5) is None
+    assert hand_height(None, 0.5) is None
+
+
+def test_live_analysis_never_imports_labelling() -> None:
+    """Coach labels never change analysis results."""
+    app_dir = Path("app")
+    allowed = {app_dir / "routes" / "labelling.py", app_dir / "main.py"}
+    offenders = []
+    for path in app_dir.rglob("*.py"):
+        if path.is_relative_to(app_dir / "labelling") or path in allowed:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            names = (
+                [a.name for a in node.names]
+                if isinstance(node, ast.Import)
+                else [node.module or ""]
+                if isinstance(node, ast.ImportFrom)
+                else []
+            )
+            if any(n == "app.labelling" or n.startswith("app.labelling.") for n in names):
+                offenders.append(str(path))
+    assert offenders == []
 
 
 def test_kept_raw_video_is_preferred(outputs: Path) -> None:

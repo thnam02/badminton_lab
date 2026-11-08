@@ -9,6 +9,9 @@ describe("labelling helpers", () => {
     );
     expect(formatStatValue(7.87, "torso_lengths_per_s")).toBe("7.9 torso lengths per second");
     expect(formatStatValue(0.6556, "ratio")).toBe("0.66");
+    expect(formatStatValue(-0.3, "torso_lengths_above_shoulder")).toBe(
+      "0.30 torso lengths below the shoulder"
+    );
     expect(formatStatValue(null, "deg")).toBe("Not measured");
   });
 

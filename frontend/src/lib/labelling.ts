@@ -1,5 +1,6 @@
 import { API_BASE } from "./api";
-import { formatBoundaryValue } from "./coach";
+
+export const COACH_NAME_KEY = "badminton-lab.coach-name";
 
 export type StatRating = "good" | "needs_work" | "looks_wrong";
 
@@ -132,8 +133,10 @@ export function exportUrl(batchId: string, format: "csv" | "json"): string {
 
 export function formatStatValue(value: number | null, unit: string): string {
   if (value == null || Number.isNaN(value)) return "Not measured";
-  if (unit === "deg" || unit === "torso_lengths_above_shoulder") {
-    return formatBoundaryValue(value, unit);
+  if (unit === "deg") return `${Math.round(value)}°`;
+  if (unit === "torso_lengths_above_shoulder") {
+    const v = Math.abs(value).toFixed(2);
+    return `${v} torso lengths ${value < 0 ? "below" : "above"} the shoulder`;
   }
   if (unit === "torso_lengths_per_s") return `${value.toFixed(1)} torso lengths per second`;
   if (unit === "ratio") return value.toFixed(2);
