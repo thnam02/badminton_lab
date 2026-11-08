@@ -113,6 +113,17 @@ vi.mock("@/lib/labelling", async (importOriginal) => ({
   saveClipLabel: (id: string, body: SaveBody) => saveClipLabel(id, body),
 }));
 
+vi.mock("@/lib/overlay", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/overlay")>()),
+  fetchPose: async () => ({
+    fps: 30,
+    frame_count: 97,
+    keypoint_names: [],
+    confidence_threshold: 0.5,
+    frames: [],
+  }),
+}));
+
 beforeEach(() => {
   labelled.clear();
   saveClipLabel.mockClear();
@@ -170,6 +181,19 @@ describe("LabellingWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show this moment: After the hit" }));
     expect(frameLabel()).toBe("Frame 61 · 0:02.03");
     expect(card("Follow-through across the body").hasAttribute("data-active")).toBe(true);
+  });
+
+  it("draws the overlay at the frame each moment tab seeks to", async () => {
+    const { container } = render(<LabellingWorkspace batchId="set-1" />);
+    await screen.findByRole("tab", { name: "The hit" });
+    const canvas = () => container.querySelector("canvas");
+    await waitFor(() => expect(canvas()?.getAttribute("data-frame")).toBe("48"));
+    fireEvent.click(screen.getByRole("tab", { name: "Getting ready" }));
+    expect(canvas()?.getAttribute("data-frame")).toBe("9");
+    fireEvent.click(screen.getByRole("button", { name: "Forward ▶" }));
+    expect(canvas()?.getAttribute("data-frame")).toBe("10");
+    expect((screen.getByLabelText("Show angles") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText("Show skeleton") as HTMLInputElement).checked).toBe(true);
   });
 
   it("saves 'can't see' for coach-only questions without pressing save", async () => {

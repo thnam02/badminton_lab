@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CoachNameGate } from "@/components/labelling/CoachNameGate";
 import { HitFinder, type HitFinderHandle } from "@/components/labelling/HitFinder";
+import { PoseOverlay } from "@/components/labelling/PoseOverlay";
 import { QuestionCard } from "@/components/labelling/QuestionCard";
 import { Card } from "@/components/ui/Card";
 import { mediaUrl } from "@/lib/api";
+import { fetchPose, type PoseFeed } from "@/lib/overlay";
 import {
   EMPTY_DRAFT,
   exportUrl,
@@ -60,7 +62,9 @@ function Workspace({
   const editCount = useRef(0);
   const finderRef = useRef<HitFinderHandle>(null);
   const [activeMoment, setActiveMoment] = useState<MomentId>("contact");
-  const [, setCurrentFrame] = useState(0);
+  const [pose, setPose] = useState<PoseFeed | null>(null);
+  const [showAngles, setShowAngles] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
 
   const refreshBatch = useCallback(
     () => fetchBatch(batchId, coach).then((b) => (setBatch(b), b)),
@@ -88,13 +92,19 @@ function Workspace({
     }
     let cancelled = false;
     setClip(null);
+    setPose(null);
     setDirty(false);
     setSaveState("idle");
+    fetchPose(currentId)
+      .then((p) => !cancelled && setPose(p))
+      .catch(() => !cancelled && setPose(null));
     Promise.all([fetchClip(currentId), fetchClipLabel(currentId, coach)])
       .then(([c, saved]) => {
         if (cancelled) return;
         setClip(c);
         setActiveMoment("contact");
+        // The analysed video already has the skeleton drawn in.
+        setShowSkeleton(Boolean(c.raw_video_url));
         setDraft(
           saved.label
             ? {
@@ -255,6 +265,10 @@ function Workspace({
     );
   }
 
+  const highlight = new Set(
+    (clip?.questions ?? []).filter((q) => q.moment === activeMoment).flatMap((q) => q.joints)
+  );
+
   function showMoment(moment: ReviewMoment) {
     setActiveMoment(moment.id);
     if (moment.frame != null) finderRef.current?.seekTo(moment.frame);
@@ -331,7 +345,43 @@ function Workspace({
                 frameCount={clip.frame_count ?? 1}
                 systemFrame={clip.system_contact_frame}
                 hitFrame={draft.corrected_hit_frame}
-                onFrameChange={setCurrentFrame}
+                renderOverlay={(frame, videoSize) => (
+                  <PoseOverlay
+                    pose={pose}
+                    frame={frame}
+                    videoSize={videoSize}
+                    showSkeleton={showSkeleton}
+                    showAngles={showAngles}
+                    highlight={highlight}
+                  />
+                )}
+                controls={
+                  <div className="flex flex-wrap gap-x-4 text-sm text-text-soft">
+                    <label className="flex min-h-12 cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={showAngles}
+                        onChange={(e) => setShowAngles(e.target.checked)}
+                        className="h-5 w-5 accent-accent"
+                      />
+                      Show angles
+                    </label>
+                    <label className="flex min-h-12 cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={showSkeleton}
+                        onChange={(e) => setShowSkeleton(e.target.checked)}
+                        className="h-5 w-5 accent-accent"
+                      />
+                      Show skeleton
+                    </label>
+                    {!pose && (
+                      <span className="flex min-h-12 items-center text-text-muted">
+                        Angles unavailable for this clip.
+                      </span>
+                    )}
+                  </div>
+                }
                 onMarkHit={(f) =>
                   update({ corrected_hit_frame: f === clip.system_contact_frame ? null : f })
                 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import { CheckCircleIcon } from "@/components/ui/icons";
 import { formatTimestamp } from "@/lib/format";
 import { frameAt, timeOfFrame } from "@/lib/labelling";
@@ -21,6 +21,15 @@ type Props = {
   onMarkHit: (frame: number) => void;
   onUseSystemHit: () => void;
   onFrameChange?: (frame: number) => void;
+  /** Drawn over the video, e.g. the pose overlay canvas. */
+  renderOverlay?: (frame: number, videoSize: { width: number; height: number } | null) => ReactNode;
+  /** Extra controls shown above the slider, e.g. overlay toggles. */
+  controls?: ReactNode;
+};
+
+type FrameCallbackVideo = HTMLVideoElement & {
+  requestVideoFrameCallback?: (cb: (now: number, meta: { mediaTime: number }) => void) => number;
+  cancelVideoFrameCallback?: (handle: number) => void;
 };
 
 const SLOW_RATE = 0.25;
@@ -38,6 +47,8 @@ export const HitFinder = forwardRef<HitFinderHandle, Props>(function HitFinder(
     onMarkHit,
     onUseSystemHit,
     onFrameChange,
+    renderOverlay,
+    controls,
   },
   ref
 ) {
@@ -45,11 +56,10 @@ export const HitFinder = forwardRef<HitFinderHandle, Props>(function HitFinder(
   const startFrame = hitFrame ?? systemFrame ?? 0;
   const [frame, setFrameState] = useState(startFrame);
   const [playing, setPlaying] = useState(false);
-  const [showSkeleton, setShowSkeleton] = useState(!videoUrl || videoUrl === overlayUrl);
   const [rawFailed, setRawFailed] = useState(false);
+  const [videoSize, setVideoSize] = useState<{ width: number; height: number } | null>(null);
   const lastFrame = Math.max(frameCount - 1, 0);
-  const src = showSkeleton || rawFailed || !videoUrl ? overlayUrl ?? videoUrl : videoUrl;
-  const canToggleSkeleton = Boolean(videoUrl && overlayUrl && videoUrl !== overlayUrl && !rawFailed);
+  const src = rawFailed || !videoUrl ? overlayUrl ?? videoUrl : videoUrl;
 
   function setFrame(f: number) {
     setFrameState(f);
@@ -75,6 +85,20 @@ export const HitFinder = forwardRef<HitFinderHandle, Props>(function HitFinder(
 
   useImperativeHandle(ref, () => ({ seekTo: seek }));
 
+  // Follow every decoded frame while playing so the overlay stays in step.
+  useEffect(() => {
+    const video = videoRef.current as FrameCallbackVideo | null;
+    if (!playing || !video?.requestVideoFrameCallback) return;
+    let handle = 0;
+    const tick = (_now: number, meta: { mediaTime: number }) => {
+      setFrame(Math.min(frameAt(meta.mediaTime, fps), lastFrame));
+      handle = video.requestVideoFrameCallback!(tick);
+    };
+    handle = video.requestVideoFrameCallback(tick);
+    return () => video.cancelVideoFrameCallback?.(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, fps, lastFrame]);
+
   function togglePlay() {
     const video = videoRef.current;
     if (!video) return;
@@ -93,7 +117,7 @@ export const HitFinder = forwardRef<HitFinderHandle, Props>(function HitFinder(
 
   return (
     <div className="flex flex-col overflow-hidden rounded-[22px] border border-border bg-surface">
-      <div className="relative flex justify-center bg-black">
+      <div className="relative bg-black">
         {src ? (
           <video
             ref={videoRef}
@@ -102,12 +126,17 @@ export const HitFinder = forwardRef<HitFinderHandle, Props>(function HitFinder(
             playsInline
             muted
             preload="auto"
-            className="max-h-[70vh] w-full object-contain"
+            className="block max-h-[70vh] w-full object-contain"
             onLoadedMetadata={(e) => {
-              e.currentTarget.currentTime = timeOfFrame(frame, fps);
+              const v = e.currentTarget;
+              setVideoSize({ width: v.videoWidth, height: v.videoHeight });
+              v.currentTime = timeOfFrame(frame, fps);
             }}
             onTimeUpdate={(e) => {
-              if (playing) setFrame(Math.min(frameAt(e.currentTarget.currentTime, fps), lastFrame));
+              const v = e.currentTarget as FrameCallbackVideo;
+              if (playing && !v.requestVideoFrameCallback) {
+                setFrame(Math.min(frameAt(v.currentTime, fps), lastFrame));
+              }
             }}
             onPause={() => setPlaying(false)}
             onError={() => {
@@ -119,23 +148,14 @@ export const HitFinder = forwardRef<HitFinderHandle, Props>(function HitFinder(
             Video not available for this clip.
           </p>
         )}
+        {src && renderOverlay?.(frame, videoSize)}
         <span className="absolute left-3 top-3 rounded-lg bg-bg/85 px-3 py-1.5 text-sm font-semibold tabular-nums">
           Frame {frame} · {formatTimestamp(frame / fps)}
         </span>
       </div>
 
       <div className="flex flex-col gap-3 px-[18px] pb-[18px] pt-4">
-        {canToggleSkeleton && (
-          <label className="flex min-h-12 cursor-pointer items-center gap-2 text-sm text-text-soft">
-            <input
-              type="checkbox"
-              checked={showSkeleton}
-              onChange={(e) => setShowSkeleton(e.target.checked)}
-              className="h-5 w-5 accent-accent"
-            />
-            Show the app&apos;s skeleton on the video
-          </label>
-        )}
+        {controls}
         <input
           type="range"
           min={0}
