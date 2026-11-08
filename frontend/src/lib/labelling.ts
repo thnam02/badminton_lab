@@ -2,17 +2,28 @@ import { API_BASE } from "./api";
 
 export const COACH_NAME_KEY = "badminton-lab.coach-name";
 
-export type StatRating = "good" | "needs_work" | "looks_wrong";
+export type StatRating = "good" | "needs_work" | "looks_wrong" | "cant_see";
 
-export type ClipStat = {
+export type MomentId = "preparation" | "contact" | "follow_through";
+
+export type ReviewQuestion = {
   id: string;
-  name: string;
-  description: string;
-  when: string;
-  unit: string;
+  title: string;
+  hint: string;
+  moment: MomentId;
+  moment_title: string;
+  /** "measured" questions show the app's value; "coach_only" ones are judged by eye. */
+  kind: "measured" | "coach_only";
+  unit: string | null;
   value: number | null;
   available: boolean;
+  measured_at: { label: string; frame: number | null } | null;
+  /** Keypoints this question looks at; highlighted on the overlay. */
+  joints: string[];
+  rating_options: { id: StatRating; label: string; hint?: string }[];
 };
+
+export type ReviewMoment = { id: MomentId; title: string; frame: number | null };
 
 export type LabellingClip = {
   analysis_id: string;
@@ -27,8 +38,9 @@ export type LabellingClip = {
   system_contact_timestamp: number | null;
   fps: number | null;
   frame_count: number | null;
-  stats: ClipStat[];
-  rating_options: { id: StatRating; label: string; hint?: string }[];
+  moments: ReviewMoment[];
+  questions: ReviewQuestion[];
+  fix_options: { id: string; title: string }[];
   overall_ratings: { value: number; label: string }[];
 };
 
@@ -61,7 +73,12 @@ export type LabelDraft = {
   corrected_hit_frame: number | null;
   stats: Record<string, StatLabel>;
   overall_rating: number | null;
+  /** A question id, or "not_listed". */
+  most_important_fix: string | null;
+  /** What the coach would tell the player. */
   feedback: string;
+  /** Anything else, e.g. about the video or the measurements. */
+  general_comment: string;
 };
 
 export type SavedLabel = LabelDraft & {
@@ -78,7 +95,9 @@ export const EMPTY_DRAFT: LabelDraft = {
   corrected_hit_frame: null,
   stats: {},
   overall_rating: null,
+  most_important_fix: null,
   feedback: "",
+  general_comment: "",
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -211,16 +230,32 @@ export function exportUrl(batchId: string, format: "csv" | "json"): string {
   return `${API_BASE}/labelling/batches/${encodeURIComponent(batchId)}/export?format=${format}`;
 }
 
-export function formatStatValue(value: number | null, unit: string): string {
+export function formatStatValue(value: number | null, unit: string | null): string {
   if (value == null || Number.isNaN(value)) return "Not measured";
-  if (unit === "deg") return `${Math.round(value)}°`;
+  switch (unit) {
+    case "deg":
+      return `${Math.round(value)}°`;
+    case "yes_no":
+      return value >= 0.5 ? "Yes" : "No";
+    case "torso_lengths_above_shoulder":
+      return `${Math.abs(value).toFixed(2)} ${value < 0 ? "below" : "above"}`;
+    case "torso_lengths_per_s":
+      return `${value.toFixed(1)} torso/s`;
+    case "ratio":
+      return value.toFixed(2);
+    default:
+      return `${value.toFixed(2)}${unit ? ` ${unit}` : ""}`;
+  }
+}
+
+/** Longer wording for screen readers and tooltips. */
+export function describeStatValue(value: number | null, unit: string | null): string {
+  if (value == null || Number.isNaN(value)) return "Not measured";
   if (unit === "torso_lengths_above_shoulder") {
-    const v = Math.abs(value).toFixed(2);
-    return `${v} torso lengths ${value < 0 ? "below" : "above"} the shoulder`;
+    return `${Math.abs(value).toFixed(2)} torso lengths ${value < 0 ? "below" : "above"} the shoulder`;
   }
   if (unit === "torso_lengths_per_s") return `${value.toFixed(1)} torso lengths per second`;
-  if (unit === "ratio") return value.toFixed(2);
-  return `${value.toFixed(2)} ${unit}`.trim();
+  return formatStatValue(value, unit);
 }
 
 /** Frame shown at a playback time, with frame i spanning [i/fps, (i+1)/fps). */

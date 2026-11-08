@@ -281,21 +281,6 @@ def clip_view(analysis_id: str, output_dir: Path | None = None) -> dict[str, Any
         ],
         "questions": questions,
         "legacy_ids": legacy_ids(question_set(config, stroke)),
-        # Older screen shape; removed once the review page reads "questions".
-        "stats": [
-            {
-                "id": q["id"],
-                "name": q["title"],
-                "description": q["hint"],
-                "when": (q["measured_at"] or {}).get("label") or q["moment_title"],
-                "unit": q["unit"] or "",
-                "value": q["value"],
-                "available": q["available"],
-            }
-            for q in questions
-            if q["kind"] == KIND_MEASURED
-        ],
-        "rating_options": config["rating_options"][KIND_MEASURED],
         "overall_ratings": config["overall_ratings"],
         "fix_options": [{"id": q["id"], "title": q["title"]} for q in questions]
         + [{"id": "not_listed", "title": config["fix_not_listed_label"]}],

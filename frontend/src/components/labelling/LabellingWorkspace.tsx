@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CoachNameGate } from "@/components/labelling/CoachNameGate";
-import { HitFinder } from "@/components/labelling/HitFinder";
-import { StatRatingCard } from "@/components/labelling/StatRatingCard";
+import { HitFinder, type HitFinderHandle } from "@/components/labelling/HitFinder";
+import { QuestionCard } from "@/components/labelling/QuestionCard";
 import { Card } from "@/components/ui/Card";
 import { mediaUrl } from "@/lib/api";
 import {
@@ -16,6 +16,8 @@ import {
   type LabelDraft,
   type LabellingBatch,
   type LabellingClip,
+  type MomentId,
+  type ReviewMoment,
   type StatLabel,
 } from "@/lib/labelling";
 
@@ -56,6 +58,9 @@ function Workspace({
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const editCount = useRef(0);
+  const finderRef = useRef<HitFinderHandle>(null);
+  const [activeMoment, setActiveMoment] = useState<MomentId>("contact");
+  const [, setCurrentFrame] = useState(0);
 
   const refreshBatch = useCallback(
     () => fetchBatch(batchId, coach).then((b) => (setBatch(b), b)),
@@ -89,13 +94,16 @@ function Workspace({
       .then(([c, saved]) => {
         if (cancelled) return;
         setClip(c);
+        setActiveMoment("contact");
         setDraft(
           saved.label
             ? {
                 corrected_hit_frame: saved.label.corrected_hit_frame,
                 stats: saved.label.stats,
                 overall_rating: saved.label.overall_rating,
+                most_important_fix: saved.label.most_important_fix ?? null,
                 feedback: saved.label.feedback,
+                general_comment: saved.label.general_comment ?? "",
               }
             : EMPTY_DRAFT
         );
@@ -247,13 +255,14 @@ function Workspace({
     );
   }
 
+  function showMoment(moment: ReviewMoment) {
+    setActiveMoment(moment.id);
+    if (moment.frame != null) finderRef.current?.seekTo(moment.frame);
+  }
+
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-6">
       {header}
-      <p className="text-xl text-text-soft">
-        Watch the stroke, then rate what the app measured. There are no right answers to aim
-        for: just tell us what you see.
-      </p>
 
       {current?.missing ? (
         <Card role="alert" className="flex flex-col gap-4">
@@ -270,92 +279,189 @@ function Workspace({
           Loading clip…
         </p>
       ) : (
-        <div className="flex flex-wrap items-start gap-7">
-          <section
-            aria-label="Step 1: find the hit"
-            className="flex min-w-0 flex-[999_1_560px] flex-col gap-4 lg:sticky lg:top-4"
-          >
-            <StepHeading n={1}>Find the moment the racket hits the shuttle</StepHeading>
-            <p className="text-base text-text-muted">
-              {clip.stroke_label}
-              {current?.source_file ? ` · ${current.source_file}` : ""}
-              {clip.camera_view ? ` · ${clip.camera_view.toLowerCase()} view` : ""}
-              {clip.handedness ? ` · ${clip.handedness.toLowerCase()}-handed` : ""}
-            </p>
-            <HitFinder
-              videoUrl={mediaUrl(clip.video_url)}
-              overlayUrl={mediaUrl(clip.overlay_video_url)}
-              fps={clip.fps ?? 30}
-              frameCount={clip.frame_count ?? 1}
-              systemFrame={clip.system_contact_frame}
-              hitFrame={draft.corrected_hit_frame}
-              onMarkHit={(f) =>
-                update({ corrected_hit_frame: f === clip.system_contact_frame ? null : f })
-              }
-              onUseSystemHit={() => update({ corrected_hit_frame: null })}
-            />
-          </section>
+        <>
+          <div className="flex flex-wrap items-baseline justify-between gap-2.5">
+            <h2 className="font-display text-[30px] font-bold">{clip.stroke_label}</h2>
+            <span className="text-[15px] text-text-muted">
+              {[
+                current?.source_file,
+                clip.handedness && clip.handedness !== "UNKNOWN"
+                  ? `${clip.handedness.toLowerCase()}-handed`
+                  : null,
+                clip.camera_view && clip.camera_view !== "UNKNOWN"
+                  ? `${clip.camera_view.toLowerCase()} view`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
 
-          <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-7">
-            <section aria-label="Step 2: rate the measurements" className="flex flex-col gap-3.5">
-              <StepHeading n={2}>How do these look?</StepHeading>
-              {clip.stats.map((stat) => (
-                <StatRatingCard
-                  key={stat.id}
-                  stat={stat}
-                  options={clip.rating_options}
-                  value={draft.stats[stat.id]}
-                  onChange={(v) => setStat(stat.id, v)}
-                />
-              ))}
-            </section>
-
-            <section aria-label="Step 3: overall" className="flex flex-col gap-3.5">
-              <StepHeading n={3}>Overall, how good was this stroke?</StepHeading>
-              <fieldset className="grid grid-cols-5 gap-2">
-                <legend className="sr-only">Overall rating</legend>
-                {clip.overall_ratings.map((r) => {
-                  const on = draft.overall_rating === r.value;
+          <div className="flex flex-wrap items-start gap-6">
+            <section
+              aria-label="Video with angles"
+              className="flex min-w-0 flex-[1_1_440px] flex-col gap-3.5 lg:sticky lg:top-4"
+            >
+              <div role="tablist" aria-label="Jump to a moment" className="grid grid-cols-3 gap-2">
+                {clip.moments.map((m) => {
+                  const on = activeMoment === m.id;
                   return (
-                    <label
-                      key={r.value}
-                      className={`flex min-h-[76px] cursor-pointer flex-col items-center justify-center rounded-[14px] border-2 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
-                        on ? "border-accent bg-accent/10" : "border-border bg-surface-2"
+                    <button
+                      key={m.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => showMoment(m)}
+                      className={`min-h-[52px] rounded-[14px] px-2 text-base ${
+                        on
+                          ? "bg-accent font-bold text-bg"
+                          : "border-2 border-border bg-surface font-semibold text-text hover:border-text-muted/50"
                       }`}
                     >
-                      <input
-                        type="radio"
-                        name="overall"
-                        checked={on}
-                        onChange={() => update({ overall_rating: r.value })}
-                        className="sr-only"
-                      />
-                      <strong className="text-2xl">{r.value}</strong>
-                      <span className="text-sm text-text-muted">{r.label}</span>
-                    </label>
+                      {m.title}
+                    </button>
                   );
                 })}
-              </fieldset>
-              <label className="flex flex-col gap-2 text-lg font-semibold">
-                Anything else? (optional)
+              </div>
+              <HitFinder
+                ref={finderRef}
+                videoUrl={mediaUrl(clip.video_url)}
+                overlayUrl={mediaUrl(clip.overlay_video_url)}
+                fps={clip.fps ?? 30}
+                frameCount={clip.frame_count ?? 1}
+                systemFrame={clip.system_contact_frame}
+                hitFrame={draft.corrected_hit_frame}
+                onFrameChange={setCurrentFrame}
+                onMarkHit={(f) =>
+                  update({ corrected_hit_frame: f === clip.system_contact_frame ? null : f })
+                }
+                onUseSystemHit={() => update({ corrected_hit_frame: null })}
+              />
+            </section>
+
+            <form
+              aria-label={`${clip.stroke_label} checklist`}
+              onSubmit={(e) => e.preventDefault()}
+              className="flex min-w-0 flex-[999_1_560px] flex-col gap-[22px]"
+            >
+              {clip.moments.map((m, i) => {
+                const questions = clip.questions.filter((q) => q.moment === m.id);
+                if (questions.length === 0) return null;
+                const on = activeMoment === m.id;
+                return (
+                  <section
+                    key={m.id}
+                    aria-labelledby={`moment-${m.id}`}
+                    className="flex flex-col gap-2.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <h3
+                        id={`moment-${m.id}`}
+                        className={`font-display text-[22px] font-bold ${on ? "text-accent-soft" : "text-text"}`}
+                      >
+                        {i + 1} · {m.title}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => showMoment(m)}
+                        aria-label={`Show this moment: ${m.title}`}
+                        className="min-h-12 rounded-full border border-border bg-surface px-3.5 text-sm text-text hover:border-text-muted/50"
+                      >
+                        Show this moment
+                      </button>
+                    </div>
+                    {questions.map((q) => (
+                      <QuestionCard
+                        key={q.id}
+                        question={q}
+                        value={draft.stats[q.id]}
+                        active={on}
+                        onChange={(v) => setStat(q.id, v)}
+                      />
+                    ))}
+                  </section>
+                );
+              })}
+            </form>
+          </div>
+
+          <section
+            aria-labelledby="overall-title"
+            className="flex flex-col gap-4 rounded-[22px] border border-border bg-surface p-6"
+          >
+            <h2 id="overall-title" className="font-display text-2xl font-bold">
+              Overall
+            </h2>
+            <fieldset className="m-0 grid grid-cols-5 gap-2 border-0 p-0">
+              <legend className="mb-2 p-0 font-semibold">
+                How good was this {clip.stroke_label.toLowerCase().replace(/^forehand /, "")}?
+              </legend>
+              {clip.overall_ratings.map((r) => {
+                const on = draft.overall_rating === r.value;
+                return (
+                  <label
+                    key={r.value}
+                    className={`flex min-h-[54px] cursor-pointer items-center justify-center rounded-xl text-center has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
+                      on ? "border-[3px] border-accent bg-accent/10 font-bold" : "border-2 border-border bg-surface-2"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="overall"
+                      checked={on}
+                      onChange={() => update({ overall_rating: r.value })}
+                      className="sr-only"
+                    />
+                    {r.label}
+                  </label>
+                );
+              })}
+            </fieldset>
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))]">
+              <label className="flex flex-col gap-2 font-semibold">
+                Most important thing to fix
+                <select
+                  value={draft.most_important_fix ?? ""}
+                  onChange={(e) => update({ most_important_fix: e.target.value || null })}
+                  className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 font-normal text-text"
+                >
+                  <option value="">Choose…</option>
+                  {clip.fix_options.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-2 font-semibold">
+                What would you tell this player?
                 <textarea
                   rows={3}
                   maxLength={4000}
                   value={draft.feedback}
                   onChange={(e) => update({ feedback: e.target.value })}
-                  placeholder="Type or use your keyboard's microphone"
-                  className="resize-y rounded-[14px] border border-border bg-surface p-3 text-lg font-normal text-text"
+                  className="resize-y rounded-xl border border-border bg-surface-2 p-3 font-normal text-text"
                 />
               </label>
-            </section>
-
+            </div>
+            <label className="flex flex-col gap-2 font-semibold">
+              General comment (anything else, including about the video or the measurements)
+              <textarea
+                rows={3}
+                maxLength={4000}
+                value={draft.general_comment}
+                onChange={(e) => update({ general_comment: e.target.value })}
+                placeholder="E.g. camera is behind the player, not side-on; the angles look off"
+                className="resize-y rounded-xl border border-border bg-surface-2 p-3 font-normal text-text"
+              />
+            </label>
             <button
               type="button"
               onClick={() => void saveAndNext()}
               disabled={saveState === "saving"}
-              className="min-h-[76px] rounded-[20px] bg-accent text-xl font-bold text-bg hover:bg-accent-soft disabled:opacity-60"
+              className="min-h-16 rounded-[18px] bg-accent text-[19px] font-bold text-bg hover:bg-accent-soft disabled:opacity-60"
             >
-              Save and go to next clip →
+              Save and next clip →
             </button>
             <p className="text-center text-base text-text-muted" role="status" aria-live="polite">
               {saveState === "saving"
@@ -372,8 +478,8 @@ function Workspace({
               onPrev={() => void goTo(index - 1)}
               onNext={() => void goTo(index + 1)}
             />
-          </div>
-        </div>
+          </section>
+        </>
       )}
     </div>
   );
@@ -401,22 +507,5 @@ function NavButtons({
         Skip to next clip →
       </button>
     </div>
-  );
-}
-
-function StepHeading({ n, children }: { n: number; children: React.ReactNode }) {
-  return (
-    <h2 className="flex items-center gap-3 font-display text-2xl font-bold sm:text-[26px]">
-      <span
-        aria-hidden
-        className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-accent text-xl text-bg"
-      >
-        {n}
-      </span>
-      <span>
-        <span className="sr-only">Step {n}: </span>
-        {children}
-      </span>
-    </h2>
   );
 }

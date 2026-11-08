@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { CheckCircleIcon } from "@/components/ui/icons";
 import { formatTimestamp } from "@/lib/format";
 import { frameAt, timeOfFrame } from "@/lib/labelling";
+
+export type HitFinderHandle = {
+  /** Pause and show this frame. */
+  seekTo: (frame: number) => void;
+};
 
 type Props = {
   videoUrl: string | null;
@@ -15,31 +20,41 @@ type Props = {
   hitFrame: number | null;
   onMarkHit: (frame: number) => void;
   onUseSystemHit: () => void;
+  onFrameChange?: (frame: number) => void;
 };
 
 const SLOW_RATE = 0.25;
 const bigButton =
-  "inline-flex min-h-16 items-center justify-center gap-2 rounded-2xl px-4 text-lg font-semibold transition disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] px-3 text-base font-semibold transition disabled:cursor-not-allowed disabled:opacity-40";
 
-export function HitFinder({
-  videoUrl,
-  overlayUrl,
-  fps,
-  frameCount,
-  systemFrame,
-  hitFrame,
-  onMarkHit,
-  onUseSystemHit,
-}: Props) {
+export const HitFinder = forwardRef<HitFinderHandle, Props>(function HitFinder(
+  {
+    videoUrl,
+    overlayUrl,
+    fps,
+    frameCount,
+    systemFrame,
+    hitFrame,
+    onMarkHit,
+    onUseSystemHit,
+    onFrameChange,
+  },
+  ref
+) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const startFrame = hitFrame ?? systemFrame ?? 0;
-  const [frame, setFrame] = useState(startFrame);
+  const [frame, setFrameState] = useState(startFrame);
   const [playing, setPlaying] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(!videoUrl || videoUrl === overlayUrl);
   const [rawFailed, setRawFailed] = useState(false);
   const lastFrame = Math.max(frameCount - 1, 0);
   const src = showSkeleton || rawFailed || !videoUrl ? overlayUrl ?? videoUrl : videoUrl;
   const canToggleSkeleton = Boolean(videoUrl && overlayUrl && videoUrl !== overlayUrl && !rawFailed);
+
+  function setFrame(f: number) {
+    setFrameState(f);
+    onFrameChange?.(f);
+  }
 
   useEffect(() => {
     setFrame(startFrame);
@@ -58,6 +73,8 @@ export function HitFinder({
     setFrame(f);
   }
 
+  useImperativeHandle(ref, () => ({ seekTo: seek }));
+
   function togglePlay() {
     const video = videoRef.current;
     if (!video) return;
@@ -75,8 +92,8 @@ export function HitFinder({
   const atFrame = (f: number) => `frame ${f} (${formatTimestamp(f / fps)})`;
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-card border border-border bg-surface">
-      <div className="relative bg-black">
+    <div className="flex flex-col overflow-hidden rounded-[22px] border border-border bg-surface">
+      <div className="relative flex justify-center bg-black">
         {src ? (
           <video
             ref={videoRef}
@@ -85,7 +102,7 @@ export function HitFinder({
             playsInline
             muted
             preload="auto"
-            className="aspect-video w-full"
+            className="max-h-[70vh] w-full object-contain"
             onLoadedMetadata={(e) => {
               e.currentTarget.currentTime = timeOfFrame(frame, fps);
             }}
@@ -102,20 +119,40 @@ export function HitFinder({
             Video not available for this clip.
           </p>
         )}
-        <span className="absolute left-3 top-3 rounded-lg bg-bg/85 px-3 py-1.5 text-base font-semibold tabular-nums">
+        <span className="absolute left-3 top-3 rounded-lg bg-bg/85 px-3 py-1.5 text-sm font-semibold tabular-nums">
           Frame {frame} · {formatTimestamp(frame / fps)}
         </span>
       </div>
 
-      <div className="flex flex-col gap-4 p-5">
-        <div className="grid grid-cols-3 gap-2.5">
+      <div className="flex flex-col gap-3 px-[18px] pb-[18px] pt-4">
+        {canToggleSkeleton && (
+          <label className="flex min-h-12 cursor-pointer items-center gap-2 text-sm text-text-soft">
+            <input
+              type="checkbox"
+              checked={showSkeleton}
+              onChange={(e) => setShowSkeleton(e.target.checked)}
+              className="h-5 w-5 accent-accent"
+            />
+            Show the app&apos;s skeleton on the video
+          </label>
+        )}
+        <input
+          type="range"
+          min={0}
+          max={lastFrame}
+          value={frame}
+          aria-label="Move through the clip"
+          onChange={(e) => seek(Number(e.target.value))}
+          className="h-12 w-full accent-accent"
+        />
+        <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
             className={`${bigButton} border-2 border-border bg-surface-2 text-text`}
             onClick={() => seek(frame - 1)}
             disabled={frame <= 0}
           >
-            ◀ Back a little
+            ◀ Back
           </button>
           <button
             type="button"
@@ -123,7 +160,7 @@ export function HitFinder({
             onClick={togglePlay}
             aria-pressed={playing}
           >
-            {playing ? "❚❚ Pause" : "▶ Play slowly"}
+            {playing ? "❚❚ Pause" : "▶ Slow"}
           </button>
           <button
             type="button"
@@ -131,44 +168,32 @@ export function HitFinder({
             onClick={() => seek(frame + 1)}
             disabled={frame >= lastFrame}
           >
-            Forward a little ▶
+            Forward ▶
           </button>
         </div>
 
-        <label className="flex flex-col gap-1.5 text-base text-text-muted">
-          Or drag to move through the clip
-          <input
-            type="range"
-            min={0}
-            max={lastFrame}
-            value={frame}
-            onChange={(e) => seek(Number(e.target.value))}
-            className="h-12 w-full accent-accent"
-          />
-        </label>
-
         <button
           type="button"
-          className={`${bigButton} min-h-[72px] bg-accent text-xl font-bold text-bg hover:bg-accent-soft`}
+          className={`${bigButton} min-h-14 bg-accent font-bold text-bg hover:bg-accent-soft`}
           onClick={() => onMarkHit(frame)}
         >
-          This is the hit
+          The real hit is at this frame
         </button>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-2.5 text-base text-accent-soft" role="status">
-            <CheckCircleIcon className="flex-none text-accent" />
+        <div className="flex flex-col gap-2">
+          <p className="flex items-start gap-2 text-sm text-accent-soft" role="status">
+            <CheckCircleIcon className="mt-0.5 flex-none text-accent" size={18} />
             {marked
               ? `Hit marked at ${atFrame(hitFrame)}.`
               : systemFrame != null
                 ? `Using the app's hit at ${atFrame(systemFrame)}. Mark another frame if it's wrong.`
-                : "The app didn't find a hit. Find it and press “This is the hit”."}
+                : "The app didn't find a hit. Find it and mark it."}
           </p>
           <div className="flex flex-wrap gap-2">
             {systemFrame != null && (
               <button
                 type="button"
-                className={`${bigButton} min-h-12 border-2 border-border bg-surface-2 text-base text-text`}
+                className={`${bigButton} min-h-12 border-2 border-border bg-surface-2 text-sm text-text`}
                 onClick={() => seek(systemFrame)}
               >
                 Go to the app&apos;s hit
@@ -177,7 +202,7 @@ export function HitFinder({
             {marked && (
               <button
                 type="button"
-                className={`${bigButton} min-h-12 border-2 border-border bg-surface-2 text-base text-text`}
+                className={`${bigButton} min-h-12 border-2 border-border bg-surface-2 text-sm text-text`}
                 onClick={onUseSystemHit}
               >
                 Use the app&apos;s hit instead
@@ -185,19 +210,7 @@ export function HitFinder({
             )}
           </div>
         </div>
-
-        {canToggleSkeleton && (
-          <label className="flex min-h-12 cursor-pointer items-center gap-3 text-base text-text-soft">
-            <input
-              type="checkbox"
-              checked={showSkeleton}
-              onChange={(e) => setShowSkeleton(e.target.checked)}
-              className="h-6 w-6 accent-accent"
-            />
-            Show the app&apos;s skeleton on the video
-          </label>
-        )}
       </div>
     </div>
   );
-}
+});
