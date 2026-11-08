@@ -1,8 +1,7 @@
-"use client";
-
-import { useState } from "react";
+import { Card } from "@/components/ui/Card";
+import { cardTitle } from "@/components/ui/styles";
 import { confidenceLabel } from "@/lib/format";
-import type { ConfidenceSummary } from "@/lib/types";
+import type { ConfidenceLevel, ConfidenceSummary } from "@/lib/types";
 
 type Props = {
   confidence: ConfidenceSummary;
@@ -12,45 +11,47 @@ type Props = {
 /** Limitations arrive highest priority first; only the top few are shown. */
 export const MAX_LIMITATIONS = 3;
 
+function barClass(level: ConfidenceLevel): string {
+  if (level === "LOW") return "bg-warn";
+  if (level === "MODERATE") return "bg-accent-soft";
+  return "bg-accent";
+}
+
 export function ConfidenceSummaryPanel({ confidence, limitations }: Props) {
-  const [open, setOpen] = useState(false);
   const shown = (limitations ?? []).slice(0, MAX_LIMITATIONS);
 
   return (
-    <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between text-left"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Analysis confidence
-          </h2>
-          <p className="mt-1 text-lg font-semibold">
-            {confidenceLabel(confidence.overall)}
-          </p>
-        </div>
-        <span className="text-sm text-[var(--accent)]">
-          {open ? "Hide details" : "Details"}
-        </span>
-      </button>
+    <Card aria-labelledby="confidence-title" className="flex flex-col gap-3.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 id="confidence-title" className={cardTitle}>
+          How sure are we?
+        </h2>
+        <p className="text-sm">
+          <span className="text-text-muted">Overall </span>
+          <span className="font-semibold">{confidenceLabel(confidence.overall)}</span>
+        </p>
+      </div>
 
       {confidence.message && (
-        <p className="mt-3 text-sm text-[var(--muted)]">{confidence.message}</p>
+        <p className="text-sm text-text-soft">{confidence.message}</p>
       )}
 
-      {open && (
-        <ul className="mt-4 space-y-2 border-t border-[var(--border)] pt-3">
+      {confidence.components.length > 0 && (
+        <ul className="flex flex-col gap-2.5 text-sm">
           {confidence.components.map((c) => (
             <li
               key={c.id}
-              className="flex items-center justify-between text-sm"
+              className="grid grid-cols-[minmax(0,9.5rem)_1fr_auto] items-center gap-3"
             >
-              <span>{c.label}</span>
+              <span className="text-text-soft">{c.label}</span>
+              <span className="h-1.5 rounded-full bg-border" aria-hidden>
+                <span
+                  className={`block h-full rounded-full ${barClass(c.level)}`}
+                  style={{ width: `${Math.max(0, Math.min(1, c.score)) * 100}%` }}
+                />
+              </span>
               <span
-                className="font-medium"
+                className="text-text-muted"
                 aria-label={`${c.label}: ${confidenceLabel(c.level)}`}
               >
                 {confidenceLabel(c.level)}
@@ -61,15 +62,18 @@ export function ConfidenceSummaryPanel({ confidence, limitations }: Props) {
       )}
 
       {shown.length > 0 && (
-        <ul
-          aria-label="Limitations"
-          className="mt-4 space-y-1 border-t border-[var(--border)] pt-3 text-sm text-[var(--muted)]"
-        >
-          {shown.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-2 border-t border-border pt-3">
+          <h3 className="text-sm font-semibold text-text-muted">Limitations</h3>
+          <ul
+            aria-label="Limitations"
+            className="flex list-disc flex-col gap-1.5 pl-5 text-sm text-text-soft"
+          >
+            {shown.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </div>
       )}
-    </section>
+    </Card>
   );
 }

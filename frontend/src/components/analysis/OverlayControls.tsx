@@ -16,7 +16,7 @@ type Props = {
 export function OverlayControls({ modes }: Props) {
   if (!modes.length) {
     return (
-      <p className="text-sm text-[var(--muted)]">
+      <p className="text-sm text-text-muted">
         No overlay metadata for this analysis.
       </p>
     );
@@ -25,13 +25,13 @@ export function OverlayControls({ modes }: Props) {
   return (
     <ul className="space-y-2 text-sm">
       {modes.map((mode) => (
-        <li key={mode.id} className="text-[var(--muted)]">
-          <span className="font-medium text-[var(--fg)]">{mode.label}</span>
+        <li key={mode.id} className="text-text-muted">
+          <span className="font-medium text-text">{mode.label}</span>
           {mode.note ? ` — ${mode.note}` : ""}
           {!mode.toggleable ? " (baked into analysis video)" : ""}
         </li>
       ))}
-      <li className="text-xs text-[var(--muted)]">
+      <li className="text-xs text-text-muted">
         3D mesh (WHAM) stays experimental and is hidden from the product path.
       </li>
     </ul>

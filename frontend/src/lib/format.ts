@@ -69,6 +69,22 @@ export function confidenceLabel(level: ConfidenceLevel | string): string {
   }
 }
 
+export function cameraViewLabel(view?: string | null): string | null {
+  if (!view || !String(view).trim()) return null;
+  switch (String(view).toUpperCase()) {
+    case "SIDE":
+      return "Side view";
+    case "FRONT":
+      return "Front view";
+    case "REAR":
+      return "Behind view";
+    case "UNKNOWN":
+      return "View not specified";
+    default:
+      return String(view);
+  }
+}
+
 export function severityLabel(statusOrSeverity?: string | null): string {
   const s = String(statusOrSeverity || "").toUpperCase();
   if (s === "MAJOR" || s === "HIGH") return "Major";
