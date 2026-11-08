@@ -109,7 +109,9 @@ stat_labels = Table(
     Column("stat_id", String(100), primary_key=True),
     Column("rating", String(20)),
     Column("comment", Text, nullable=False, default=""),
-    CheckConstraint("rating IN ('good', 'needs_work', 'looks_wrong')", name="rating_value"),
+    CheckConstraint(
+        "rating IN ('good', 'needs_work', 'looks_wrong', 'cant_see')", name="rating_value"
+    ),
 )
 
 upload_jobs = Table(

@@ -1,11 +1,18 @@
 {
-  "config_version": "1.0.0",
-  "notes": "Wording shown to coaches in the labelling workspace. Edit freely; it is re-read on every request. Change a stat's id only together with its source, since saved labels refer to stats by id.",
-  "rating_options": [
-    { "id": "good", "label": "Good", "hint": "This part of the stroke looks right." },
-    { "id": "needs_work", "label": "Needs work", "hint": "The player should improve this." },
-    { "id": "looks_wrong", "label": "Looks wrong", "hint": "The number doesn't match what you see in the video." }
-  ],
+  "config_version": "2.0.0",
+  "notes": "Wording shown to coaches in the review screen. Edit freely; it is re-read on every request. Change a question's id only together with 'replaces', since saved labels refer to questions by id.",
+  "rating_options": {
+    "measured": [
+      { "id": "good", "label": "Good", "hint": "This part of the stroke looks right." },
+      { "id": "needs_work", "label": "Needs work", "hint": "The player should improve this." },
+      { "id": "looks_wrong", "label": "Looks wrong", "hint": "The number doesn't match what you see in the video." }
+    ],
+    "coach_only": [
+      { "id": "good", "label": "Good", "hint": "This part of the stroke looks right." },
+      { "id": "needs_work", "label": "Needs work", "hint": "The player should improve this." },
+      { "id": "cant_see", "label": "Can't see", "hint": "You can't judge this from the video." }
+    ]
+  },
   "overall_ratings": [
     { "value": 1, "label": "Poor" },
     { "value": 2, "label": "Weak" },
@@ -13,78 +20,194 @@
     { "value": 4, "label": "Good" },
     { "value": 5, "label": "Excellent" }
   ],
-  "stats": [
-    {
-      "id": "contact_elbow_angle",
-      "name": "Arm straightness at the hit",
-      "description": "Angle at the elbow when the racket meets the shuttle. 180° is a fully straight arm.",
-      "when": "At the hit",
-      "unit": "deg",
-      "source": { "kind": "metric", "field": "contact_elbow_angle_deg" }
-    },
-    {
-      "id": "contact_hand_height",
-      "name": "Height of the hit",
-      "description": "How far the hitting hand is above the shoulder, in torso lengths (shoulder to hip). Uses the highest hand position within 2 frames of the hit.",
-      "when": "At the hit",
-      "unit": "torso_lengths_above_shoulder",
-      "source": { "kind": "hand_height_at_contact" }
-    },
-    {
-      "id": "contact_shoulder_angle",
-      "name": "Arm raise at the hit",
-      "description": "Angle between the body and the upper arm at the hit. Bigger means the arm is lifted higher.",
-      "when": "At the hit",
-      "unit": "deg",
-      "source": { "kind": "metric", "field": "contact_shoulder_angle_deg" }
-    },
-    {
-      "id": "contact_knee_angle",
-      "name": "Knee bend at the hit",
-      "description": "Angle at the knee when the racket meets the shuttle. 180° is a straight leg.",
-      "when": "At the hit",
-      "unit": "deg",
-      "source": { "kind": "metric", "field": "contact_knee_angle_deg" }
-    },
-    {
-      "id": "preparation_knee_angle",
-      "name": "Knee bend while getting ready",
-      "description": "Average knee angle while getting ready. 180° is standing straight.",
-      "when": "While getting ready",
-      "unit": "deg",
-      "source": { "kind": "metric", "field": "preparation_knee_angle_deg" }
-    },
-    {
-      "id": "preparation_elbow_angle",
-      "name": "Elbow while getting ready",
-      "description": "Average elbow angle of the hitting arm while getting ready.",
-      "when": "While getting ready",
-      "unit": "deg",
-      "source": { "kind": "metric", "field": "preparation_elbow_angle_deg" }
-    },
-    {
-      "id": "leg_drive",
-      "name": "Push from the legs",
-      "description": "How much the knee straightens from its deepest bend into the hit.",
-      "when": "From the deepest knee bend to the hit",
-      "unit": "deg",
-      "source": { "kind": "metric", "field": "knee_contribution_deg" }
-    },
-    {
-      "id": "hand_speed",
-      "name": "Hand speed",
-      "description": "Fastest hand speed in the swing, in torso lengths per second so camera distance doesn't matter.",
-      "when": "Fastest moment of the swing",
-      "unit": "torso_lengths_per_s",
-      "source": { "kind": "metric", "field": "peak_wrist_speed_body_norm" }
-    },
-    {
-      "id": "follow_through",
-      "name": "Follow-through",
-      "description": "Share of the hand speed kept just after the hit. 1 means no slowing down.",
-      "when": "Just after the hit",
-      "unit": "ratio",
-      "source": { "kind": "metric", "field": "follow_through_speed_ratio" }
-    }
-  ]
+  "moments": [
+    { "id": "preparation", "title": "Getting ready", "seek_frame": "preparation_end" },
+    { "id": "contact", "title": "The hit", "seek_frame": "contact" },
+    { "id": "follow_through", "title": "After the hit", "seek_frame": "follow_through_end" }
+  ],
+  "measure_points": {
+    "preparation": { "label": "Average while getting ready", "frame": "preparation_end" },
+    "backswing_end": { "label": "End of the racket-back", "frame": "backswing_end" },
+    "contact": { "label": "At the hit", "frame": "contact" },
+    "contact_window": { "label": "Highest point within 2 frames of the hit", "frame": "contact" },
+    "deepest_knee_to_contact": { "label": "From the deepest knee bend to the hit", "frame": "contact" },
+    "fastest_swing": { "label": "Fastest moment of the swing", "frame": "contact" },
+    "after_contact": { "label": "Just after the hit", "frame": "follow_through_start" }
+  },
+  "question_sets": {
+    "FOREHAND_CLEAR": [
+      {
+        "id": "sideon",
+        "title": "Side-on to the net",
+        "hint": "Shoulders turned sideways before the swing",
+        "moment": "preparation",
+        "kind": "coach_only",
+        "joints": ["left_shoulder", "right_shoulder"]
+      },
+      {
+        "id": "freearm",
+        "title": "Free arm up",
+        "hint": "Non-racket arm raised, pointing at the shuttle",
+        "moment": "preparation",
+        "kind": "coach_only",
+        "joints": ["left_shoulder", "left_elbow", "left_wrist"]
+      },
+      {
+        "id": "prep",
+        "title": "Racket up early",
+        "hint": "Elbow up and racket ready above the shoulder",
+        "moment": "preparation",
+        "kind": "measured",
+        "metric": { "source": { "kind": "wrist_above_shoulder_at_backswing_end" }, "unit": "yes_no", "measured_at": "backswing_end" },
+        "joints": ["right_shoulder", "right_elbow", "right_wrist"]
+      },
+      {
+        "id": "knee",
+        "title": "Weight on back leg, knees bent",
+        "hint": "Loaded and ready to push",
+        "moment": "preparation",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "preparation_knee_angle_deg" }, "unit": "deg", "measured_at": "preparation" },
+        "joints": ["right_hip", "right_knee", "right_ankle"],
+        "replaces": ["preparation_knee_angle"]
+      },
+      {
+        "id": "height",
+        "title": "Hitting high",
+        "hint": "Racket meets the shuttle at full reach",
+        "moment": "contact",
+        "kind": "measured",
+        "metric": { "source": { "kind": "hand_height_at_contact" }, "unit": "torso_lengths_above_shoulder", "measured_at": "contact_window" },
+        "joints": ["right_shoulder", "right_wrist"],
+        "replaces": ["contact_hand_height"]
+      },
+      {
+        "id": "elbow",
+        "title": "Arm straight at the hit",
+        "hint": "Elbow angle, 180° = fully straight",
+        "moment": "contact",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "contact_elbow_angle_deg" }, "unit": "deg", "measured_at": "contact" },
+        "joints": ["right_shoulder", "right_elbow", "right_wrist"],
+        "replaces": ["contact_elbow_angle"]
+      },
+      {
+        "id": "infront",
+        "title": "Hit slightly in front",
+        "hint": "Contact in front of the head, not behind",
+        "moment": "contact",
+        "kind": "coach_only",
+        "joints": ["right_wrist", "nose"]
+      },
+      {
+        "id": "rotate",
+        "title": "Body turns into the hit",
+        "hint": "Hips and shoulders rotate forward",
+        "moment": "contact",
+        "kind": "coach_only",
+        "joints": ["left_shoulder", "right_shoulder", "left_hip", "right_hip"]
+      },
+      {
+        "id": "follow",
+        "title": "Follow-through across the body",
+        "hint": "Racket finishes on the other side",
+        "moment": "follow_through",
+        "kind": "coach_only",
+        "joints": ["right_elbow", "right_wrist"]
+      },
+      {
+        "id": "legs",
+        "title": "Weight moves forward",
+        "hint": "Back leg comes through, ready to recover",
+        "moment": "follow_through",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "knee_contribution_deg" }, "unit": "deg", "measured_at": "deepest_knee_to_contact" },
+        "joints": ["right_hip", "right_knee", "right_ankle"],
+        "replaces": ["leg_drive"]
+      }
+    ],
+    "default": [
+      {
+        "id": "contact_elbow_angle",
+        "title": "Arm straightness at the hit",
+        "hint": "Angle at the elbow when the racket meets the shuttle. 180° is a fully straight arm.",
+        "moment": "contact",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "contact_elbow_angle_deg" }, "unit": "deg", "measured_at": "contact" },
+        "joints": ["right_shoulder", "right_elbow", "right_wrist"]
+      },
+      {
+        "id": "contact_hand_height",
+        "title": "Height of the hit",
+        "hint": "How far the hitting hand is above the shoulder, in torso lengths (shoulder to hip).",
+        "moment": "contact",
+        "kind": "measured",
+        "metric": { "source": { "kind": "hand_height_at_contact" }, "unit": "torso_lengths_above_shoulder", "measured_at": "contact_window" },
+        "joints": ["right_shoulder", "right_wrist"]
+      },
+      {
+        "id": "contact_shoulder_angle",
+        "title": "Arm raise at the hit",
+        "hint": "Angle between the body and the upper arm at the hit. Bigger means the arm is lifted higher.",
+        "moment": "contact",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "contact_shoulder_angle_deg" }, "unit": "deg", "measured_at": "contact" },
+        "joints": ["right_hip", "right_shoulder", "right_elbow"]
+      },
+      {
+        "id": "contact_knee_angle",
+        "title": "Knee bend at the hit",
+        "hint": "Angle at the knee when the racket meets the shuttle. 180° is a straight leg.",
+        "moment": "contact",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "contact_knee_angle_deg" }, "unit": "deg", "measured_at": "contact" },
+        "joints": ["right_hip", "right_knee", "right_ankle"]
+      },
+      {
+        "id": "preparation_knee_angle",
+        "title": "Knee bend while getting ready",
+        "hint": "Average knee angle while getting ready. 180° is standing straight.",
+        "moment": "preparation",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "preparation_knee_angle_deg" }, "unit": "deg", "measured_at": "preparation" },
+        "joints": ["right_hip", "right_knee", "right_ankle"]
+      },
+      {
+        "id": "preparation_elbow_angle",
+        "title": "Elbow while getting ready",
+        "hint": "Average elbow angle of the hitting arm while getting ready.",
+        "moment": "preparation",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "preparation_elbow_angle_deg" }, "unit": "deg", "measured_at": "preparation" },
+        "joints": ["right_shoulder", "right_elbow", "right_wrist"]
+      },
+      {
+        "id": "leg_drive",
+        "title": "Push from the legs",
+        "hint": "How much the knee straightens from its deepest bend into the hit.",
+        "moment": "contact",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "knee_contribution_deg" }, "unit": "deg", "measured_at": "deepest_knee_to_contact" },
+        "joints": ["right_hip", "right_knee", "right_ankle"]
+      },
+      {
+        "id": "hand_speed",
+        "title": "Hand speed",
+        "hint": "Fastest hand speed in the swing, in torso lengths per second so camera distance doesn't matter.",
+        "moment": "contact",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "peak_wrist_speed_body_norm" }, "unit": "torso_lengths_per_s", "measured_at": "fastest_swing" },
+        "joints": ["right_wrist"]
+      },
+      {
+        "id": "follow_through",
+        "title": "Follow-through",
+        "hint": "Share of the hand speed kept just after the hit. 1 means no slowing down.",
+        "moment": "follow_through",
+        "kind": "measured",
+        "metric": { "source": { "kind": "metric", "field": "follow_through_speed_ratio" }, "unit": "ratio", "measured_at": "after_contact" },
+        "joints": ["right_elbow", "right_wrist"]
+      }
+    ]
+  }
 }

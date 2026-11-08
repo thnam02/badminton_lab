@@ -9,7 +9,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.labelling.batches import Batch, BatchStore
-from app.labelling.clips import clip_view
+from app.labelling.clips import answerable_ids, clip_pose, clip_view, normalize_label
 from app.labelling.export import export_batch, rows_to_csv
 from app.labelling.jobs import JobStore, UploadError, create_upload_job, job_view, submit_job
 from app.processing.capture_context import (
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/labelling", tags=["labelling"])
 
 
 class StatLabelIn(BaseModel):
-    rating: Literal["good", "needs_work", "looks_wrong"] | None = None
+    rating: Literal["good", "needs_work", "looks_wrong", "cant_see"] | None = None
     comment: str = ""
 
 
@@ -50,8 +50,8 @@ def _clip(analysis_id: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-def _available(clip: dict) -> list[str]:
-    return [s["id"] for s in clip["stats"] if s["available"]]
+def _status(label: dict | None, clip: dict) -> str:
+    return label_status(normalize_label(label, clip), answerable_ids(clip))
 
 
 def _clip_statuses(batch: Batch, coach: str | None) -> list[dict]:
@@ -74,13 +74,11 @@ def _clip_statuses(batch: Batch, coach: str | None) -> list[dict]:
                 }
             )
             continue
-        available = _available(clip)
         labels = store.for_clip(entry.analysis_id)
         if coach and coach.strip():
-            mine = store.get(entry.analysis_id, coach)
-            status = label_status(mine, available)
+            status = _status(store.get(entry.analysis_id, coach), clip)
         else:
-            statuses = [label_status(lb, available) for lb in labels]
+            statuses = [_status(lb, clip) for lb in labels]
             status = (
                 STATUS_DONE
                 if STATUS_DONE in statuses
@@ -193,8 +191,17 @@ def get_batch_export(
 
 @router.get("/clips/{analysis_id}")
 def get_clip(analysis_id: str) -> dict:
-    """Video, capture context, system hit frame and stats, from saved artifacts only."""
+    """Video, capture context, moments and questions, from saved artifacts only."""
     return _clip(analysis_id)
+
+
+@router.get("/clips/{analysis_id}/pose")
+def get_clip_pose(analysis_id: str) -> dict:
+    """Saved smoothed pose and joint angles per frame, for the review overlay."""
+    try:
+        return clip_pose(analysis_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/clips/{analysis_id}/label")
@@ -204,7 +211,7 @@ def get_clip_label(analysis_id: str, coach: str = Query(..., min_length=1)) -> d
         label = LabelStore().get(analysis_id, coach)
     except LabelError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"label": label, "status": label_status(label, _available(clip))}
+    return {"label": normalize_label(label, clip), "status": _status(label, clip)}
 
 
 @router.put("/clips/{analysis_id}/label")
@@ -214,11 +221,13 @@ def put_clip_label(analysis_id: str, body: ClipLabelIn) -> dict:
         label = LabelStore().save(
             analysis_id,
             body.model_dump(exclude={"batch_id"}),
-            stat_ids={s["id"] for s in clip["stats"]},
+            allowed_ratings={
+                q["id"]: {o["id"] for o in q["rating_options"]} for q in clip["questions"]
+            },
             system_contact_frame=clip["system_contact_frame"],
             frame_count=clip["frame_count"],
             batch_id=body.batch_id,
         )
     except LabelError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {"label": label, "status": label_status(label, _available(clip))}
+    return {"label": normalize_label(label, clip), "status": _status(label, clip)}

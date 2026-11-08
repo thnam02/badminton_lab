@@ -1,4 +1,4 @@
-"""Batch export as CSV and JSON: one row per clip per stat."""
+"""Batch export as CSV and JSON: one row per clip per question."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from app.labelling.export import COLUMNS
 from app.routes import labelling as routes
 from tests.test_labelling_clips import CONTACT, seed_analysis
 
-N_STATS = len(load_stats_config()["stats"])
+N_STATS = len(load_stats_config()["question_sets"]["FOREHAND_CLEAR"])
 
 
 @pytest.fixture
@@ -37,9 +37,10 @@ def batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
             coach="Linh",
             corrected_hit_frame=22,
             stats={
-                "contact_elbow_angle": routes.StatLabelIn(
+                "elbow": routes.StatLabelIn(
                     rating="needs_work", comment='bent, "a lot"\nreach up'
-                )
+                ),
+                "sideon": routes.StatLabelIn(rating="cant_see"),
             },
             overall_rating=3,
             feedback="Reach higher.",
@@ -51,7 +52,7 @@ def batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
     export = routes.get_batch_export(batch, format="json", coach=None)
-    assert export["export_format_version"] == "1.0.0"
+    assert export["export_format_version"] == "1.1.0"
     assert export["columns"] == list(COLUMNS)
     assert export["missing_clips"] == ["gone"]
     rows = export["rows"]
@@ -63,7 +64,7 @@ def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
         ("a2", ""),
     }
     elbow = next(
-        r for r in rows if r["coach"] == "Linh" and r["stat_id"] == "contact_elbow_angle"
+        r for r in rows if r["coach"] == "Linh" and r["stat_id"] == "elbow"
     )
     assert elbow["rating"] == "needs_work"
     assert elbow["system_value"] == 150.0
@@ -75,6 +76,13 @@ def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
         22,
     )
     assert elbow["label_status"] == "in_progress"
+    assert (elbow["moment"], elbow["question_kind"]) == ("contact", "measured")
+    sideon = next(r for r in rows if r["coach"] == "Linh" and r["stat_id"] == "sideon")
+    assert (sideon["rating"], sideon["question_kind"], sideon["system_value"]) == (
+        "cant_see",
+        "coach_only",
+        None,
+    )
     unlabelled = [r for r in rows if r["analysis_id"] == "a2"]
     assert all(r["rating"] is None and r["label_status"] == "not_started" for r in unlabelled)
     assert unlabelled[0]["hit_frame_used"] == CONTACT
@@ -93,7 +101,7 @@ def test_csv_export_matches_json_and_quotes_free_text(batch: str) -> None:
     assert len(parsed) == 3 * N_STATS
     assert list(parsed[0]) == list(COLUMNS)
     elbow = next(
-        r for r in parsed if r["coach"] == "Linh" and r["stat_id"] == "contact_elbow_angle"
+        r for r in parsed if r["coach"] == "Linh" and r["stat_id"] == "elbow"
     )
     assert elbow["comment"] == 'bent, "a lot"\nreach up'
     assert elbow["overall_rating"] == "3"
@@ -105,3 +113,27 @@ def test_unknown_batch_export_is_not_found(batch: str) -> None:
     with pytest.raises(HTTPException) as exc:
         routes.get_batch_export("nope", format="csv", coach=None)
     assert exc.value.status_code == 404
+
+
+def test_answers_under_older_stat_ids_are_exported(batch: str) -> None:
+    from app.labelling.labels import LabelStore
+
+    LabelStore().write(
+        {
+            "analysis_id": "a2",
+            "coach": "Old",
+            "stats": {
+                "contact_elbow_angle": {"rating": "good", "comment": "old elbow"},
+                "contact_shoulder_angle": {"rating": "needs_work", "comment": "old shoulder"},
+            },
+        }
+    )
+    rows = [r for r in routes.get_batch_export(batch, format="json", coach="Old")["rows"]]
+    by_id = {r["stat_id"]: r for r in rows}
+    assert by_id["elbow"]["comment"] == "old elbow"
+    retired = by_id["contact_shoulder_angle"]
+    assert (retired["stat_name"], retired["question_kind"], retired["rating"]) == (
+        "Arm raise at the hit",
+        "retired",
+        "needs_work",
+    )
