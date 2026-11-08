@@ -5,10 +5,12 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.labelling.batches import BatchStore
 from app.labelling.clips import clip_view
+from app.labelling.export import export_batch, rows_to_csv
 from app.labelling.labels import (
     STATUS_DONE,
     STATUS_NOT_STARTED,
@@ -115,6 +117,26 @@ def get_batch(batch_id: str, coach: str | None = Query(default=None)) -> dict:
         "labelled_count": sum(1 for c in clips if c["labelled"]),
         "clips": clips,
     }
+
+
+@router.get("/batches/{batch_id}/export", response_model=None)
+def get_batch_export(
+    batch_id: str,
+    format: Literal["csv", "json"] = Query(default="csv"),
+    coach: str | None = Query(default=None),
+) -> Response | dict:
+    """One row per clip per stat (per coach who labelled it), as CSV or JSON."""
+    try:
+        export = export_batch(batch_id, coach=coach)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if format == "json":
+        return export
+    return Response(
+        content=rows_to_csv(export["rows"]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{batch_id}_labels.csv"'},
+    )
 
 
 @router.get("/clips/{analysis_id}")
