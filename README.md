@@ -134,7 +134,10 @@ SESSION_SECRET=...      # must match the backend
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-Sign in at [http://localhost:3000/login](http://localhost:3000/login).
+Sign in at [http://localhost:3000/login](http://localhost:3000/login). The admin
+password opens `/admin` (datasets per technique, create a dataset, edit due
+dates, export labels); the coach password opens `/coach` (Jeff's datasets,
+most urgent first, and the labelling screen).
 
 ### Coach labelling database (Postgres)
 

@@ -234,7 +234,9 @@ describe("LabellingWorkspace", () => {
       target: { value: "Camera a bit far." },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save and next clip →" }));
-    expect(await screen.findByText("Clip 2 of 2")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Forehand clear · Dataset 2 · Video 2 of 2 · due 20 Nov" })
+    ).toBeTruthy();
     const [id, body] = saveClipLabel.mock.calls.at(-1)!;
     expect(id).toBe("a1");
     expect(body).toMatchObject({
@@ -247,6 +249,29 @@ describe("LabellingWorkspace", () => {
       general_comment: "Camera a bit far.",
       stats: { elbow: { rating: "needs_work", comment: "" } },
     });
+  });
+
+  it("says which dataset and video this is, with a way back to the dataset", async () => {
+    render(<LabellingWorkspace batchId="set-1" />);
+    expect(
+      await screen.findByRole("heading", { name: "Forehand clear · Dataset 2 · Video 1 of 2 · due 20 Nov" })
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "← Back to Dataset 2" }).getAttribute("href")).toBe(
+      "/coach/datasets/set-1"
+    );
+    expect(screen.getByText("0 of 2 done")).toBeTruthy();
+  });
+
+  it("opens the video asked for in the link", async () => {
+    labelled.add("a1");
+    render(<LabellingWorkspace batchId="set-1" startPosition={1} />);
+    expect(await screen.findByRole("heading", { name: /Video 1 of 2/ })).toBeTruthy();
+  });
+
+  it("starts at the first unlabelled video otherwise", async () => {
+    labelled.add("a1");
+    render(<LabellingWorkspace batchId="set-1" />);
+    expect(await screen.findByRole("heading", { name: /Video 2 of 2/ })).toBeTruthy();
   });
 
   it("offers this stroke's questions plus 'Something not listed' as the main fix", async () => {

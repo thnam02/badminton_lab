@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SessionGate } from "@/components/auth/SessionGate";
 import { HitFinder, type HitFinderHandle } from "@/components/labelling/HitFinder";
@@ -7,10 +8,10 @@ import { PoseOverlay } from "@/components/labelling/PoseOverlay";
 import { QuestionCard } from "@/components/labelling/QuestionCard";
 import { Card } from "@/components/ui/Card";
 import { mediaUrl } from "@/lib/api";
+import { formatDue } from "@/lib/datasets";
 import { fetchPose, type PoseFeed } from "@/lib/overlay";
 import {
   EMPTY_DRAFT,
-  exportUrl,
   fetchDataset,
   fetchClip,
   fetchClipLabel,
@@ -27,15 +28,29 @@ const AUTOSAVE_DELAY_MS = 800;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-type Props = { batchId: string };
+type Props = {
+  batchId: string;
+  /** Video to open first (1-based); otherwise the first one not yet labelled. */
+  startPosition?: number;
+};
 
-export function LabellingWorkspace({ batchId }: Props) {
+export function LabellingWorkspace({ batchId, startPosition }: Props) {
   return (
-    <SessionGate>{(me) => <Workspace batchId={batchId} coach={me.name} />}</SessionGate>
+    <SessionGate>
+      {(me) => <Workspace batchId={batchId} coach={me.name} startPosition={startPosition} />}
+    </SessionGate>
   );
 }
 
-function Workspace({ batchId, coach }: { batchId: string; coach: string }) {
+function Workspace({
+  batchId,
+  coach,
+  startPosition,
+}: {
+  batchId: string;
+  coach: string;
+  startPosition?: number;
+}) {
   const [batch, setBatch] = useState<DatasetDetail | null>(null);
   const [index, setIndex] = useState<number | null>(null);
   const [clip, setClip] = useState<LabellingClip | null>(null);
@@ -62,12 +77,17 @@ function Workspace({ batchId, coach }: { batchId: string; coach: string }) {
   useEffect(() => {
     refreshBatch()
       .then((b) => {
+        const asked = startPosition ? b.clips.findIndex((c) => c.position === startPosition) : -1;
+        if (asked >= 0) {
+          setIndex(asked);
+          return;
+        }
         const firstOpen = b.clips.findIndex((c) => !c.labelled && !c.missing);
         setIndex(firstOpen >= 0 ? firstOpen : 0);
         setFinished(firstOpen < 0 && b.total > 0);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not load batch"));
-  }, [refreshBatch]);
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load the dataset"));
+  }, [refreshBatch, startPosition]);
 
   const current = batch && index != null ? batch.clips[index] : null;
   // Batch refreshes after every save; only a different clip may reload the draft.
@@ -186,15 +206,29 @@ function Workspace({ batchId, coach }: { batchId: string; coach: string }) {
 
   const done = batch.labelled_count;
   const progress = batch.total ? Math.round((done / batch.total) * 100) : 0;
+  const datasetHref = `/coach/datasets/${batch.dataset_id}`;
+  const title = [
+    batch.technique ? `${batch.technique_label} · ${batch.title}` : batch.name,
+    finished ? null : `Video ${index + 1} of ${batch.total}`,
+    batch.due_date ? `due ${formatDue(batch.due_date)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const header = (
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex flex-col">
-        <h1 className="font-display text-2xl font-bold sm:text-[28px]">{batch.name}</h1>
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <Link
+          href={datasetHref}
+          className="inline-flex min-h-12 items-center self-start text-base text-text-muted hover:text-text"
+        >
+          ← Back to {batch.technique ? batch.title : "dataset"}
+        </Link>
+        <h1 className="font-display text-2xl font-bold sm:text-[28px]">{title}</h1>
       </div>
       <div className="flex items-center gap-4">
         <div
           role="progressbar"
-          aria-label="Clips reviewed"
+          aria-label="Videos labelled"
           aria-valuemin={0}
           aria-valuemax={batch.total}
           aria-valuenow={done}
@@ -203,7 +237,7 @@ function Workspace({ batchId, coach }: { batchId: string; coach: string }) {
           <div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} />
         </div>
         <span className="text-lg font-semibold tabular-nums">
-          {finished ? `${done} of ${batch.total} done` : `Clip ${index + 1} of ${batch.total}`}
+          {done} of {batch.total} done
         </span>
       </div>
     </div>
@@ -215,10 +249,10 @@ function Workspace({ batchId, coach }: { batchId: string; coach: string }) {
         {header}
         <Card className="flex flex-col gap-4">
           <h2 className="font-display text-2xl font-bold">
-            {done === batch.total ? "All clips reviewed. Thank you!" : "No more clips waiting"}
+            {done === batch.total ? "All videos labelled. Thank you!" : "No more videos waiting"}
           </h2>
           <p className="text-lg text-text-soft">
-            You reviewed {done} of {batch.total} clips. You can go back and change any answer.
+            You labelled {done} of {batch.total} videos. You can go back and change any answer.
           </p>
           <div className="flex flex-wrap gap-3">
             <button
@@ -229,14 +263,14 @@ function Workspace({ batchId, coach }: { batchId: string; coach: string }) {
               }}
               className="min-h-14 rounded-2xl border-2 border-border bg-surface-2 px-6 text-lg font-semibold"
             >
-              Back to clip 1
+              Back to video 1
             </button>
-            <a
-              href={exportUrl(batch.batch_id, "csv")}
+            <Link
+              href={datasetHref}
               className="inline-flex min-h-14 items-center rounded-2xl px-4 text-lg font-semibold"
             >
-              Download labels (CSV)
-            </a>
+              Back to {batch.technique ? batch.title : "dataset"}
+            </Link>
           </div>
         </Card>
       </div>
