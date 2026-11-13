@@ -14,6 +14,7 @@ from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     Column,
+    Date,
     DateTime,
     Engine,
     ForeignKey,
@@ -48,6 +49,7 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# A batch is a labelling dataset: "Dataset {number}" of one technique.
 batches = Table(
     "labelling_batches",
     metadata,
@@ -55,6 +57,11 @@ batches = Table(
     Column("name", String(200), nullable=False),
     Column("batch_format_version", String(20), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, default=utcnow),
+    Column("technique", String(40)),
+    Column("number", Integer),
+    Column("due_date", Date),
+    Column("note", Text, nullable=False, default="", server_default=""),
+    UniqueConstraint("technique", "number", name="uq_labelling_batches_technique_number"),
 )
 
 batch_clips = Table(
@@ -142,6 +149,9 @@ upload_job_clips = Table(
     Column("status", String(20), nullable=False),
     Column("analysis_id", ID),
     Column("error", Text),
+    # Per-video capture context; older jobs used the job-level values.
+    Column("handedness", String(20)),
+    Column("camera_view", String(20)),
     ForeignKeyConstraint(["job_id"], ["labelling_upload_jobs.job_id"], ondelete="CASCADE"),
 )
 

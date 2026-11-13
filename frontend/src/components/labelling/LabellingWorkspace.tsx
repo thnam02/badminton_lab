@@ -11,12 +11,12 @@ import { fetchPose, type PoseFeed } from "@/lib/overlay";
 import {
   EMPTY_DRAFT,
   exportUrl,
-  fetchBatch,
+  fetchDataset,
   fetchClip,
   fetchClipLabel,
   saveClipLabel,
   type LabelDraft,
-  type LabellingBatch,
+  type DatasetDetail,
   type LabellingClip,
   type MomentId,
   type ReviewMoment,
@@ -36,7 +36,7 @@ export function LabellingWorkspace({ batchId }: Props) {
 }
 
 function Workspace({ batchId, coach }: { batchId: string; coach: string }) {
-  const [batch, setBatch] = useState<LabellingBatch | null>(null);
+  const [batch, setBatch] = useState<DatasetDetail | null>(null);
   const [index, setIndex] = useState<number | null>(null);
   const [clip, setClip] = useState<LabellingClip | null>(null);
   const [draft, setDraft] = useState<LabelDraft>(EMPTY_DRAFT);
@@ -55,8 +55,8 @@ function Workspace({ batchId, coach }: { batchId: string; coach: string }) {
   const [showSkeleton, setShowSkeleton] = useState(true);
 
   const refreshBatch = useCallback(
-    () => fetchBatch(batchId, coach).then((b) => (setBatch(b), b)),
-    [batchId, coach]
+    () => fetchDataset(batchId).then((b) => (setBatch(b), b)),
+    [batchId]
   );
 
   useEffect(() => {

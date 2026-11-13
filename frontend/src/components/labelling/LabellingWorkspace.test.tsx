@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LabelDraft, LabellingBatch, LabellingClip, ReviewQuestion } from "@/lib/labelling";
+import type { DatasetDetail, LabelDraft, LabellingClip, ReviewQuestion } from "@/lib/labelling";
 import { LabellingWorkspace } from "./LabellingWorkspace";
 
 const MEASURED = [
@@ -77,7 +77,7 @@ function clip(id: string): LabellingClip {
 
 const labelled = new Set<string>();
 
-function batch(): LabellingBatch {
+function batch(): DatasetDetail {
   const clips = ["a1", "a2"].map((id, i) => ({
     position: i + 1,
     analysis_id: id,
@@ -85,16 +85,28 @@ function batch(): LabellingBatch {
     missing: false,
     status: labelled.has(id) ? ("done" as const) : ("not_started" as const),
     labelled: labelled.has(id),
-    coach_count: 0,
   }));
   return {
+    dataset_id: "set-1",
     batch_id: "set-1",
     name: "Side-view set 1",
+    technique: "FOREHAND_CLEAR",
+    technique_label: "Forehand clear",
+    number: 2,
+    title: "Dataset 2",
+    note: "",
     created_at: "",
-    coach: "Linh",
+    due_date: "2026-11-20",
+    days_left: 10,
+    video_count: 2,
+    processing_count: 0,
+    clip_count: 2,
+    status: labelled.size ? "in_progress" : "not_started",
+    coach: "Jeff",
     total: 2,
     labelled_count: labelled.size,
     clips,
+    uploads: [],
   };
 }
 
@@ -107,7 +119,7 @@ const saveClipLabel = vi.fn(async (id: string, body: SaveBody) => {
 
 vi.mock("@/lib/labelling", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/labelling")>()),
-  fetchBatch: async () => batch(),
+  fetchDataset: async () => batch(),
   fetchClip: async (id: string) => clip(id),
   fetchClipLabel: async () => ({ label: null, status: "not_started" }),
   saveClipLabel: (id: string, body: SaveBody) => saveClipLabel(id, body),

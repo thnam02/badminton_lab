@@ -73,7 +73,7 @@ def test_login_sets_an_httponly_cookie_and_me_reports_the_role(client: TestClien
 
 
 def test_labelling_api_needs_a_session(client: TestClient) -> None:
-    for path in ("/labelling/batches", "/labelling/clips/a1", "/labelling/clips/a1/pose"):
+    for path in ("/labelling/datasets", "/labelling/datasets/x", "/labelling/clips/a1", "/labelling/clips/a1/pose"):
         assert client.get(path).status_code == 401, path
     assert client.put("/labelling/clips/a1/label", json={}).status_code == 401
     _login(client, COACH_PW)
@@ -83,10 +83,11 @@ def test_labelling_api_needs_a_session(client: TestClient) -> None:
 def test_coach_cannot_use_admin_endpoints(client: TestClient) -> None:
     _login(client, COACH_PW)
     assert client.get("/labelling/jobs/abc").status_code == 403
-    assert client.get("/labelling/batches/x/export").status_code == 403
+    assert client.get("/labelling/datasets/x/export").status_code == 403
+    assert client.patch("/labelling/datasets/x", json={"due_date": "2030-01-01"}).status_code == 403
     res = client.post(
-        "/labelling/batches",
-        data={"name": "x"},
+        "/labelling/datasets",
+        data={"technique": "FOREHAND_CLEAR", "due_date": "2030-01-01"},
         files=[("files", ("a.mp4", b"x", "video/mp4"))],
     )
     assert res.status_code == 403

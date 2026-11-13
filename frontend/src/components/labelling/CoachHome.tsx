@@ -6,7 +6,7 @@ import { SessionGate } from "@/components/auth/SessionGate";
 import { Card } from "@/components/ui/Card";
 import { ChevronRightIcon } from "@/components/ui/icons";
 import { pageTitle } from "@/components/ui/styles";
-import { fetchBatches, type BatchSummary } from "@/lib/labelling";
+import { fetchDatasets, type DatasetSummary } from "@/lib/labelling";
 
 export function CoachHome() {
   return (
@@ -15,13 +15,13 @@ export function CoachHome() {
 }
 
 function BatchList({ coach }: { coach: string }) {
-  const [batches, setBatches] = useState<BatchSummary[] | null>(null);
+  const [batches, setBatches] = useState<DatasetSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setBatches(null);
-    fetchBatches(coach)
+    fetchDatasets()
       .then((b) => !cancelled && setBatches(b))
       .catch((err) => !cancelled && setError(err instanceof Error ? err.message : "Could not load"));
     return () => {

@@ -433,7 +433,7 @@ def test_labels_saved_under_older_stat_ids_stay_readable(outputs: Path) -> None:
     assert label["stats"]["contact_shoulder_angle"]["rating"] == "good"
 
 
-def test_batch_endpoint_reports_labelled_clips(outputs: Path) -> None:
+def test_dataset_endpoint_reports_the_coachs_labelled_clips(outputs: Path) -> None:
     seed_analysis(outputs, "a1")
     seed_analysis(outputs, "a2", elbow=None)
     BatchStore().save(
@@ -451,22 +451,18 @@ def test_batch_endpoint_reports_labelled_clips(outputs: Path) -> None:
     )
     routes.put_clip_label("a2", routes.ClipLabelIn(coach="Jeff", overall_rating=2))
 
-    batch = routes.get_batch("set-1", coach="jeff")
-    assert (batch["total"], batch["labelled_count"]) == (3, 1)
+    batch = routes.get_dataset("set-1")
+    assert (batch["total"], batch["labelled_count"], batch["coach"]) == (3, 1, "Jeff")
     assert [(c["analysis_id"], c["status"]) for c in batch["clips"]] == [
         ("a1", "done"),
         ("a2", "in_progress"),
         ("gone", "not_started"),
     ]
     assert batch["clips"][2]["missing"] is True
-    assert routes.get_batch("set-1", coach="Minh")["labelled_count"] == 0
-    assert routes.get_batch("set-1", coach=None)["labelled_count"] == 1
-    listed = routes.get_batches(coach="JEFF")["batches"]
+    listed = routes.get_datasets()["datasets"]
     assert [(b["batch_id"], b["name"], b["clip_count"], b["labelled_count"]) for b in listed] == [
         ("set-1", "Set 1", 3, 1)
     ]
-    assert routes.get_batches(coach="Minh")["batches"][0]["labelled_count"] == 0
-    assert routes.get_batches(coach=None)["batches"][0]["labelled_count"] == 1
 
 
 def test_label_endpoints_round_trip_and_reject_bad_input(outputs: Path) -> None:
@@ -483,7 +479,7 @@ def test_label_endpoints_round_trip_and_reject_bad_input(outputs: Path) -> None:
             "a1", routes.ClipLabelIn(coach="Jeff", stats={"nope": routes.StatLabelIn(rating="good")})
         )
     assert exc.value.status_code == 422
-    for call in (lambda: routes.get_clip("zzz"), lambda: routes.get_batch("missing-batch")):
+    for call in (lambda: routes.get_clip("zzz"), lambda: routes.get_dataset("missing-batch")):
         with pytest.raises(HTTPException) as exc:
             call()
         assert exc.value.status_code == 404

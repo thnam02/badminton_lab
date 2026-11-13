@@ -1,16 +1,21 @@
-"""Labelling batches and the create-batch CLI."""
+"""Labelling batches and the create-dataset CLI."""
 
 from __future__ import annotations
 
 import inspect
-import json
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
 
+from app.config import settings
 from app.labelling import cli
 from app.labelling.batches import Batch, BatchClip, BatchStore
+from app.labelling.datasets import DatasetError
 from app.routes.analyze import analyze
+from tests.test_labelling_clips import seed_analysis
+
+DUE = (date.today() + timedelta(days=14)).isoformat()
 
 
 def _clips(folder: Path, names: list[str]) -> None:
@@ -19,91 +24,143 @@ def _clips(folder: Path, names: list[str]) -> None:
         (folder / name).write_bytes(b"video:" + name.encode())
 
 
-def test_folder_batch_runs_each_clip_and_keeps_raw_videos(tmp_path: Path) -> None:
-    folder = tmp_path / "clips"
-    _clips(folder, ["b.mov", "a.mp4", "notes.txt"])
-    store = BatchStore(tmp_path / "outputs")
-    calls = []
+def _seeding_analyzer(root: Path, calls: list, fail: str | None = None):
+    """Stands in for /analyze: records the call and saves the analysis artifacts."""
 
-    def fake_analyzer(path: Path, stroke: str, hand: str, view: str) -> str:
+    def analyzer(path: Path, stroke: str, hand: str, view: str) -> str:
         calls.append((path.name, stroke, hand, view))
-        return f"id{len(calls)}"
+        if path.name == fail:
+            raise RuntimeError("Processing produced no output")
+        analysis_id = f"id{len(calls)}"
+        seed_analysis(root, analysis_id, stroke=stroke)
+        return analysis_id
 
-    batch, failures = cli.create_batch_from_folder(
+    return analyzer
+
+
+def test_folder_dataset_runs_each_clip_and_keeps_raw_videos(tmp_path: Path) -> None:
+    outputs = tmp_path / "outputs"
+    outputs.mkdir()
+    folder = tmp_path / "clips"
+    _clips(folder, ["e.mov", "a.mp4", "b.mp4", "c.mp4", "d.mp4", "notes.txt"])
+    store = BatchStore(outputs)
+    calls: list = []
+
+    batch, failures = cli.create_dataset_from_folder(
         folder,
-        name="Side-view set 1",
-        stroke="FOREHAND_CLEAR",
+        technique="FOREHAND_CLEAR",
+        due_date=DUE,
+        note="Side view",
         handedness="RIGHT",
         camera_view="SIDE",
         store=store,
-        analyzer=fake_analyzer,
+        analyzer=_seeding_analyzer(outputs, calls),
         log=lambda _msg: None,
     )
     assert failures == []
-    assert calls == [
-        ("a.mp4", "FOREHAND_CLEAR", "RIGHT", "SIDE"),
-        ("b.mov", "FOREHAND_CLEAR", "RIGHT", "SIDE"),
-    ]
-    assert batch.batch_id.startswith("side-view-set-1-")
-    assert [(c.analysis_id, c.source_file, c.raw_video) for c in batch.clips] == [
-        ("id1", "a.mp4", "labelling/videos/id1.mp4"),
-        ("id2", "b.mov", "labelling/videos/id2.mov"),
-    ]
-    assert (tmp_path / "outputs/labelling/videos/id2.mov").read_bytes() == b"video:b.mov"
+    assert [c[0] for c in calls] == ["a.mp4", "b.mp4", "c.mp4", "d.mp4", "e.mov"]
+    assert all(c[1:] == ("FOREHAND_CLEAR", "RIGHT", "SIDE") for c in calls)
+    assert (batch.technique, batch.number, batch.due_date, batch.note) == (
+        "FOREHAND_CLEAR",
+        1,
+        DUE,
+        "Side view",
+    )
+    assert batch.name == "Forehand clear · Dataset 1"
+    assert [(c.analysis_id, c.source_file, c.raw_video) for c in batch.clips][-1] == (
+        "id5",
+        "e.mov",
+        "labelling/videos/id5.mov",
+    )
+    assert (outputs / "labelling/videos/id5.mov").read_bytes() == b"video:e.mov"
     saved = store.get(batch.batch_id)
-    assert saved.batch_format_version == "1.0.0"
     assert saved.clips == batch.clips
     assert saved.created_at
 
 
 def test_failed_clips_are_reported_and_skipped(tmp_path: Path) -> None:
+    outputs = tmp_path / "out"
+    outputs.mkdir()
     folder = tmp_path / "clips"
-    _clips(folder, ["bad.mp4", "good.mp4"])
-
-    def analyzer(path: Path, *_args) -> str:
-        if path.name == "bad.mp4":
-            raise RuntimeError("Processing produced no output")
-        return "good1"
-
-    batch, failures = cli.create_batch_from_folder(
+    _clips(folder, [f"{n}.mp4" for n in ("a", "bad", "c", "d", "e", "f")])
+    batch, failures = cli.create_dataset_from_folder(
         folder,
-        name="x",
-        stroke="FOREHAND_SMASH",
+        technique="FOREHAND_SMASH",
+        due_date=DUE,
         handedness="LEFT",
         camera_view="SIDE",
-        store=BatchStore(tmp_path / "out"),
-        analyzer=analyzer,
+        store=BatchStore(outputs),
+        analyzer=_seeding_analyzer(outputs, [], fail="bad.mp4"),
         log=lambda _msg: None,
     )
-    assert [c.analysis_id for c in batch.clips] == ["good1"]
+    assert len(batch.clips) == 5
+    assert batch.technique == "FOREHAND_SMASH"
     assert [(p.name, d) for p, d in failures] == [("bad.mp4", "Processing produced no output")]
 
 
-def test_empty_folder_creates_no_batch(tmp_path: Path) -> None:
+def test_too_many_failures_leave_no_dataset(tmp_path: Path) -> None:
+    outputs = tmp_path / "out"
+    outputs.mkdir()
     folder = tmp_path / "clips"
-    _clips(folder, ["readme.txt"])
-    with pytest.raises(ValueError, match="No .mp4 or .mov"):
-        cli.create_batch_from_folder(
+    _clips(folder, [f"{n}.mp4" for n in ("a", "bad", "c", "d", "e")])
+    with pytest.raises(DatasetError, match="Only 4 of 5 clips were analysed"):
+        cli.create_dataset_from_folder(
             folder,
-            name="x",
-            stroke="FOREHAND_CLEAR",
+            technique="FOREHAND_CLEAR",
+            due_date=DUE,
+            handedness="RIGHT",
+            camera_view="SIDE",
+            store=BatchStore(outputs),
+            analyzer=_seeding_analyzer(outputs, [], fail="bad.mp4"),
+            log=lambda _msg: None,
+        )
+    assert BatchStore(outputs).list() == []
+
+
+@pytest.mark.parametrize(
+    ("names", "message"),
+    [
+        (["readme.txt"], "No .mp4 or .mov"),
+        ([f"{i}.mp4" for i in range(4)], "needs 5 to 10 videos"),
+        ([f"{i}.mp4" for i in range(11)], "needs 5 to 10 videos"),
+    ],
+)
+def test_folder_size_is_checked_before_any_analysis(
+    tmp_path: Path, names: list[str], message: str
+) -> None:
+    folder = tmp_path / "clips"
+    _clips(folder, names)
+    calls: list = []
+    with pytest.raises(ValueError, match=message):
+        cli.create_dataset_from_folder(
+            folder,
+            technique="FOREHAND_CLEAR",
+            due_date=DUE,
             handedness="RIGHT",
             camera_view="SIDE",
             store=BatchStore(tmp_path / "out"),
-            analyzer=lambda *_a: "never",
+            analyzer=_seeding_analyzer(tmp_path, calls),
         )
-    assert not (tmp_path / "out/labelling/batches").exists()
+    assert calls == []
+    assert BatchStore(tmp_path / "out").list() == []
 
 
-def test_cli_creates_a_batch_from_existing_ids(
+def test_cli_creates_a_dataset_from_existing_ids(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(cli, "BatchStore", lambda: BatchStore(tmp_path))
-    assert cli.main(["create", "--analysis-ids", "abc", "def", "--name", "Quick check"]) == 0
+    monkeypatch.setattr(settings, "output_dir", tmp_path)
+    ids = [f"a{i}" for i in range(5)]
+    for analysis_id in ids:
+        seed_analysis(tmp_path, analysis_id)
+    argv = ["create", "--analysis-ids", *ids, "--technique", "FOREHAND_CLEAR", "--due", DUE]
+    assert cli.main(argv) == 0
     out = capsys.readouterr().out
     batch_id = out.split("(")[1].split(")")[0]
-    assert f"http://localhost:3000/coach/{batch_id}" in out
-    assert [c.analysis_id for c in BatchStore(tmp_path).get(batch_id).clips] == ["abc", "def"]
+    assert f"http://localhost:3000/coach/datasets/{batch_id}" in out
+    assert [c.analysis_id for c in BatchStore().get(batch_id).clips] == ids
+
+    assert cli.main(["create", "--analysis-ids", *ids[:4], "--due", DUE]) == 1
+    assert "needs 5 to 10 videos" in capsys.readouterr().err
 
 
 def test_unsafe_ids_are_rejected(tmp_path: Path) -> None:

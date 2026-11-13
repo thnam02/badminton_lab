@@ -1,4 +1,4 @@
-"""Coach labelling workspace: batches, clip views and coach labels."""
+"""Coach labelling workspace: datasets, clip views and coach labels."""
 
 from __future__ import annotations
 
@@ -10,23 +10,21 @@ from pydantic import BaseModel, Field
 
 from app.auth import ROLE_COACH, Session, require_admin, require_coach, require_signed_in
 from app.config import settings
-from app.labelling.batches import Batch, BatchStore
+from app.labelling.batches import Batch, BatchClip, BatchStore
+from app.labelling.datasets import (
+    DatasetError,
+    clip_statuses,
+    create_dataset,
+    dataset_summary,
+    list_datasets,
+    update_dataset,
+)
 from app.labelling.clips import answerable_ids, clip_pose, clip_view, normalize_label
 from app.labelling.export import export_batch, rows_to_csv
-from app.labelling.jobs import JobStore, UploadError, create_upload_job, job_view, submit_job
-from app.processing.capture_context import (
-    InvalidCaptureContextError,
-    normalize_camera_view,
-    normalize_handedness,
-)
+from app.labelling.jobs import JobStore, UploadError, job_view, submit_job
+from app.processing.capture_context import InvalidCaptureContextError
 from app.schemas.stroke_types import UnsupportedStrokeError, normalize_stroke_type
-from app.labelling.labels import (
-    STATUS_DONE,
-    STATUS_NOT_STARTED,
-    LabelError,
-    LabelStore,
-    label_status,
-)
+from app.labelling.labels import LabelError, LabelStore, label_status
 
 # Everything here needs a signed-in admin or coach; some routes narrow that further.
 router = APIRouter(
@@ -62,92 +60,61 @@ def _status(label: dict | None, clip: dict) -> str:
     return label_status(normalize_label(label, clip), answerable_ids(clip))
 
 
-def _clip_statuses(batch: Batch, coach: str | None) -> list[dict]:
-    """Each clip's label status: this coach's if given, otherwise any coach's."""
-    store = LabelStore()
-    clips = []
-    for position, entry in enumerate(batch.clips, start=1):
-        try:
-            clip = clip_view(entry.analysis_id)
-        except FileNotFoundError:
-            clips.append(
-                {
-                    "position": position,
-                    "analysis_id": entry.analysis_id,
-                    "source_file": entry.source_file,
-                    "missing": True,
-                    "status": STATUS_NOT_STARTED,
-                    "labelled": False,
-                    "coach_count": 0,
-                }
-            )
-            continue
-        labels = store.for_clip(entry.analysis_id)
-        if coach and coach.strip():
-            status = _status(store.get(entry.analysis_id, coach), clip)
-        else:
-            statuses = [_status(lb, clip) for lb in labels]
-            status = (
-                STATUS_DONE
-                if STATUS_DONE in statuses
-                else statuses[0] if statuses else STATUS_NOT_STARTED
-            )
-        clips.append(
-            {
-                "position": position,
-                "analysis_id": entry.analysis_id,
-                "source_file": entry.source_file,
-                "stroke_type": clip["stroke_type"],
-                "missing": False,
-                "status": status,
-                "labelled": status == STATUS_DONE,
-                "coach_count": len(labels),
-            }
-        )
-    return clips
+class DatasetUpdateIn(BaseModel):
+    due_date: str | None = None
+    note: str | None = None
 
 
-@router.get("/batches")
-def get_batches(coach: str | None = Query(default=None)) -> dict:
-    """All batches with clip counts and labelled counts (for this coach, if given)."""
-    batches = BatchStore().list()
-    items = []
-    for b in batches:
-        clips = _clip_statuses(b, coach)
-        items.append(
-            {
-                "batch_id": b.batch_id,
-                "name": b.name,
-                "clip_count": len(b.clips),
-                "labelled_count": sum(1 for c in clips if c["labelled"]),
-                "created_at": b.created_at,
-            }
-        )
-    return {"count": len(items), "coach": coach, "batches": items}
+def _dataset(dataset_id: str) -> Batch:
+    try:
+        return BatchStore().get(dataset_id)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/batches", status_code=202)
-def post_batch(
-    files: list[UploadFile] = File(...),
-    name: str = Form(...),
-    stroke_type: str = Form(default="FOREHAND_CLEAR"),
-    handedness: str = Form(default="RIGHT"),
-    camera_view: str = Form(default="SIDE"),
+@router.get("/datasets")
+def get_datasets() -> dict:
+    """Every dataset with the coach's progress and its status, in the coach's order."""
+    items = list_datasets(coach=settings.coach_name)
+    return {"count": len(items), "coach": settings.coach_name, "datasets": items}
+
+
+@router.post("/datasets", status_code=202)
+def post_dataset(
+    technique: str = Form(...),
+    due_date: str = Form(...),
+    note: str = Form(default=""),
+    files: list[UploadFile] = File(default=[]),
+    handedness: list[str] = Form(default=[]),
+    camera_view: list[str] = Form(default=[]),
+    existing_ids: list[str] = Form(default=[]),
     _admin: Session = Depends(require_admin),
 ) -> dict:
-    """Upload clips as a new batch; they are analysed one by one in the background."""
-    try:
-        job = create_upload_job(
-            [(f.filename or "", f.file) for f in files],
-            name=name,
-            stroke=normalize_stroke_type(stroke_type).value,
-            handedness=normalize_handedness(handedness),
-            camera_view=normalize_camera_view(camera_view),
+    """Create Dataset N: upload 5-10 videos (each with its own handedness and camera
+    view; analysed in the background) and/or pick analyses that already exist."""
+    if len(handedness) != len(files) or len(camera_view) != len(files):
+        raise HTTPException(
+            status_code=422, detail="Each uploaded video needs a handedness and a camera view."
         )
-    except (UploadError, UnsupportedStrokeError, InvalidCaptureContextError) as exc:
+    try:
+        batch, job = create_dataset(
+            technique=normalize_stroke_type(technique).value,
+            due_date=due_date,
+            note=note,
+            uploads=[
+                (f.filename or "", f.file, hand, view)
+                for f, hand, view in zip(files, handedness, camera_view)
+            ],
+            existing=[BatchClip(analysis_id=aid) for aid in existing_ids if aid],
+        )
+    except (DatasetError, UploadError, UnsupportedStrokeError, InvalidCaptureContextError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    submit_job(job["job_id"])
-    return job_view(job)
+    if job is not None:
+        submit_job(job["job_id"])
+    return {
+        "dataset": dataset_summary(batch),
+        "job": job_view(job) if job is not None else None,
+    }
 
 
 @router.get("/jobs/{job_id}")
@@ -159,35 +126,44 @@ def get_job(job_id: str, _admin: Session = Depends(require_admin)) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.get("/batches/{batch_id}")
-def get_batch(batch_id: str, coach: str | None = Query(default=None)) -> dict:
-    """Clips in the batch and whether each is labelled (by this coach, if given)."""
-    try:
-        batch = BatchStore().get(batch_id)
-    except (FileNotFoundError, ValueError) as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    clips = _clip_statuses(batch, coach)
+@router.get("/datasets/{dataset_id}")
+def get_dataset(dataset_id: str) -> dict:
+    """The dataset, its videos with the coach's label status, and upload progress."""
+    batch = _dataset(dataset_id)
+    clips = clip_statuses(batch, settings.coach_name)
+    summary = dataset_summary(batch, clips=clips)
     return {
-        "batch_id": batch.batch_id,
-        "name": batch.name,
-        "created_at": batch.created_at,
-        "coach": coach,
-        "total": len(clips),
-        "labelled_count": sum(1 for c in clips if c["labelled"]),
+        **summary,
         "clips": clips,
+        "uploads": [job_view(job) for job in JobStore().for_batch(dataset_id)],
+        # Older field names, still read by earlier screens.
+        "total": len(clips),
+        "coach": settings.coach_name,
     }
 
 
-@router.get("/batches/{batch_id}/export", response_model=None)
-def get_batch_export(
-    batch_id: str,
+@router.patch("/datasets/{dataset_id}")
+def patch_dataset(
+    dataset_id: str, body: DatasetUpdateIn, _admin: Session = Depends(require_admin)
+) -> dict:
+    _dataset(dataset_id)
+    try:
+        batch = update_dataset(dataset_id, due_date=body.due_date, note=body.note)
+    except DatasetError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return dataset_summary(batch)
+
+
+@router.get("/datasets/{dataset_id}/export", response_model=None)
+def get_dataset_export(
+    dataset_id: str,
     format: Literal["csv", "json"] = Query(default="csv"),
     coach: str | None = Query(default=None),
     _admin: Session = Depends(require_admin),
 ) -> Response | dict:
-    """One row per clip per stat (per coach who labelled it), as CSV or JSON."""
+    """One row per video per question (per coach who labelled it), as CSV or JSON."""
     try:
-        export = export_batch(batch_id, coach=coach)
+        export = export_batch(dataset_id, coach=coach)
     except (FileNotFoundError, ValueError) as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if format == "json":
@@ -195,7 +171,7 @@ def get_batch_export(
     return Response(
         content=rows_to_csv(export["rows"]),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{batch_id}_labels.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="{dataset_id}_labels.csv"'},
     )
 
 

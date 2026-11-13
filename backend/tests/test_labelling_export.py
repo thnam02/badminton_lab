@@ -55,8 +55,8 @@ def batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 
 def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
-    export = routes.get_batch_export(batch, format="json", coach=None)
-    assert export["export_format_version"] == "2.0.0"
+    export = routes.get_dataset_export(batch, format="json", coach=None)
+    assert export["export_format_version"] == "2.1.0"
     assert export["columns"] == list(COLUMNS)
     assert export["missing_clips"] == ["gone"]
     rows = export["rows"]
@@ -99,12 +99,12 @@ def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
 
 
 def test_export_can_be_limited_to_one_coach(batch: str) -> None:
-    rows = routes.get_batch_export(batch, format="json", coach="jeff")["rows"]
+    rows = routes.get_dataset_export(batch, format="json", coach="jeff")["rows"]
     assert {r["coach"] for r in rows if r["analysis_id"] == "a1"} == {"Jeff"}
 
 
 def test_csv_export_matches_json_and_quotes_free_text(batch: str) -> None:
-    response = routes.get_batch_export(batch, format="csv", coach=None)
+    response = routes.get_dataset_export(batch, format="csv", coach=None)
     assert response.media_type.startswith("text/csv")
     assert 'filename="set-1_labels.csv"' in response.headers["content-disposition"]
     parsed = list(csv.DictReader(io.StringIO(response.body.decode())))
@@ -127,7 +127,7 @@ def test_csv_export_matches_json_and_quotes_free_text(batch: str) -> None:
 
 def test_unknown_batch_export_is_not_found(batch: str) -> None:
     with pytest.raises(HTTPException) as exc:
-        routes.get_batch_export("nope", format="csv", coach=None)
+        routes.get_dataset_export("nope", format="csv", coach=None)
     assert exc.value.status_code == 404
 
 
@@ -144,7 +144,7 @@ def test_answers_under_older_stat_ids_are_exported(batch: str) -> None:
             },
         }
     )
-    rows = [r for r in routes.get_batch_export(batch, format="json", coach="Old")["rows"]]
+    rows = [r for r in routes.get_dataset_export(batch, format="json", coach="Old")["rows"]]
     by_id = {r["stat_id"]: r for r in rows}
     assert by_id["elbow"]["comment"] == "old elbow"
     retired = by_id["contact_shoulder_angle"]

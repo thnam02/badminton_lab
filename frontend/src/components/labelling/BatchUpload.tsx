@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { buttonPrimary, buttonSecondary, cardTitle, inputBase, pageTitle } from "@/components/ui/styles";
 import {
+  createDataset,
   fetchUploadJob,
-  uploadBatch,
+  type Technique,
   type UploadClipStatus,
   type UploadJob,
 } from "@/lib/labelling";
@@ -14,7 +15,7 @@ import {
 const ACCEPTED = ".mp4,.mov,video/mp4,video/quicktime";
 const POLL_MS = 2000;
 
-const STROKES = [
+const STROKES: { value: Technique; label: string }[] = [
   { value: "FOREHAND_CLEAR", label: "Forehand clear" },
   { value: "FOREHAND_SMASH", label: "Forehand smash" },
 ];
@@ -41,8 +42,8 @@ const radioCard =
   "flex min-h-12 cursor-pointer items-center gap-2.5 rounded-xl border-2 px-4 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent";
 
 export function BatchUpload() {
-  const [name, setName] = useState("");
-  const [stroke, setStroke] = useState(STROKES[0].value);
+  const [due, setDue] = useState("");
+  const [stroke, setStroke] = useState<Technique>(STROKES[0].value);
   const [hand, setHand] = useState(HANDS[0].value);
   const [view, setView] = useState(VIEWS[0].value);
   const [files, setFiles] = useState<File[]>([]);
@@ -76,12 +77,17 @@ export function BatchUpload() {
     setError(null);
     setUploadProgress(0);
     try {
-      setJob(
-        await uploadBatch(
-          { name, strokeType: stroke, handedness: hand, cameraView: view, files },
-          setUploadProgress
-        )
+      const created = await createDataset(
+        {
+          technique: stroke,
+          dueDate: due,
+          note: "",
+          videos: files.map((file) => ({ file, handedness: hand, cameraView: view })),
+          existingIds: [],
+        },
+        setUploadProgress
       );
+      setJob(created.job);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -92,10 +98,10 @@ export function BatchUpload() {
   if (job) return <JobProgress job={job} error={error} />;
 
   const uploading = uploadProgress !== null;
-  const blocked = !name.trim()
-    ? "Give the batch a name."
-    : files.length === 0
-      ? "Choose at least one clip."
+  const blocked = !due
+    ? "Choose a due date."
+    : files.length < 5 || files.length > 10
+      ? `Choose 5 to 10 clips (${files.length} chosen).`
       : null;
 
   return (
@@ -117,12 +123,11 @@ export function BatchUpload() {
       >
         <Card className="flex flex-col gap-4">
           <label className="flex flex-col gap-2 font-semibold">
-            Batch name
+            Due date
             <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Side-view clears, set 1"
+              type="date"
+              value={due}
+              onChange={(e) => setDue(e.target.value)}
               className={`${inputBase} font-normal`}
             />
           </label>
@@ -147,7 +152,7 @@ export function BatchUpload() {
           >
             <span className="font-semibold">Drop clips here or choose files</span>
             <span className="text-[13px] text-text-muted">
-              MP4 or MOV, as many as you like. One stroke per clip works best.
+              MP4 or MOV, 5 to 10 clips. One stroke per clip works best.
             </span>
             <input
               type="file"
@@ -188,7 +193,13 @@ export function BatchUpload() {
         <Card className="flex flex-col gap-5">
           <h2 className={cardTitle}>About these clips</h2>
           <p className="-mt-3 text-sm text-text-muted">Applies to every clip in this batch.</p>
-          <Choice legend="Stroke" name="stroke" options={STROKES} value={stroke} onChange={setStroke} />
+          <Choice
+            legend="Stroke"
+            name="stroke"
+            options={STROKES}
+            value={stroke}
+            onChange={(v) => setStroke(v as Technique)}
+          />
           <Choice legend="Which hand holds the racket?" name="hand" options={HANDS} value={hand} onChange={setHand} />
           <Choice legend="Where was the camera?" name="view" options={VIEWS} value={view} onChange={setView} />
         </Card>

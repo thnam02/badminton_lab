@@ -18,10 +18,12 @@ from app.labelling.clips import (
 )
 from app.labelling.labels import LabelStore, coach_slug, label_status
 
-EXPORT_FORMAT_VERSION = "2.0.0"
+EXPORT_FORMAT_VERSION = "2.1.0"
 
 COLUMNS = (
     "batch_id",
+    "technique",
+    "dataset_number",
     "clip_position",
     "analysis_id",
     "source_file",
@@ -84,6 +86,8 @@ def export_batch(
             corrected = lb.get("corrected_hit_frame")
             base = {
                 "batch_id": batch.batch_id,
+                "technique": batch.technique,
+                "dataset_number": batch.number,
                 "clip_position": position,
                 "analysis_id": entry.analysis_id,
                 "source_file": entry.source_file,
@@ -140,6 +144,9 @@ def export_batch(
         "export_format_version": EXPORT_FORMAT_VERSION,
         "batch_id": batch.batch_id,
         "name": batch.name,
+        "technique": batch.technique,
+        "dataset_number": batch.number,
+        "due_date": batch.due_date,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "coach": coach,
         "columns": list(COLUMNS),

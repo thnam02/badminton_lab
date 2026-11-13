@@ -1,7 +1,5 @@
 import { API_BASE } from "./api";
 
-export const COACH_NAME_KEY = "badminton-lab.coach-name";
-
 export type StatRating = "good" | "needs_work" | "looks_wrong" | "cant_see";
 
 export type MomentId = "preparation" | "contact" | "follow_through";
@@ -46,25 +44,53 @@ export type LabellingClip = {
 
 export type ClipStatus = "not_started" | "in_progress" | "done";
 
-export type BatchClipSummary = {
+export type Technique = "FOREHAND_CLEAR" | "FOREHAND_SMASH";
+
+export type DatasetStatus = "not_started" | "in_progress" | "done" | "overdue";
+
+/** A numbered set of 5–10 videos of one technique, with the coach's progress. */
+export type DatasetSummary = {
+  dataset_id: string;
+  /** Null only for batches made before datasets existed and not yet migrated. */
+  technique: Technique | null;
+  technique_label: string;
+  number: number | null;
+  title: string;
+  note: string;
+  created_at: string;
+  /** ISO date (YYYY-MM-DD), or null for older batches. */
+  due_date: string | null;
+  /** Negative once overdue. */
+  days_left: number | null;
+  /** Includes uploaded videos still being analysed. */
+  video_count: number;
+  processing_count: number;
+  labelled_count: number;
+  status: DatasetStatus;
+  /** Same as dataset_id; older screens and labels call it batch_id. */
+  batch_id: string;
+  name: string;
+  clip_count: number;
+};
+
+export type DatasetClip = {
   position: number;
   analysis_id: string;
   source_file: string;
   stroke_type?: string;
+  handedness?: string | null;
+  camera_view?: string | null;
   missing: boolean;
   status: ClipStatus;
   labelled: boolean;
-  coach_count: number;
 };
 
-export type LabellingBatch = {
-  batch_id: string;
-  name: string;
-  created_at: string;
-  coach: string | null;
+export type DatasetDetail = DatasetSummary & {
+  coach: string;
+  /** Videos ready to label (excludes ones still processing). */
   total: number;
-  labelled_count: number;
-  clips: BatchClipSummary[];
+  clips: DatasetClip[];
+  uploads: UploadJob[];
 };
 
 export type StatLabel = { rating: StatRating | null; comment: string };
@@ -120,19 +146,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-export type BatchSummary = {
-  batch_id: string;
-  name: string;
-  clip_count: number;
-  /** Clips this coach has finished. */
-  labelled_count: number;
-  created_at: string;
-};
-
-export async function fetchBatches(coach: string): Promise<BatchSummary[]> {
-  const qs = new URLSearchParams({ coach });
-  const data = await request<{ batches: BatchSummary[] }>(`/labelling/batches?${qs}`);
-  return data.batches || [];
+/** Every dataset with Jeff's progress: overdue first, then nearest due date. */
+export async function fetchDatasets(): Promise<DatasetSummary[]> {
+  const data = await request<{ datasets: DatasetSummary[] }>("/labelling/datasets");
+  return data.datasets || [];
 }
 
 export type UploadClipStatus = "queued" | "processing" | "done" | "failed";
@@ -150,6 +167,8 @@ export type UploadJob = {
     status: UploadClipStatus;
     analysis_id: string | null;
     error: string | null;
+    handedness: string | null;
+    camera_view: string | null;
   }[];
   total: number;
   done_count: number;
@@ -157,28 +176,38 @@ export type UploadJob = {
   remaining_count: number;
 };
 
-export type BatchUploadInput = {
-  name: string;
-  strokeType: string;
-  handedness: string;
-  cameraView: string;
-  files: File[];
+export type DatasetVideoInput = { file: File; handedness: string; cameraView: string };
+
+export type DatasetInput = {
+  technique: Technique;
+  /** YYYY-MM-DD */
+  dueDate: string;
+  note: string;
+  videos: DatasetVideoInput[];
+  /** Analyses that already exist, added without processing. */
+  existingIds: string[];
 };
 
-/** Upload clips as a new batch; XHR so upload progress (0–1) can be shown. */
-export function uploadBatch(
-  input: BatchUploadInput,
+export type CreatedDataset = { dataset: DatasetSummary; job: UploadJob | null };
+
+/** Create a dataset; XHR so upload progress (0–1) can be shown. */
+export function createDataset(
+  input: DatasetInput,
   onProgress?: (fraction: number) => void
-): Promise<UploadJob> {
+): Promise<CreatedDataset> {
   const form = new FormData();
-  form.append("name", input.name);
-  form.append("stroke_type", input.strokeType);
-  form.append("handedness", input.handedness);
-  form.append("camera_view", input.cameraView);
-  for (const file of input.files) form.append("files", file);
+  form.append("technique", input.technique);
+  form.append("due_date", input.dueDate);
+  form.append("note", input.note);
+  for (const v of input.videos) {
+    form.append("files", v.file);
+    form.append("handedness", v.handedness);
+    form.append("camera_view", v.cameraView);
+  }
+  for (const id of input.existingIds) form.append("existing_ids", id);
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${API_BASE}/labelling/batches`);
+    xhr.open("POST", `${API_BASE}/labelling/datasets`);
     xhr.withCredentials = true;
     xhr.responseType = "json";
     xhr.upload.onprogress = (e) => {
@@ -186,7 +215,7 @@ export function uploadBatch(
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(xhr.response as UploadJob);
+        resolve(xhr.response as CreatedDataset);
       } else {
         const detail = xhr.response?.detail;
         reject(new Error(typeof detail === "string" ? detail : `Upload failed (${xhr.status})`));
@@ -201,9 +230,18 @@ export function fetchUploadJob(jobId: string): Promise<UploadJob> {
   return request(`/labelling/jobs/${encodeURIComponent(jobId)}`);
 }
 
-export function fetchBatch(batchId: string, coach: string): Promise<LabellingBatch> {
-  const qs = new URLSearchParams({ coach });
-  return request(`/labelling/batches/${encodeURIComponent(batchId)}?${qs}`);
+export function fetchDataset(datasetId: string): Promise<DatasetDetail> {
+  return request(`/labelling/datasets/${encodeURIComponent(datasetId)}`);
+}
+
+export function updateDataset(
+  datasetId: string,
+  body: { due_date?: string; note?: string }
+): Promise<DatasetSummary> {
+  return request(`/labelling/datasets/${encodeURIComponent(datasetId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }
 
 export function fetchClip(analysisId: string): Promise<LabellingClip> {
@@ -228,8 +266,8 @@ export function saveClipLabel(
   });
 }
 
-export function exportUrl(batchId: string, format: "csv" | "json"): string {
-  return `${API_BASE}/labelling/batches/${encodeURIComponent(batchId)}/export?format=${format}`;
+export function exportUrl(datasetId: string, format: "csv" | "json"): string {
+  return `${API_BASE}/labelling/datasets/${encodeURIComponent(datasetId)}/export?format=${format}`;
 }
 
 export function formatStatValue(value: number | null, unit: string | null): string {

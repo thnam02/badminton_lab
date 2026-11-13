@@ -138,7 +138,7 @@ Sign in at [http://localhost:3000/login](http://localhost:3000/login).
 
 ### Coach labelling database (Postgres)
 
-Coach batches, reviews, per-stat comments, upload jobs and video records are
+Coach datasets, reviews, per-stat comments, upload jobs and video records are
 stored in Postgres (video files themselves stay in `outputs/`). The default
 connection is `postgresql+psycopg:///badminton_lab` (local socket, current
 user); override it with `DATABASE_URL` in `backend/.env`.
@@ -147,6 +147,18 @@ user); override it with `DATABASE_URL` in `backend/.env`.
 cd backend && source .venv/bin/activate
 python -m app.labelling.cli init-db        # creates the database if missing, applies migrations
 python -m app.labelling.cli import-files   # one-off: moves older JSON labelling data in
+```
+
+A dataset is 5–10 videos of one technique (forehand clear or smash), numbered
+per technique, with a due date. Besides the admin page, the CLI can create one
+from a folder (each clip runs through the analysis pipeline) or from existing
+analyses:
+
+```bash
+python -m app.labelling.cli create --folder ~/clips/set1 --technique FOREHAND_CLEAR \
+    --due 2026-11-20 --handedness RIGHT --camera-view SIDE --note "Side view"
+python -m app.labelling.cli create --analysis-ids ID1 ID2 ID3 ID4 ID5 \
+    --technique FOREHAND_CLEAR --due 2026-11-20
 ```
 
 After changing tables in `app/labelling/db.py`, add a migration with
