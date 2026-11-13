@@ -1,8 +1,9 @@
-"""Batch uploads from the website, analysed in the background."""
+"""Dataset uploads from the website, analysed in the background."""
 
 from __future__ import annotations
 
 import io
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,7 @@ from starlette.datastructures import UploadFile
 
 from app.config import settings
 from app.labelling import jobs as jobs_module
-from app.labelling.batches import BatchStore
+from app.labelling.batches import Batch, BatchStore
 from app.labelling.jobs import (
     JobStore,
     UploadError,
@@ -21,56 +22,53 @@ from app.labelling.jobs import (
 )
 from app.routes import labelling as routes
 
-
-def _files(*names: str) -> list[tuple[str, io.BytesIO]]:
-    return [(n, io.BytesIO(f"video:{n}".encode())) for n in names]
+DUE = (date.today() + timedelta(days=10)).isoformat()
 
 
-def _job(tmp_path: Path, *names: str) -> dict:
+def _uploads(*clips: tuple[str, str, str]) -> list[tuple[str, io.BytesIO, str, str]]:
+    return [(n, io.BytesIO(f"video:{n}".encode()), hand, view) for n, hand, view in clips]
+
+
+def _job(tmp_path: Path, *clips: tuple[str, str, str]) -> dict:
+    BatchStore(tmp_path).save(Batch(batch_id="set-2", name="Set 2"))
     return create_upload_job(
-        _files(*names),
-        name=" Side-view   set 2 ",
+        _uploads(*clips),
+        batch_id="set-2",
+        batch_name="Set 2",
         stroke="FOREHAND_CLEAR",
-        handedness="RIGHT",
-        camera_view="SIDE",
         output_dir=tmp_path,
     )
 
 
-def test_upload_creates_the_batch_at_once_and_stages_clips(tmp_path: Path) -> None:
-    job = _job(tmp_path, "a.mp4", "b one.MOV")
-    batch = BatchStore(tmp_path).get(job["batch_id"])
-    assert batch.name == "Side-view set 2"
-    assert batch.clips == []
-    assert [c["source_file"] for c in job["clips"]] == ["a.mp4", "b one.MOV"]
+def test_upload_stages_clips_with_their_own_capture_context(tmp_path: Path) -> None:
+    job = _job(tmp_path, ("a.mp4", "RIGHT", "SIDE"), ("b one.MOV", "LEFT", "SIDE"))
+    assert (job["handedness"], job["camera_view"]) == ("MIXED", "SIDE")
+    saved = JobStore(tmp_path).get(job["job_id"])
+    assert [(c["source_file"], c["handedness"], c["camera_view"]) for c in saved["clips"]] == [
+        ("a.mp4", "RIGHT", "SIDE"),
+        ("b one.MOV", "LEFT", "SIDE"),
+    ]
     assert all(c["status"] == "queued" for c in job["clips"])
     staged = sorted(p.name for p in JobStore(tmp_path).staging_dir(job["job_id"]).iterdir())
     assert staged == ["000_a.mp4", "001_b_one.MOV"]
+    assert [j["job_id"] for j in JobStore(tmp_path).for_batch("set-2")] == [job["job_id"]]
 
 
 @pytest.mark.parametrize(
-    ("names", "name", "message"),
-    [
-        ((), "x", "at least one clip"),
-        (("notes.txt",), "x", "not an .mp4 or .mov"),
-        (("a.mp4",), "   ", "Give the batch a name"),
-    ],
+    ("clips", "message"),
+    [((), "at least one clip"), ((("notes.txt", "RIGHT", "SIDE"),), "not an .mp4 or .mov")],
 )
-def test_bad_uploads_are_refused(tmp_path: Path, names: tuple, name: str, message: str) -> None:
+def test_bad_uploads_are_refused(tmp_path: Path, clips: tuple, message: str) -> None:
     with pytest.raises(UploadError, match=message):
         create_upload_job(
-            _files(*names),
-            name=name,
-            stroke="FOREHAND_CLEAR",
-            handedness="RIGHT",
-            camera_view="SIDE",
-            output_dir=tmp_path,
+            _uploads(*clips), batch_id="x", batch_name="x", stroke="FOREHAND_CLEAR", output_dir=tmp_path
         )
-    assert BatchStore(tmp_path).list() == []
 
 
-def test_clips_are_analysed_one_by_one_and_added_to_the_batch(tmp_path: Path) -> None:
-    job = _job(tmp_path, "a.mp4", "bad.mp4", "c.mov")
+def test_clips_are_analysed_one_by_one_and_added_to_the_dataset(tmp_path: Path) -> None:
+    job = _job(
+        tmp_path, ("a.mp4", "RIGHT", "SIDE"), ("bad.mp4", "RIGHT", "SIDE"), ("c.mov", "LEFT", "REAR")
+    )
     calls = []
 
     def analyzer(path: Path, stroke: str, hand: str, view: str) -> str:
@@ -83,7 +81,7 @@ def test_clips_are_analysed_one_by_one_and_added_to_the_batch(tmp_path: Path) ->
     assert calls == [
         ("000_a.mp4", "FOREHAND_CLEAR", "RIGHT", "SIDE"),
         ("001_bad.mp4", "FOREHAND_CLEAR", "RIGHT", "SIDE"),
-        ("002_c.mov", "FOREHAND_CLEAR", "RIGHT", "SIDE"),
+        ("002_c.mov", "FOREHAND_CLEAR", "LEFT", "REAR"),
     ]
     assert done["status"] == "done"
     assert [(c["status"], c["analysis_id"], c["error"]) for c in done["clips"]] == [
@@ -91,7 +89,7 @@ def test_clips_are_analysed_one_by_one_and_added_to_the_batch(tmp_path: Path) ->
         ("failed", None, "Processing produced no output for "),
         ("done", "id3", None),
     ]
-    batch = BatchStore(tmp_path).get(job["batch_id"])
+    batch = BatchStore(tmp_path).get("set-2")
     assert [(c.analysis_id, c.source_file, c.raw_video) for c in batch.clips] == [
         ("id1", "a.mp4", "labelling/videos/id1.mp4"),
         ("id3", "c.mov", "labelling/videos/id3.mov"),
@@ -103,7 +101,7 @@ def test_clips_are_analysed_one_by_one_and_added_to_the_batch(tmp_path: Path) ->
 
 
 def test_running_job_without_a_worker_is_reported_interrupted(tmp_path: Path) -> None:
-    job = _job(tmp_path, "a.mp4")
+    job = _job(tmp_path, ("a.mp4", "RIGHT", "SIDE"))
     assert job_view(job)["status"] == "interrupted"
     jobs_module._active.add(job["job_id"])
     try:
@@ -112,47 +110,89 @@ def test_running_job_without_a_worker_is_reported_interrupted(tmp_path: Path) ->
         jobs_module._active.discard(job["job_id"])
 
 
-def test_upload_route_starts_the_job(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _files(n: int, suffix: str = ".mp4") -> list[UploadFile]:
+    return [UploadFile(file=io.BytesIO(b"x"), filename=f"clip{i}{suffix}") for i in range(n)]
+
+
+def _post(n: int = 5, **overrides) -> dict:
+    args = {
+        "technique": "forehand_smash",
+        "due_date": DUE,
+        "note": "  Watch the elbow  ",
+        "files": _files(n),
+        "handedness": ["left"] * n,
+        "camera_view": ["side"] * n,
+        "existing_ids": [],
+        **overrides,
+    }
+    return routes.post_dataset(**args)
+
+
+def test_dataset_route_starts_the_upload_job(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "output_dir", tmp_path)
     submitted = []
-    monkeypatch.setattr(routes, "submit_job", submitted.append)
-    result = routes.post_batch(
-        files=[UploadFile(file=io.BytesIO(b"x"), filename="clip.mp4")],
-        name="Set 3",
-        stroke_type="forehand_smash",
-        handedness="left",
-        camera_view="side",
+
+    def submit(job_id: str) -> None:
+        submitted.append(job_id)
+        jobs_module._active.add(job_id)
+
+    monkeypatch.setattr(routes, "submit_job", submit)
+    try:
+        result = _post()
+    finally:
+        jobs_module._active.difference_update(submitted)
+    dataset, job = result["dataset"], result["job"]
+    assert submitted == [job["job_id"]]
+    assert (dataset["technique"], dataset["number"], dataset["title"]) == (
+        "FOREHAND_SMASH",
+        1,
+        "Dataset 1",
     )
-    assert submitted == [result["job_id"]]
-    assert (result["stroke_type"], result["handedness"], result["camera_view"]) == (
+    assert (dataset["due_date"], dataset["note"]) == (DUE, "Watch the elbow")
+    assert (dataset["video_count"], dataset["processing_count"], dataset["status"]) == (
+        5,
+        5,
+        "not_started",
+    )
+    assert (job["stroke_type"], job["handedness"], job["camera_view"], job["total"]) == (
         "FOREHAND_SMASH",
         "LEFT",
         "SIDE",
+        5,
     )
-    assert result["total"] == 1
-    assert routes.get_job(result["job_id"])["batch_id"] == result["batch_id"]
-    assert routes.get_batches(coach=None)["batches"][0]["name"] == "Set 3"
+    assert routes.get_job(job["job_id"])["batch_id"] == dataset["dataset_id"]
+    detail = routes.get_dataset(dataset["dataset_id"])
+    assert [u["job_id"] for u in detail["uploads"]] == [job["job_id"]]
+    assert _post()["dataset"]["number"] == 2
 
 
-def test_upload_route_rejects_bad_input(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"files": _files(4), "handedness": ["RIGHT"] * 4, "camera_view": ["SIDE"] * 4}, "5 to 10"),
+        ({"files": _files(11), "handedness": ["RIGHT"] * 11, "camera_view": ["SIDE"] * 11}, "5 to 10"),
+        ({"handedness": ["RIGHT"] * 4}, "needs a handedness"),
+        ({"technique": "backhand_drop"}, ""),
+        ({"handedness": ["both"] * 5}, ""),
+        ({"files": _files(5, ".avi")}, "not an .mp4 or .mov"),
+        ({"due_date": "2020-01-01"}, "in the past"),
+        ({"due_date": "soon"}, "not a date"),
+        ({"existing_ids": ["missing"]}, ""),
+    ],
+)
+def test_dataset_route_rejects_bad_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, overrides: dict, message: str
+) -> None:
     monkeypatch.setattr(settings, "output_dir", tmp_path)
     monkeypatch.setattr(routes, "submit_job", lambda _job_id: None)
-    for kwargs in (
-        {"stroke_type": "backhand_drop"},
-        {"handedness": "both"},
-        {"files": [UploadFile(file=io.BytesIO(b"x"), filename="clip.avi")]},
-    ):
-        args = {
-            "files": [UploadFile(file=io.BytesIO(b"x"), filename="clip.mp4")],
-            "name": "Set",
-            "stroke_type": "FOREHAND_CLEAR",
-            "handedness": "RIGHT",
-            "camera_view": "SIDE",
-            **kwargs,
-        }
-        with pytest.raises(HTTPException) as exc:
-            routes.post_batch(**args)
-        assert exc.value.status_code == 422
+    with pytest.raises(HTTPException) as exc:
+        _post(**overrides)
+    assert exc.value.status_code == 422
+    assert message in exc.value.detail
+    assert BatchStore().list() == []
+
+
+def test_unknown_job_is_404() -> None:
     with pytest.raises(HTTPException) as exc:
         routes.get_job("nope")
     assert exc.value.status_code == 404

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New analysis</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0D1210}
+a{color:#3DD68C}a:hover{color:#7BE6B0}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0D1210; color: #E8EEEA; font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.55">
+
+<header style="border-bottom: 1px solid #27332D">
+<div style="max-width: 1280px; margin: 0 auto; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #E8EEEA">
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="21" r="4.5" stroke="#3DD68C" stroke-width="2"></circle><path d="M10.5 18L6 5M14 16.5V4M17.5 18L22 5M8 11h12" stroke="#3DD68C" stroke-width="2" stroke-linecap="round"></path></svg>
+<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 19px; letter-spacing: -0.01em">Badminton Lab</span>
+</a>
+<nav aria-label="Main" style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px">
+<a href="Upload.dc.html" style="color: #E8EEEA; text-decoration: none; padding: 10px 14px; border-radius: 8px; background: #1B2420">Analyze</a>
+<a href="History.dc.html" style="color: #9BA9A2; text-decoration: none; padding: 10px 14px; border-radius: 8px">History</a>
+<a href="History.dc.html" style="color: #9BA9A2; text-decoration: none; padding: 10px 14px; border-radius: 8px">Compare</a>
+</nav>
+</div>
+</header>
+
+<main style="max-width: 1280px; margin: 0 auto; padding: 40px 24px 64px; display: flex; flex-direction: column; gap: 32px">
+<div style="display: flex; flex-direction: column; gap: 10px; max-width: 720px">
+<h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -0.02em">Analyse a stroke</h1>
+<p style="margin: 0; color: #9BA9A2; font-size: 17px">Upload one clip of a forehand smash or clear. We track your movement, find the moment of contact and point out what to work on.</p>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+<form style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+
+<section style="background: #151C19; border: 1px solid #27332D; border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; align-items: center; gap: 12px"><span style="width: 28px; height: 28px; border-radius: 999px; background: {{accent}}; color: #0D1210; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center">1</span><h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600">Your video</h2></div>
+<label style="border: 2px dashed #33403A; border-radius: 16px; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; background: #111815; cursor: pointer">
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect x="6" y="10" width="22" height="20" rx="4" stroke="#3DD68C" stroke-width="2"></rect><path d="M28 17l7-4v14l-7-4" stroke="#3DD68C" stroke-width="2" stroke-linejoin="round"></path></svg>
+<span style="font-weight: 600">Drop a video here or choose a file</span>
+<span style="font-size: 13px; color: #9BA9A2">MP4 or MOV, up to 30 seconds. 60 fps works best.</span>
+<input type="file" accept="video/*" style="position: absolute; width: 1px; height: 1px; opacity: 0">
+</label>
+</section>
+
+<section style="background: #151C19; border: 1px solid #27332D; border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; align-items: center; gap: 12px"><span style="width: 28px; height: 28px; border-radius: 999px; background: {{accent}}; color: #0D1210; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center">2</span><h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600">About the clip</h2></div>
+
+<fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px">
+<legend style="padding: 0; margin-bottom: 10px; font-weight: 600">Which hand holds the racket? <span style="color: #F2B84B; font-weight: 500; font-size: 13px">Required</span></legend>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px">
+<label style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 12px; border: 2px solid {{accent}}; background: rgba(61,214,140,0.08); cursor: pointer"><input type="radio" name="hand" checked style="accent-color: #3DD68C; width: 18px; height: 18px">Right-handed</label>
+<label style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 12px; border: 2px solid #27332D; background: #1B2420; cursor: pointer"><input type="radio" name="hand" style="accent-color: #3DD68C; width: 18px; height: 18px">Left-handed</label>
+<label style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 12px; border: 2px solid #27332D; background: #1B2420; cursor: pointer"><input type="radio" name="hand" style="accent-color: #3DD68C; width: 18px; height: 18px">Not sure</label>
+</div>
+</fieldset>
+
+<fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px">
+<legend style="padding: 0; margin-bottom: 10px; font-weight: 600">Where was the camera?</legend>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px">
+<label style="position: relative; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 2px solid {{accent}}; background: rgba(61,214,140,0.08); cursor: pointer"><span style="display: flex; align-items: center; gap: 10px"><input type="radio" name="view" checked style="accent-color: #3DD68C; width: 18px; height: 18px">Side</span><span style="font-size: 12px; color: #7BE6B0">Recommended</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 2px solid #27332D; background: #1B2420; cursor: pointer"><span style="display: flex; align-items: center; gap: 10px"><input type="radio" name="view" style="accent-color: #3DD68C; width: 18px; height: 18px">Front</span><span style="font-size: 12px; color: #9BA9A2">Limited analysis</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 2px solid #27332D; background: #1B2420; cursor: pointer"><span style="display: flex; align-items: center; gap: 10px"><input type="radio" name="view" style="accent-color: #3DD68C; width: 18px; height: 18px">Behind</span><span style="font-size: 12px; color: #9BA9A2">Limited analysis</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 2px solid #27332D; background: #1B2420; cursor: pointer"><span style="display: flex; align-items: center; gap: 10px"><input type="radio" name="view" style="accent-color: #3DD68C; width: 18px; height: 18px">Not sure</span><span style="font-size: 12px; color: #9BA9A2">Limited analysis</span></label>
+</div>
+</fieldset>
+
+<fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px">
+<legend style="padding: 0; margin-bottom: 10px; font-weight: 600">Stroke</legend>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<label style="display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 999px; border: 2px solid #27332D; background: #1B2420; cursor: pointer"><input type="radio" name="stroke" style="accent-color: #3DD68C; width: 18px; height: 18px">Forehand smash</label>
+<label style="display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 999px; border: 2px solid {{accent}}; background: rgba(61,214,140,0.08); cursor: pointer"><input type="radio" name="stroke" checked style="accent-color: #3DD68C; width: 18px; height: 18px">Forehand clear</label>
+<span style="display: flex; align-items: center; padding: 12px 18px; border-radius: 999px; border: 2px dashed #27332D; color: #9BA9A2">Net shot · coming soon</span>
+<span style="display: flex; align-items: center; padding: 12px 18px; border-radius: 999px; border: 2px dashed #27332D; color: #9BA9A2">Drop · coming soon</span>
+</div>
+</fieldset>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+<p style="margin: 0; font-size: 13px; color: #9BA9A2; max-width: 460px">Analysis usually takes 1 to 3 minutes. You can leave this page; the result will appear in your history.</p>
+<button type="submit" style="font: inherit; font-weight: 600; font-size: 16px; color: #0D1210; background: {{accent}}; border: none; border-radius: 999px; padding: 15px 28px; cursor: pointer; display: inline-flex; align-items: center; gap: 10px">Start analysis<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M4 9h10M10 5l4 4-4 4" stroke="#0D1210" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+</div>
+</form>
+
+<aside aria-label="How to film" style="flex: 1 1 340px; min-width: 0; background: #151C19; border: 1px solid #27332D; border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600">How to film for the best result</h2>
+<svg width="100%" viewBox="0 0 320 170" role="img" aria-label="Top-down view: camera placed to the side of the player, 4 to 6 metres away, at hip height">
+<rect x="1" y="1" width="318" height="168" rx="14" fill="#111815" stroke="#27332D"></rect>
+<path d="M30 130 H290 M30 40 H290 M30 40 V130 M290 40 V130 M160 40 V130" stroke="#33403A" stroke-width="2"></path>
+<circle cx="210" cy="85" r="12" fill="none" stroke="#3DD68C" stroke-width="3"></circle>
+<path d="M210 73 V58" stroke="#3DD68C" stroke-width="3" stroke-linecap="round"></path>
+<rect x="196" y="146" width="28" height="18" rx="4" fill="none" stroke="#F2B84B" stroke-width="2.5"></rect>
+<path d="M210 146 L210 104" stroke="#F2B84B" stroke-width="2" stroke-dasharray="4 4"></path>
+<text x="230" y="128" font-family="Inter, sans-serif" font-size="12" fill="#C9D3CE">4–6 m</text>
+</svg>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; color: #C9D3CE">
+<li style="display: flex; gap: 10px"><span style="color: #3DD68C; font-weight: 700">1</span>Film from the side of your racket arm, at hip height.</li>
+<li style="display: flex; gap: 10px"><span style="color: #3DD68C; font-weight: 700">2</span>Keep your whole body in frame, even when you jump.</li>
+<li style="display: flex; gap: 10px"><span style="color: #3DD68C; font-weight: 700">3</span>Hold the phone still, landscape, in good light.</li>
+<li style="display: flex; gap: 10px"><span style="color: #3DD68C; font-weight: 700">4</span>One player in the frame works best.</li>
+</ul>
+<p style="margin: 0; font-size: 13px; color: #9BA9A2; border-top: 1px solid #27332D; padding-top: 14px">Front and behind views still work, but some checks can't be measured from those angles.</p>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3DD68C","options":["#3DD68C","#4CC9F0","#F2B84B"]},"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#3DD68C' };
+}
+}
+</script>
+</body>
+</html>

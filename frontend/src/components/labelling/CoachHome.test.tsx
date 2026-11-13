@@ -1,71 +1,73 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BatchSummary } from "@/lib/labelling";
+import type { DatasetSummary } from "@/lib/labelling";
+import { summary } from "@/test/fixtures";
 import { CoachHome } from "./CoachHome";
 
-const fetchBatches = vi.fn<(coach: string) => Promise<BatchSummary[]>>();
+const fetchDatasets = vi.fn<() => Promise<DatasetSummary[]>>();
 
 vi.mock("@/lib/labelling", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/labelling")>()),
-  fetchBatches: (coach: string) => fetchBatches(coach),
+  fetchDatasets: () => fetchDatasets(),
 }));
 
-const BATCHES: BatchSummary[] = [
-  { batch_id: "side-set-1-ab12cd", name: "Side-view set 1", clip_count: 20, labelled_count: 7, created_at: "" },
-  { batch_id: "smash-3f9a00", name: "Smash check", clip_count: 1, labelled_count: 1, created_at: "" },
-  { batch_id: "new-000000", name: "New set", clip_count: 5, labelled_count: 0, created_at: "" },
-];
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  usePathname: () => "/coach",
+}));
+vi.mock("@/lib/auth", () => ({
+  fetchMe: async () => ({ role: "coach", name: "Jeff" }),
+}));
 
 beforeEach(() => {
-  window.localStorage.clear();
-  fetchBatches.mockReset();
-  fetchBatches.mockResolvedValue(BATCHES);
+  fetchDatasets.mockReset();
 });
 
 describe("CoachHome", () => {
-  it("reuses the stored name and lists batches with this coach's progress", async () => {
-    window.localStorage.setItem("badminton-lab.coach-name", "Linh");
-    render(<CoachHome />);
-    const list = await screen.findByRole("list", { name: "Labelling batches" });
-    expect(screen.queryByLabelText("Your name")).toBeNull();
-    expect(fetchBatches).toHaveBeenCalledWith("Linh");
-
-    const links = within(list).getAllByRole("link");
-    expect(links.map((a) => a.getAttribute("href"))).toEqual([
-      "/coach/side-set-1-ab12cd",
-      "/coach/smash-3f9a00",
-      "/coach/new-000000",
+  it("greets Jeff and shows a section per technique", async () => {
+    fetchDatasets.mockResolvedValue([
+      summary({ number: 1, technique: "FOREHAND_SMASH", dataset_id: "smash-1" }),
     ]);
-    expect(links[0].textContent).toContain("Side-view set 1");
-    expect(links[0].textContent).toContain("20 clips · 7 reviewed by you");
-    expect(links[0].textContent).toContain("Continue");
-    expect(links[1].textContent).toContain("1 clip · All reviewed");
-    expect(links[2].textContent).toContain("Start");
-    const bar = within(links[0]).getByRole("progressbar");
-    expect([bar.getAttribute("aria-valuenow"), bar.getAttribute("aria-valuemax")]).toEqual(["7", "20"]);
+    render(<CoachHome />);
+    expect(await screen.findByRole("heading", { name: "Hi Jeff", level: 1 })).toBeTruthy();
+    expect(screen.queryByLabelText("Your name")).toBeNull();
+    await screen.findByRole("region", { name: "Forehand smash" });
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(["Forehand clear", "Forehand smash"]);
+    const clears = screen.getByRole("region", { name: "Forehand clear" });
+    expect(within(clears).getByText("Nothing to label yet.")).toBeTruthy();
+    const smashes = within(screen.getByRole("region", { name: "Forehand smash" })).getAllByRole("link");
+    expect(smashes.map((a) => a.getAttribute("href"))).toEqual(["/coach/datasets/smash-1"]);
   });
 
-  it("asks for the name once, remembers it and loads that coach's counts", async () => {
+  it("sorts overdue datasets first, then the nearest due date", async () => {
+    fetchDatasets.mockResolvedValue([
+      summary({ number: 1, status: "done", due_date: "2026-11-01", days_left: -9, labelled_count: 8 }),
+      summary({ number: 2, status: "in_progress", due_date: "2026-11-25", days_left: 15, labelled_count: 3 }),
+      summary({ number: 3, status: "overdue", due_date: "2026-11-05", days_left: -5, labelled_count: 2 }),
+      summary({ number: 4, status: "not_started", due_date: "2026-11-12", days_left: 2 }),
+      summary({ number: 5, status: "not_started", due_date: null, days_left: null }),
+    ]);
     render(<CoachHome />);
-    fireEvent.change(await screen.findByLabelText("Your name"), { target: { value: " Minh " } });
-    fireEvent.click(screen.getByRole("button", { name: "Start reviewing" }));
-    await screen.findByRole("list", { name: "Labelling batches" });
-    expect(fetchBatches).toHaveBeenCalledWith("Minh");
-    expect(window.localStorage.getItem("badminton-lab.coach-name")).toBe("Minh");
-  });
+    const list = await screen.findByRole("list", { name: "Forehand clear datasets" });
+    const cards = within(list).getAllByRole("link");
+    expect(cards.map((c) => c.getAttribute("href"))).toEqual([
+      "/coach/datasets/clear-3",
+      "/coach/datasets/clear-4",
+      "/coach/datasets/clear-2",
+      "/coach/datasets/clear-5",
+      "/coach/datasets/clear-1",
+    ]);
 
-  it("lets another coach take over", async () => {
-    window.localStorage.setItem("badminton-lab.coach-name", "Linh");
-    render(<CoachHome />);
-    fireEvent.click(await screen.findByRole("button", { name: "Not you?" }));
-    expect(screen.getByLabelText("Your name")).toBeTruthy();
-    expect(window.localStorage.getItem("badminton-lab.coach-name")).toBeNull();
-  });
-
-  it("says when there is nothing to review", async () => {
-    window.localStorage.setItem("badminton-lab.coach-name", "Linh");
-    fetchBatches.mockResolvedValue([]);
-    render(<CoachHome />);
-    expect(await screen.findByText(/No clips to review yet/)).toBeTruthy();
+    const [overdue, soon, , undated, done] = cards;
+    expect(overdue.textContent).toContain("Dataset 3");
+    expect(overdue.textContent).toContain("8 videos · 2 labelled");
+    expect(overdue.textContent).toContain("Due 5 Nov · Overdue");
+    expect(soon.textContent).toContain("Due 12 Nov · 2 days left");
+    expect(soon.textContent).toContain("Not started");
+    expect(undated.textContent).toContain("No due date");
+    expect(done.textContent).toContain("Done");
+    const bar = within(overdue).getByRole("progressbar");
+    expect([bar.getAttribute("aria-valuenow"), bar.getAttribute("aria-valuemax")]).toEqual(["2", "8"]);
   });
 });

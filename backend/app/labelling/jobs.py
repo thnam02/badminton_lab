@@ -20,7 +20,7 @@ from typing import Any, BinaryIO
 from sqlalchemy import Engine, delete, insert, select, update
 
 from app.labelling import db
-from app.labelling.batches import Batch, BatchClip, BatchStore, is_safe_id, labelling_dir, new_batch_id
+from app.labelling.batches import BatchClip, BatchStore, is_safe_id, labelling_dir
 from app.labelling.db import get_engine, iso, parse_ts, utcnow
 from app.labelling.cli import VIDEO_SUFFIXES, Analyzer, analyze_clip
 
@@ -33,6 +33,8 @@ JOB_RUNNING = "running"
 JOB_DONE = "done"
 # Server restarted before the job finished; its remaining clips never ran.
 JOB_INTERRUPTED = "interrupted"
+# Job-level handedness / camera view when the clips differ.
+MIXED = "MIXED"
 
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="labelling-batch")
 _active: set[str] = set()
@@ -99,10 +101,21 @@ class JobStore:
                     "status": c.status,
                     "analysis_id": c.analysis_id,
                     "error": c.error,
+                    "handedness": c.handedness,
+                    "camera_view": c.camera_view,
                 }
                 for c in clips
             ],
         }
+
+    def for_batch(self, batch_id: str) -> list[dict[str, Any]]:
+        with self.engine.connect() as conn:
+            ids = conn.execute(
+                select(db.upload_jobs.c.job_id)
+                .where(db.upload_jobs.c.batch_id == batch_id)
+                .order_by(db.upload_jobs.c.created_at)
+            ).scalars().all()
+        return [self.get(job_id) for job_id in ids]
 
     def save(self, job: dict[str, Any]) -> None:
         """Create or replace the job and its clip progress."""
@@ -144,38 +157,40 @@ class JobStore:
                         "status": c["status"],
                         "analysis_id": c.get("analysis_id"),
                         "error": c.get("error"),
+                        "handedness": c.get("handedness"),
+                        "camera_view": c.get("camera_view"),
                     }
                     for i, c in enumerate(job["clips"], start=1)
                 ],
             )
 
 
-def create_upload_job(
-    files: Iterable[tuple[str, BinaryIO]],
-    *,
-    name: str,
-    stroke: str,
-    handedness: str,
-    camera_view: str,
-    output_dir: Path | None = None,
-) -> dict[str, Any]:
-    """Stage the uploaded clips, create the (empty) batch and the job record."""
-    name = " ".join(name.split())
-    if not name:
-        raise UploadError("Give the batch a name.")
-    files = list(files)
-    if not files:
-        raise UploadError("Choose at least one clip.")
-    for filename, _ in files:
+def check_video_names(filenames: Iterable[str]) -> None:
+    for filename in filenames:
         if Path(filename or "").suffix.lower() not in VIDEO_SUFFIXES:
             raise UploadError(f"'{filename}' is not an .mp4 or .mov video.")
+
+
+def create_upload_job(
+    uploads: Iterable[tuple[str, BinaryIO, str, str]],
+    *,
+    batch_id: str,
+    batch_name: str,
+    stroke: str,
+    output_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Stage uploaded clips (filename, file, handedness, camera view) for a dataset."""
+    uploads = list(uploads)
+    if not uploads:
+        raise UploadError("Choose at least one clip.")
+    check_video_names(name for name, _fh, _hand, _view in uploads)
 
     jobs = JobStore(output_dir)
     job_id = uuid.uuid4().hex[:12]
     staging = jobs.staging_dir(job_id)
     staging.mkdir(parents=True, exist_ok=True)
     clips = []
-    for i, (filename, fh) in enumerate(files):
+    for i, (filename, fh, hand, view) in enumerate(uploads):
         staged = staging / f"{i:03d}_{_safe_filename(filename)}"
         with staged.open("wb") as out:
             shutil.copyfileobj(fh, out)
@@ -186,19 +201,21 @@ def create_upload_job(
                 "status": CLIP_QUEUED,
                 "analysis_id": None,
                 "error": None,
+                "handedness": hand,
+                "camera_view": view,
             }
         )
-
-    batch = Batch(batch_id=new_batch_id(name), name=name)
-    BatchStore(output_dir).save(batch)
+    hands = {c["handedness"] for c in clips}
+    views = {c["camera_view"] for c in clips}
     job = {
         "job_format_version": JOB_FORMAT_VERSION,
         "job_id": job_id,
-        "batch_id": batch.batch_id,
-        "batch_name": name,
+        "batch_id": batch_id,
+        "batch_name": batch_name,
         "stroke_type": stroke,
-        "handedness": handedness,
-        "camera_view": camera_view,
+        # Job-level values only summarise; each clip carries its own.
+        "handedness": hands.pop() if len(hands) == 1 else MIXED,
+        "camera_view": views.pop() if len(views) == 1 else MIXED,
         "status": JOB_RUNNING,
         "created_at": _now(),
         "clips": clips,
@@ -221,7 +238,12 @@ def run_job(
         jobs.save(job)
         path = staging / clip["staged_file"]
         try:
-            analysis_id = analyzer(path, job["stroke_type"], job["handedness"], job["camera_view"])
+            analysis_id = analyzer(
+                path,
+                job["stroke_type"],
+                clip.get("handedness") or job["handedness"],
+                clip.get("camera_view") or job["camera_view"],
+            )
             raw = batches.keep_raw_video(path, analysis_id)
             batches.add_clip(
                 job["batch_id"],

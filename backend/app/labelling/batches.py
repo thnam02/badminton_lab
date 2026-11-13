@@ -7,6 +7,7 @@ import re
 import shutil
 import uuid
 from dataclasses import asdict, dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -44,11 +45,18 @@ class BatchClip:
 
 @dataclass(slots=True)
 class Batch:
+    """A labelling dataset: Dataset {number} of one technique (stroke type)."""
+
     batch_id: str
     name: str
     clips: list[BatchClip] = field(default_factory=list)
     created_at: str = ""
     batch_format_version: str = BATCH_FORMAT_VERSION
+    technique: str | None = None
+    number: int | None = None
+    # ISO date (YYYY-MM-DD); labelling stays allowed after it.
+    due_date: str | None = None
+    note: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -68,6 +76,10 @@ class Batch:
             ],
             created_at=str(d.get("created_at") or ""),
             batch_format_version=str(d.get("batch_format_version") or BATCH_FORMAT_VERSION),
+            technique=d.get("technique"),
+            number=d.get("number"),
+            due_date=d.get("due_date"),
+            note=str(d.get("note") or ""),
         )
 
 
@@ -80,6 +92,7 @@ class BatchStore:
     """Batches in the labelling database; kept videos stay on disk under outputs/."""
 
     def __init__(self, output_dir: Path | None = None, engine: Engine | None = None) -> None:
+        self.output_dir = output_dir
         self.root = labelling_dir(output_dir)
         self.videos_dir = self.root / "videos"
         self.engine = engine or get_engine()
@@ -114,6 +127,10 @@ class BatchStore:
                 "name": batch.name,
                 "batch_format_version": batch.batch_format_version,
                 "created_at": created,
+                "technique": batch.technique,
+                "number": batch.number,
+                "due_date": date.fromisoformat(batch.due_date) if batch.due_date else None,
+                "note": batch.note or "",
             }
             if exists:
                 conn.execute(
@@ -199,6 +216,10 @@ def _batch(conn: Connection, row: Any) -> Batch:
         ],
         created_at=iso(row.created_at) or "",
         batch_format_version=row.batch_format_version,
+        technique=row.technique,
+        number=row.number,
+        due_date=row.due_date.isoformat() if row.due_date else None,
+        note=row.note or "",
     )
 
 

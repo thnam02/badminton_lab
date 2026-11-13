@@ -1,15 +1,11 @@
-import { LabellingWorkspace } from "@/components/labelling/LabellingWorkspace";
-import { PageContainer } from "@/components/shell/PageContainer";
+import { redirect } from "next/navigation";
 
 type Props = {
   params: Promise<{ batchId: string }>;
 };
 
-export default async function CoachBatchPage({ params }: Props) {
+/** Older links went straight to a batch's labelling screen. */
+export default async function OldBatchPage({ params }: Props) {
   const { batchId } = await params;
-  return (
-    <PageContainer className="text-lg">
-      <LabellingWorkspace batchId={batchId} />
-    </PageContainer>
-  );
+  redirect(`/coach/datasets/${encodeURIComponent(batchId)}/label`);
 }

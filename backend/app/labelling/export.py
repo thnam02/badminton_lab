@@ -1,4 +1,4 @@
-"""Batch export: one row per clip per stat (per coach who labelled the clip)."""
+"""Batch export: one row per clip per question (per coach who labelled the clip)."""
 
 from __future__ import annotations
 
@@ -9,13 +9,21 @@ from pathlib import Path
 from typing import Any
 
 from app.labelling.batches import BatchStore
-from app.labelling.clips import clip_view
+from app.labelling.clips import (
+    DEFAULT_QUESTION_SET,
+    answerable_ids,
+    clip_view,
+    load_stats_config,
+    normalize_label,
+)
 from app.labelling.labels import LabelStore, coach_slug, label_status
 
-EXPORT_FORMAT_VERSION = "1.0.0"
+EXPORT_FORMAT_VERSION = "2.1.0"
 
 COLUMNS = (
     "batch_id",
+    "technique",
+    "dataset_number",
     "clip_position",
     "analysis_id",
     "source_file",
@@ -27,6 +35,8 @@ COLUMNS = (
     "hit_frame_used",
     "stat_id",
     "stat_name",
+    "moment",
+    "question_kind",
     "measured_when",
     # Measured by the system at its own contact frame, not the corrected one.
     "system_value",
@@ -34,7 +44,10 @@ COLUMNS = (
     "rating",
     "comment",
     "overall_rating",
+    "most_important_fix",
+    "most_important_fix_title",
     "feedback",
+    "general_comment",
     "label_format_version",
     "label_updated_at",
 )
@@ -48,53 +61,92 @@ def export_batch(
     wanted = coach_slug(coach) if coach and coach.strip() else None
     rows: list[dict[str, Any]] = []
     missing: list[str] = []
+    # Titles for answers saved under stat ids no current question replaces.
+    retired = {
+        q["id"]: q["title"] for q in load_stats_config()["question_sets"][DEFAULT_QUESTION_SET]
+    }
     for position, entry in enumerate(batch.clips, start=1):
         try:
             clip = clip_view(entry.analysis_id, output_dir)
         except FileNotFoundError:
             missing.append(entry.analysis_id)
             continue
-        available = [s["id"] for s in clip["stats"] if s["available"]]
+        required = answerable_ids(clip)
+        question_ids = {q["id"] for q in clip["questions"]}
         clip_labels = [
             lb
             for lb in labels.for_clip(entry.analysis_id)
             if wanted is None or coach_slug(lb.get("coach", "")) == wanted
         ]
         system = clip["system_contact_frame"]
+        fix_titles = {o["id"]: o["title"] for o in clip["fix_options"]}
         for label in clip_labels or [None]:
-            lb = label or {}
+            lb = normalize_label(label, clip) or {}
+            answers = lb.get("stats") or {}
             corrected = lb.get("corrected_hit_frame")
-            for stat in clip["stats"]:
-                stat_label = (lb.get("stats") or {}).get(stat["id"]) or {}
+            base = {
+                "batch_id": batch.batch_id,
+                "technique": batch.technique,
+                "dataset_number": batch.number,
+                "clip_position": position,
+                "analysis_id": entry.analysis_id,
+                "source_file": entry.source_file,
+                "stroke_type": clip["stroke_type"],
+                "coach": lb.get("coach", ""),
+                "label_status": label_status(lb if label is not None else None, required),
+                "system_contact_frame": system,
+                "corrected_hit_frame": corrected,
+                "hit_frame_used": corrected if corrected is not None else system,
+                "overall_rating": lb.get("overall_rating"),
+                "most_important_fix": lb.get("most_important_fix"),
+                "most_important_fix_title": fix_titles.get(
+                    lb.get("most_important_fix"), lb.get("most_important_fix")
+                ),
+                "feedback": lb.get("feedback", ""),
+                "general_comment": lb.get("general_comment", ""),
+                "label_format_version": lb.get("label_format_version"),
+                "label_updated_at": lb.get("updated_at"),
+            }
+            for q in clip["questions"]:
+                answer = answers.get(q["id"]) or {}
                 rows.append(
                     {
-                        "batch_id": batch.batch_id,
-                        "clip_position": position,
-                        "analysis_id": entry.analysis_id,
-                        "source_file": entry.source_file,
-                        "stroke_type": clip["stroke_type"],
-                        "coach": lb.get("coach", ""),
-                        "label_status": label_status(label, available),
-                        "system_contact_frame": system,
-                        "corrected_hit_frame": corrected,
-                        "hit_frame_used": corrected if corrected is not None else system,
-                        "stat_id": stat["id"],
-                        "stat_name": stat["name"],
-                        "measured_when": stat["when"],
-                        "system_value": stat["value"],
-                        "unit": stat["unit"],
-                        "rating": stat_label.get("rating"),
-                        "comment": stat_label.get("comment", ""),
-                        "overall_rating": lb.get("overall_rating"),
-                        "feedback": lb.get("feedback", ""),
-                        "label_format_version": lb.get("label_format_version"),
-                        "label_updated_at": lb.get("updated_at"),
+                        **base,
+                        "stat_id": q["id"],
+                        "stat_name": q["title"],
+                        "moment": q["moment"],
+                        "question_kind": q["kind"],
+                        "measured_when": (q["measured_at"] or {}).get("label", ""),
+                        "system_value": q["value"],
+                        "unit": q["unit"],
+                        "rating": answer.get("rating"),
+                        "comment": answer.get("comment", ""),
+                    }
+                )
+            for stat_id, answer in answers.items():
+                if stat_id in question_ids:
+                    continue
+                rows.append(
+                    {
+                        **base,
+                        "stat_id": stat_id,
+                        "stat_name": retired.get(stat_id, stat_id),
+                        "moment": "",
+                        "question_kind": "retired",
+                        "measured_when": "",
+                        "system_value": None,
+                        "unit": None,
+                        "rating": answer.get("rating"),
+                        "comment": answer.get("comment", ""),
                     }
                 )
     return {
         "export_format_version": EXPORT_FORMAT_VERSION,
         "batch_id": batch.batch_id,
         "name": batch.name,
+        "technique": batch.technique,
+        "dataset_number": batch.number,
+        "due_date": batch.due_date,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "coach": coach,
         "columns": list(COLUMNS),

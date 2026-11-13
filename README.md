@@ -116,9 +116,34 @@ Health check:
 curl http://localhost:8000/health
 ```
 
+### Coach and admin sign-in
+
+The coach workspace (`/coach`) and admin area (`/admin`) need a password.
+Set these in the repo-root `.env`:
+
+```bash
+ADMIN_USERNAME=admin    # site owner (default "admin")
+ADMIN_PASSWORD=...
+COACH_USERNAME=jeff     # the coach (default "jeff"; labels are saved as COACH_NAME, default "Jeff")
+COACH_PASSWORD=...
+SESSION_SECRET=...      # signs the session cookie
+```
+
+and the same secret for the frontend proxy in `frontend/.env.local`:
+
+```bash
+SESSION_SECRET=...      # must match the backend
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+Sign in at [http://localhost:3000/login](http://localhost:3000/login) with a username and password. The admin
+account opens `/admin` (datasets per technique, create a dataset, edit due
+dates, export labels); the coach account opens `/coach` (Jeff's datasets,
+most urgent first, and the labelling screen).
+
 ### Coach labelling database (Postgres)
 
-Coach batches, reviews, per-stat comments, upload jobs and video records are
+Coach datasets, reviews, per-stat comments, upload jobs and video records are
 stored in Postgres (video files themselves stay in `outputs/`). The default
 connection is `postgresql+psycopg:///badminton_lab` (local socket, current
 user); override it with `DATABASE_URL` in `backend/.env`.
@@ -127,6 +152,18 @@ user); override it with `DATABASE_URL` in `backend/.env`.
 cd backend && source .venv/bin/activate
 python -m app.labelling.cli init-db        # creates the database if missing, applies migrations
 python -m app.labelling.cli import-files   # one-off: moves older JSON labelling data in
+```
+
+A dataset is 5–10 videos of one technique (forehand clear or smash), numbered
+per technique, with a due date. Besides the admin page, the CLI can create one
+from a folder (each clip runs through the analysis pipeline) or from existing
+analyses:
+
+```bash
+python -m app.labelling.cli create --folder ~/clips/set1 --technique FOREHAND_CLEAR \
+    --due 2026-11-20 --handedness RIGHT --camera-view SIDE --note "Side view"
+python -m app.labelling.cli create --analysis-ids ID1 ID2 ID3 ID4 ID5 \
+    --technique FOREHAND_CLEAR --due 2026-11-20
 ```
 
 After changing tables in `app/labelling/db.py`, add a migration with
@@ -163,6 +200,21 @@ API contract:
 - `GET /health` → `{ "status": "ok" }`
 - `POST /analyze` (multipart field `video`) → `{ "video_url": "/outputs/....mp4", "output_path": "..." }`
 - Processed files are served under `/outputs/...`
+
+## 7. Put it online from this Mac
+
+```bash
+brew install cloudflared   # once
+./scripts/go-live.sh
+```
+
+This builds the site, runs it on ports 3100 (website) and 8100 (API), and
+prints a public link like `https://<random>.trycloudflare.com/login`. The
+browser only talks to that one address; the website forwards `/api/*` to the
+API. The link changes each time the script starts, the Mac must stay on (it
+is kept awake while the script runs), and Ctrl+C takes the site offline. Logs
+are in `.live/`. Cloudflare's free link accepts uploads up to 100 MB per
+request and waits at most 100 seconds for a response.
 
 ## Notes
 

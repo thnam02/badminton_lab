@@ -1,21 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CoachNameGate } from "@/components/labelling/CoachNameGate";
-import { HitFinder } from "@/components/labelling/HitFinder";
-import { StatRatingCard } from "@/components/labelling/StatRatingCard";
+import { SessionGate } from "@/components/auth/SessionGate";
+import { HitFinder, type HitFinderHandle } from "@/components/labelling/HitFinder";
+import { PoseOverlay } from "@/components/labelling/PoseOverlay";
+import { QuestionCard } from "@/components/labelling/QuestionCard";
 import { Card } from "@/components/ui/Card";
 import { mediaUrl } from "@/lib/api";
+import { formatDue } from "@/lib/datasets";
+import { fetchPose, type PoseFeed } from "@/lib/overlay";
 import {
   EMPTY_DRAFT,
-  exportUrl,
-  fetchBatch,
+  fetchDataset,
   fetchClip,
   fetchClipLabel,
   saveClipLabel,
   type LabelDraft,
-  type LabellingBatch,
+  type DatasetDetail,
   type LabellingClip,
+  type MomentId,
+  type ReviewMoment,
   type StatLabel,
 } from "@/lib/labelling";
 
@@ -23,28 +28,30 @@ const AUTOSAVE_DELAY_MS = 800;
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-type Props = { batchId: string };
+type Props = {
+  batchId: string;
+  /** Video to open first (1-based); otherwise the first one not yet labelled. */
+  startPosition?: number;
+};
 
-export function LabellingWorkspace({ batchId }: Props) {
+export function LabellingWorkspace({ batchId, startPosition }: Props) {
   return (
-    <CoachNameGate>
-      {(coach, changeCoach) => (
-        <Workspace batchId={batchId} coach={coach} onChangeCoach={changeCoach} />
-      )}
-    </CoachNameGate>
+    <SessionGate>
+      {(me) => <Workspace batchId={batchId} coach={me.name} startPosition={startPosition} />}
+    </SessionGate>
   );
 }
 
 function Workspace({
   batchId,
   coach,
-  onChangeCoach,
+  startPosition,
 }: {
   batchId: string;
   coach: string;
-  onChangeCoach: () => void;
+  startPosition?: number;
 }) {
-  const [batch, setBatch] = useState<LabellingBatch | null>(null);
+  const [batch, setBatch] = useState<DatasetDetail | null>(null);
   const [index, setIndex] = useState<number | null>(null);
   const [clip, setClip] = useState<LabellingClip | null>(null);
   const [draft, setDraft] = useState<LabelDraft>(EMPTY_DRAFT);
@@ -56,21 +63,31 @@ function Workspace({
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const editCount = useRef(0);
+  const finderRef = useRef<HitFinderHandle>(null);
+  const [activeMoment, setActiveMoment] = useState<MomentId>("contact");
+  const [pose, setPose] = useState<PoseFeed | null>(null);
+  const [showAngles, setShowAngles] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
 
   const refreshBatch = useCallback(
-    () => fetchBatch(batchId, coach).then((b) => (setBatch(b), b)),
-    [batchId, coach]
+    () => fetchDataset(batchId).then((b) => (setBatch(b), b)),
+    [batchId]
   );
 
   useEffect(() => {
     refreshBatch()
       .then((b) => {
+        const asked = startPosition ? b.clips.findIndex((c) => c.position === startPosition) : -1;
+        if (asked >= 0) {
+          setIndex(asked);
+          return;
+        }
         const firstOpen = b.clips.findIndex((c) => !c.labelled && !c.missing);
         setIndex(firstOpen >= 0 ? firstOpen : 0);
         setFinished(firstOpen < 0 && b.total > 0);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not load batch"));
-  }, [refreshBatch]);
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load the dataset"));
+  }, [refreshBatch, startPosition]);
 
   const current = batch && index != null ? batch.clips[index] : null;
   // Batch refreshes after every save; only a different clip may reload the draft.
@@ -83,19 +100,28 @@ function Workspace({
     }
     let cancelled = false;
     setClip(null);
+    setPose(null);
     setDirty(false);
     setSaveState("idle");
+    fetchPose(currentId)
+      .then((p) => !cancelled && setPose(p))
+      .catch(() => !cancelled && setPose(null));
     Promise.all([fetchClip(currentId), fetchClipLabel(currentId, coach)])
       .then(([c, saved]) => {
         if (cancelled) return;
         setClip(c);
+        setActiveMoment("contact");
+        // The analysed video already has the skeleton drawn in.
+        setShowSkeleton(Boolean(c.raw_video_url));
         setDraft(
           saved.label
             ? {
                 corrected_hit_frame: saved.label.corrected_hit_frame,
                 stats: saved.label.stats,
                 overall_rating: saved.label.overall_rating,
+                most_important_fix: saved.label.most_important_fix ?? null,
                 feedback: saved.label.feedback,
+                general_comment: saved.label.general_comment ?? "",
               }
             : EMPTY_DRAFT
         );
@@ -180,25 +206,29 @@ function Workspace({
 
   const done = batch.labelled_count;
   const progress = batch.total ? Math.round((done / batch.total) * 100) : 0;
+  const datasetHref = `/coach/datasets/${batch.dataset_id}`;
+  const title = [
+    batch.technique ? `${batch.technique_label} · ${batch.title}` : batch.name,
+    finished ? null : `Video ${index + 1} of ${batch.total}`,
+    batch.due_date ? `due ${formatDue(batch.due_date)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const header = (
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex flex-col">
-        <h1 className="font-display text-2xl font-bold sm:text-[28px]">{batch.name}</h1>
-        <p className="text-base text-text-muted">
-          Reviewing as <strong className="text-text">{coach}</strong>{" "}
-          <button
-            type="button"
-            onClick={onChangeCoach}
-            className="ml-1 inline-flex min-h-12 items-center rounded-lg px-2 text-base text-accent hover:bg-surface-2"
-          >
-            Not you?
-          </button>
-        </p>
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <Link
+          href={datasetHref}
+          className="inline-flex min-h-12 items-center self-start text-base text-text-muted hover:text-text"
+        >
+          ← Back to {batch.technique ? batch.title : "dataset"}
+        </Link>
+        <h1 className="font-display text-2xl font-bold sm:text-[28px]">{title}</h1>
       </div>
       <div className="flex items-center gap-4">
         <div
           role="progressbar"
-          aria-label="Clips reviewed"
+          aria-label="Videos labelled"
           aria-valuemin={0}
           aria-valuemax={batch.total}
           aria-valuenow={done}
@@ -207,7 +237,7 @@ function Workspace({
           <div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} />
         </div>
         <span className="text-lg font-semibold tabular-nums">
-          {finished ? `${done} of ${batch.total} done` : `Clip ${index + 1} of ${batch.total}`}
+          {done} of {batch.total} done
         </span>
       </div>
     </div>
@@ -219,10 +249,10 @@ function Workspace({
         {header}
         <Card className="flex flex-col gap-4">
           <h2 className="font-display text-2xl font-bold">
-            {done === batch.total ? "All clips reviewed. Thank you!" : "No more clips waiting"}
+            {done === batch.total ? "All videos labelled. Thank you!" : "No more videos waiting"}
           </h2>
           <p className="text-lg text-text-soft">
-            You reviewed {done} of {batch.total} clips. You can go back and change any answer.
+            You labelled {done} of {batch.total} videos. You can go back and change any answer.
           </p>
           <div className="flex flex-wrap gap-3">
             <button
@@ -233,27 +263,32 @@ function Workspace({
               }}
               className="min-h-14 rounded-2xl border-2 border-border bg-surface-2 px-6 text-lg font-semibold"
             >
-              Back to clip 1
+              Back to video 1
             </button>
-            <a
-              href={exportUrl(batch.batch_id, "csv")}
+            <Link
+              href={datasetHref}
               className="inline-flex min-h-14 items-center rounded-2xl px-4 text-lg font-semibold"
             >
-              Download labels (CSV)
-            </a>
+              Back to {batch.technique ? batch.title : "dataset"}
+            </Link>
           </div>
         </Card>
       </div>
     );
   }
 
+  const highlight = new Set(
+    (clip?.questions ?? []).filter((q) => q.moment === activeMoment).flatMap((q) => q.joints)
+  );
+
+  function showMoment(moment: ReviewMoment) {
+    setActiveMoment(moment.id);
+    if (moment.frame != null) finderRef.current?.seekTo(moment.frame);
+  }
+
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-6">
       {header}
-      <p className="text-xl text-text-soft">
-        Watch the stroke, then rate what the app measured. There are no right answers to aim
-        for: just tell us what you see.
-      </p>
 
       {current?.missing ? (
         <Card role="alert" className="flex flex-col gap-4">
@@ -270,92 +305,225 @@ function Workspace({
           Loading clip…
         </p>
       ) : (
-        <div className="flex flex-wrap items-start gap-7">
-          <section
-            aria-label="Step 1: find the hit"
-            className="flex min-w-0 flex-[999_1_560px] flex-col gap-4 lg:sticky lg:top-4"
-          >
-            <StepHeading n={1}>Find the moment the racket hits the shuttle</StepHeading>
-            <p className="text-base text-text-muted">
-              {clip.stroke_label}
-              {current?.source_file ? ` · ${current.source_file}` : ""}
-              {clip.camera_view ? ` · ${clip.camera_view.toLowerCase()} view` : ""}
-              {clip.handedness ? ` · ${clip.handedness.toLowerCase()}-handed` : ""}
-            </p>
-            <HitFinder
-              videoUrl={mediaUrl(clip.video_url)}
-              overlayUrl={mediaUrl(clip.overlay_video_url)}
-              fps={clip.fps ?? 30}
-              frameCount={clip.frame_count ?? 1}
-              systemFrame={clip.system_contact_frame}
-              hitFrame={draft.corrected_hit_frame}
-              onMarkHit={(f) =>
-                update({ corrected_hit_frame: f === clip.system_contact_frame ? null : f })
-              }
-              onUseSystemHit={() => update({ corrected_hit_frame: null })}
-            />
-          </section>
+        <>
+          <div className="flex flex-wrap items-baseline justify-between gap-2.5">
+            <h2 className="font-display text-[30px] font-bold">{clip.stroke_label}</h2>
+            <span className="text-[15px] text-text-muted">
+              {[
+                current?.source_file,
+                clip.handedness && clip.handedness !== "UNKNOWN"
+                  ? `${clip.handedness.toLowerCase()}-handed`
+                  : null,
+                clip.camera_view && clip.camera_view !== "UNKNOWN"
+                  ? `${clip.camera_view.toLowerCase()} view`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
 
-          <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-7">
-            <section aria-label="Step 2: rate the measurements" className="flex flex-col gap-3.5">
-              <StepHeading n={2}>How do these look?</StepHeading>
-              {clip.stats.map((stat) => (
-                <StatRatingCard
-                  key={stat.id}
-                  stat={stat}
-                  options={clip.rating_options}
-                  value={draft.stats[stat.id]}
-                  onChange={(v) => setStat(stat.id, v)}
-                />
-              ))}
-            </section>
-
-            <section aria-label="Step 3: overall" className="flex flex-col gap-3.5">
-              <StepHeading n={3}>Overall, how good was this stroke?</StepHeading>
-              <fieldset className="grid grid-cols-5 gap-2">
-                <legend className="sr-only">Overall rating</legend>
-                {clip.overall_ratings.map((r) => {
-                  const on = draft.overall_rating === r.value;
+          <div className="flex flex-wrap items-start gap-6">
+            <section
+              aria-label="Video with angles"
+              className="flex min-w-0 flex-[1_1_440px] flex-col gap-3.5 lg:sticky lg:top-4"
+            >
+              <div role="tablist" aria-label="Jump to a moment" className="grid grid-cols-3 gap-2">
+                {clip.moments.map((m) => {
+                  const on = activeMoment === m.id;
                   return (
-                    <label
-                      key={r.value}
-                      className={`flex min-h-[76px] cursor-pointer flex-col items-center justify-center rounded-[14px] border-2 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
-                        on ? "border-accent bg-accent/10" : "border-border bg-surface-2"
+                    <button
+                      key={m.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => showMoment(m)}
+                      className={`min-h-[52px] rounded-[14px] px-2 text-base ${
+                        on
+                          ? "bg-accent font-bold text-bg"
+                          : "border-2 border-border bg-surface font-semibold text-text hover:border-text-muted/50"
                       }`}
                     >
-                      <input
-                        type="radio"
-                        name="overall"
-                        checked={on}
-                        onChange={() => update({ overall_rating: r.value })}
-                        className="sr-only"
-                      />
-                      <strong className="text-2xl">{r.value}</strong>
-                      <span className="text-sm text-text-muted">{r.label}</span>
-                    </label>
+                      {m.title}
+                    </button>
                   );
                 })}
-              </fieldset>
-              <label className="flex flex-col gap-2 text-lg font-semibold">
-                Anything else? (optional)
+              </div>
+              <HitFinder
+                ref={finderRef}
+                videoUrl={mediaUrl(clip.video_url)}
+                overlayUrl={mediaUrl(clip.overlay_video_url)}
+                fps={clip.fps ?? 30}
+                frameCount={clip.frame_count ?? 1}
+                systemFrame={clip.system_contact_frame}
+                hitFrame={draft.corrected_hit_frame}
+                renderOverlay={(frame, videoSize) => (
+                  <PoseOverlay
+                    pose={pose}
+                    frame={frame}
+                    videoSize={videoSize}
+                    showSkeleton={showSkeleton}
+                    showAngles={showAngles}
+                    highlight={highlight}
+                  />
+                )}
+                controls={
+                  <div className="flex flex-wrap gap-x-4 text-sm text-text-soft">
+                    <label className="flex min-h-12 cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={showAngles}
+                        onChange={(e) => setShowAngles(e.target.checked)}
+                        className="h-5 w-5 accent-accent"
+                      />
+                      Show angles
+                    </label>
+                    <label className="flex min-h-12 cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={showSkeleton}
+                        onChange={(e) => setShowSkeleton(e.target.checked)}
+                        className="h-5 w-5 accent-accent"
+                      />
+                      Show skeleton
+                    </label>
+                    {!pose && (
+                      <span className="flex min-h-12 items-center text-text-muted">
+                        Angles unavailable for this clip.
+                      </span>
+                    )}
+                  </div>
+                }
+                onMarkHit={(f) =>
+                  update({ corrected_hit_frame: f === clip.system_contact_frame ? null : f })
+                }
+                onUseSystemHit={() => update({ corrected_hit_frame: null })}
+              />
+            </section>
+
+            <form
+              aria-label={`${clip.stroke_label} checklist`}
+              onSubmit={(e) => e.preventDefault()}
+              className="flex min-w-0 flex-[999_1_560px] flex-col gap-[22px]"
+            >
+              {clip.moments.map((m, i) => {
+                const questions = clip.questions.filter((q) => q.moment === m.id);
+                if (questions.length === 0) return null;
+                const on = activeMoment === m.id;
+                return (
+                  <section
+                    key={m.id}
+                    aria-labelledby={`moment-${m.id}`}
+                    className="flex flex-col gap-2.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <h3
+                        id={`moment-${m.id}`}
+                        className={`font-display text-[22px] font-bold ${on ? "text-accent-soft" : "text-text"}`}
+                      >
+                        {i + 1} · {m.title}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => showMoment(m)}
+                        aria-label={`Show this moment: ${m.title}`}
+                        className="min-h-12 rounded-full border border-border bg-surface px-3.5 text-sm text-text hover:border-text-muted/50"
+                      >
+                        Show this moment
+                      </button>
+                    </div>
+                    {questions.map((q) => (
+                      <QuestionCard
+                        key={q.id}
+                        question={q}
+                        value={draft.stats[q.id]}
+                        active={on}
+                        onChange={(v) => setStat(q.id, v)}
+                      />
+                    ))}
+                  </section>
+                );
+              })}
+            </form>
+          </div>
+
+          <section
+            aria-labelledby="overall-title"
+            className="flex flex-col gap-4 rounded-[22px] border border-border bg-surface p-6"
+          >
+            <h2 id="overall-title" className="font-display text-2xl font-bold">
+              Overall
+            </h2>
+            <fieldset className="m-0 grid grid-cols-5 gap-2 border-0 p-0">
+              <legend className="mb-2 p-0 font-semibold">
+                How good was this {clip.stroke_label.toLowerCase().replace(/^forehand /, "")}?
+              </legend>
+              {clip.overall_ratings.map((r) => {
+                const on = draft.overall_rating === r.value;
+                return (
+                  <label
+                    key={r.value}
+                    className={`flex min-h-[54px] cursor-pointer items-center justify-center rounded-xl text-center has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
+                      on ? "border-[3px] border-accent bg-accent/10 font-bold" : "border-2 border-border bg-surface-2"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="overall"
+                      checked={on}
+                      onChange={() => update({ overall_rating: r.value })}
+                      className="sr-only"
+                    />
+                    {r.label}
+                  </label>
+                );
+              })}
+            </fieldset>
+            <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))]">
+              <label className="flex flex-col gap-2 font-semibold">
+                Most important thing to fix
+                <select
+                  value={draft.most_important_fix ?? ""}
+                  onChange={(e) => update({ most_important_fix: e.target.value || null })}
+                  className="min-h-12 rounded-xl border border-border bg-surface-2 px-3 font-normal text-text"
+                >
+                  <option value="">Choose…</option>
+                  {clip.fix_options.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-2 font-semibold">
+                What would you tell this player?
                 <textarea
                   rows={3}
                   maxLength={4000}
                   value={draft.feedback}
                   onChange={(e) => update({ feedback: e.target.value })}
-                  placeholder="Type or use your keyboard's microphone"
-                  className="resize-y rounded-[14px] border border-border bg-surface p-3 text-lg font-normal text-text"
+                  className="resize-y rounded-xl border border-border bg-surface-2 p-3 font-normal text-text"
                 />
               </label>
-            </section>
-
+            </div>
+            <label className="flex flex-col gap-2 font-semibold">
+              General comment (anything else, including about the video or the measurements)
+              <textarea
+                rows={3}
+                maxLength={4000}
+                value={draft.general_comment}
+                onChange={(e) => update({ general_comment: e.target.value })}
+                placeholder="E.g. camera is behind the player, not side-on; the angles look off"
+                className="resize-y rounded-xl border border-border bg-surface-2 p-3 font-normal text-text"
+              />
+            </label>
             <button
               type="button"
               onClick={() => void saveAndNext()}
               disabled={saveState === "saving"}
-              className="min-h-[76px] rounded-[20px] bg-accent text-xl font-bold text-bg hover:bg-accent-soft disabled:opacity-60"
+              className="min-h-16 rounded-[18px] bg-accent text-[19px] font-bold text-bg hover:bg-accent-soft disabled:opacity-60"
             >
-              Save and go to next clip →
+              Save and next clip →
             </button>
             <p className="text-center text-base text-text-muted" role="status" aria-live="polite">
               {saveState === "saving"
@@ -372,8 +540,8 @@ function Workspace({
               onPrev={() => void goTo(index - 1)}
               onNext={() => void goTo(index + 1)}
             />
-          </div>
-        </div>
+          </section>
+        </>
       )}
     </div>
   );
@@ -401,22 +569,5 @@ function NavButtons({
         Skip to next clip →
       </button>
     </div>
-  );
-}
-
-function StepHeading({ n, children }: { n: number; children: React.ReactNode }) {
-  return (
-    <h2 className="flex items-center gap-3 font-display text-2xl font-bold sm:text-[26px]">
-      <span
-        aria-hidden
-        className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-accent text-xl text-bg"
-      >
-        {n}
-      </span>
-      <span>
-        <span className="sr-only">Step {n}: </span>
-        {children}
-      </span>
-    </h2>
   );
 }

@@ -110,6 +110,18 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg:///badminton_lab"
     cors_origins: str = "http://localhost:3000"
 
+    # Coach / admin sign-in (username + password). Empty passwords disable that account.
+    admin_username: str = "admin"
+    admin_password: str = ""
+    coach_username: str = "jeff"
+    coach_password: str = ""
+    # The single coach for now; labels are saved under this name.
+    coach_name: str = "Jeff"
+    # Signs the session cookie; the frontend proxy needs the same value.
+    session_secret: str = ""
+    session_max_age_hours: int = 12
+    session_cookie_secure: bool = False
+
 
 settings = Settings()
 settings.upload_dir.mkdir(parents=True, exist_ok=True)

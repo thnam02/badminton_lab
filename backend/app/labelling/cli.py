@@ -1,15 +1,16 @@
-"""Create labelling batches.
+"""Create labelling datasets (5-10 videos of one technique, numbered per technique).
 
 From a folder of clips (each clip runs through the same /analyze pipeline as
 an upload, and the original video is kept):
 
     python -m app.labelling.cli create --folder ~/clips/side_set_1 \\
-        --stroke FOREHAND_CLEAR --handedness RIGHT --camera-view SIDE \\
-        --name "Side-view set 1"
+        --technique FOREHAND_CLEAR --due 2026-11-20 \\
+        --handedness RIGHT --camera-view SIDE --note "Side view, club players"
 
 From analyses that already exist (no processing):
 
-    python -m app.labelling.cli create --analysis-ids <id> <id> --name "Quick check"
+    python -m app.labelling.cli create --analysis-ids <id> <id> <id> <id> <id> \\
+        --technique FOREHAND_CLEAR --due 2026-11-20
 
 Database (Postgres, settings.database_url / DATABASE_URL):
 
@@ -25,7 +26,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from app.labelling.batches import Batch, BatchClip, BatchStore, new_batch_id
+from app.labelling.batches import Batch, BatchClip, BatchStore
 
 VIDEO_SUFFIXES = (".mp4", ".mov")
 FRONTEND_URL = "http://localhost:3000"
@@ -65,65 +66,91 @@ def find_clips(folder: Path) -> list[Path]:
     )
 
 
-def create_batch_from_folder(
+def create_dataset_from_folder(
     folder: Path,
     *,
-    name: str,
-    stroke: str,
+    technique: str,
+    due_date: str,
+    note: str = "",
     handedness: str,
     camera_view: str,
     store: BatchStore | None = None,
     analyzer: Analyzer = analyze_clip,
     log: Callable[[str], None] = print,
 ) -> tuple[Batch, list[tuple[Path, str]]]:
+    from app.labelling.datasets import MAX_VIDEOS, MIN_VIDEOS, DatasetError, create_dataset
+
     store = store or BatchStore()
     clips = find_clips(folder)
     if not clips:
         raise ValueError(f"No .mp4 or .mov clips in {folder}")
-    batch = Batch(batch_id=new_batch_id(name), name=name)
+    if not MIN_VIDEOS <= len(clips) <= MAX_VIDEOS:
+        raise DatasetError(
+            f"A dataset needs {MIN_VIDEOS} to {MAX_VIDEOS} videos; {folder} has {len(clips)}."
+        )
+    analysed: list[BatchClip] = []
     failures: list[tuple[Path, str]] = []
     for i, path in enumerate(clips, start=1):
         log(f"[{i}/{len(clips)}] {path.name} …")
         try:
-            analysis_id = analyzer(path, stroke, handedness, camera_view)
+            analysis_id = analyzer(path, technique, handedness, camera_view)
         except Exception as exc:  # noqa: BLE001 — keep going; report at the end
             detail = getattr(exc, "detail", None) or str(exc)
             failures.append((path, str(detail)))
             log(f"    failed: {detail}")
             continue
         raw = store.keep_raw_video(path, analysis_id)
-        batch.clips.append(
-            BatchClip(analysis_id=analysis_id, source_file=path.name, raw_video=raw)
-        )
+        analysed.append(BatchClip(analysis_id=analysis_id, source_file=path.name, raw_video=raw))
         log(f"    analysis {analysis_id}")
-    if not batch.clips:
-        raise RuntimeError("Every clip failed; no batch was created.")
-    store.save(batch)
+    if len(analysed) < MIN_VIDEOS:
+        ids = " ".join(c.analysis_id for c in analysed) or "none"
+        raise DatasetError(
+            f"Only {len(analysed)} of {len(clips)} clips were analysed (ids: {ids}); "
+            f"a dataset needs at least {MIN_VIDEOS}."
+        )
+    batch, _job = create_dataset(
+        technique=technique,
+        due_date=due_date,
+        note=note,
+        existing=analysed,
+        output_dir=store.output_dir,
+    )
     return batch, failures
 
 
-def create_batch_from_ids(
-    analysis_ids: list[str], *, name: str, store: BatchStore | None = None
+def create_dataset_from_ids(
+    analysis_ids: list[str],
+    *,
+    technique: str,
+    due_date: str,
+    note: str = "",
+    output_dir: Path | None = None,
 ) -> Batch:
-    store = store or BatchStore()
-    batch = Batch(
-        batch_id=new_batch_id(name),
-        name=name,
-        clips=[BatchClip(analysis_id=a) for a in analysis_ids],
+    from app.labelling.datasets import create_dataset
+
+    batch, _job = create_dataset(
+        technique=technique,
+        due_date=due_date,
+        note=note,
+        existing=[BatchClip(analysis_id=a) for a in analysis_ids],
+        output_dir=output_dir,
     )
-    store.save(batch)
     return batch
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.labelling.cli")
     sub = parser.add_subparsers(dest="command", required=True)
-    create = sub.add_parser("create", help="Create a labelling batch")
+    create = sub.add_parser("create", help="Create a labelling dataset of 5-10 videos")
     source = create.add_mutually_exclusive_group(required=True)
     source.add_argument("--folder", type=Path, help="Folder of .mp4/.mov clips to analyse")
     source.add_argument("--analysis-ids", nargs="+", help="Existing analysis ids")
-    create.add_argument("--name", required=True, help="Batch name shown to coaches")
-    create.add_argument("--stroke", default="FOREHAND_CLEAR")
+    create.add_argument(
+        "--technique", "--stroke", dest="technique", default="FOREHAND_CLEAR",
+        help="FOREHAND_CLEAR or FOREHAND_SMASH",
+    )
+    create.add_argument("--due", required=True, help="Due date, YYYY-MM-DD")
+    create.add_argument("--note", default="", help="Note for the coach")
     create.add_argument("--handedness", default="RIGHT")
     create.add_argument("--camera-view", default="SIDE")
     sub.add_parser("init-db", help="Create the labelling database if needed and apply migrations")
@@ -157,23 +184,27 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.folder is not None:
-            batch, failures = create_batch_from_folder(
+            batch, failures = create_dataset_from_folder(
                 args.folder.expanduser(),
-                name=args.name,
-                stroke=args.stroke,
+                technique=args.technique,
+                due_date=args.due,
+                note=args.note,
                 handedness=args.handedness,
                 camera_view=args.camera_view,
             )
         else:
-            batch, failures = create_batch_from_ids(args.analysis_ids, name=args.name), []
+            batch = create_dataset_from_ids(
+                args.analysis_ids, technique=args.technique, due_date=args.due, note=args.note
+            )
+            failures = []
     except (ValueError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    print(f"\nBatch '{batch.name}' ({batch.batch_id}) with {len(batch.clips)} clips.")
+    print(f"\n'{batch.name}' ({batch.batch_id}) with {len(batch.clips)} videos, due {batch.due_date}.")
     for path, detail in failures:
         print(f"  skipped {path.name}: {detail}")
-    print(f"Open it at {FRONTEND_URL}/coach/{batch.batch_id}")
+    print(f"Open it at {FRONTEND_URL}/coach/datasets/{batch.batch_id}")
     return 0
 
 

@@ -25,3 +25,6 @@ outputs/*
 
 # Third-party CV vendors (WHAM, etc.)
 vendor/
+
+# go-live (scripts/go-live.sh) logs
+.live/

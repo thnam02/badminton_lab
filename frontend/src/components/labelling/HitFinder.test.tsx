@@ -1,12 +1,16 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { HitFinder } from "./HitFinder";
+import { HitFinder, type HitFinderHandle } from "./HitFinder";
 
 function renderFinder(hitFrame: number | null = null) {
   const onMarkHit = vi.fn();
   const onUseSystemHit = vi.fn();
+  const onFrameChange = vi.fn();
+  const ref = createRef<HitFinderHandle>();
   render(
     <HitFinder
+      ref={ref}
       videoUrl="/raw.mp4"
       overlayUrl="/overlay.mp4"
       fps={30}
@@ -15,9 +19,10 @@ function renderFinder(hitFrame: number | null = null) {
       hitFrame={hitFrame}
       onMarkHit={onMarkHit}
       onUseSystemHit={onUseSystemHit}
+      onFrameChange={onFrameChange}
     />
   );
-  return { onMarkHit, onUseSystemHit };
+  return { onMarkHit, onUseSystemHit, onFrameChange, ref };
 }
 
 describe("HitFinder", () => {
@@ -31,18 +36,28 @@ describe("HitFinder", () => {
   });
 
   it("steps one frame at a time and marks the frame on screen", () => {
-    const { onMarkHit } = renderFinder();
-    fireEvent.click(screen.getByRole("button", { name: "Forward a little ▶" }));
-    fireEvent.click(screen.getByRole("button", { name: "Forward a little ▶" }));
-    fireEvent.click(screen.getByRole("button", { name: "◀ Back a little" }));
+    const { onMarkHit, onFrameChange } = renderFinder();
+    fireEvent.click(screen.getByRole("button", { name: "Forward ▶" }));
+    fireEvent.click(screen.getByRole("button", { name: "Forward ▶" }));
+    fireEvent.click(screen.getByRole("button", { name: "◀ Back" }));
     expect(screen.getByText("Frame 136 · 0:04.53")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "This is the hit" }));
+    expect(onFrameChange).toHaveBeenLastCalledWith(136);
+    fireEvent.click(screen.getByRole("button", { name: "The real hit is at this frame" }));
     expect(onMarkHit).toHaveBeenCalledWith(136);
+  });
+
+  it("seeks when asked from outside (moment tabs)", () => {
+    const { ref, onFrameChange } = renderFinder();
+    act(() => ref.current?.seekTo(30));
+    expect(screen.getByText("Frame 30 · 0:01.00")).toBeTruthy();
+    expect(onFrameChange).toHaveBeenLastCalledWith(30);
+    act(() => ref.current?.seekTo(500));
+    expect(screen.getByText("Frame 183 · 0:06.10")).toBeTruthy();
   });
 
   it("can move with the slider and return to the app's hit", () => {
     renderFinder();
-    fireEvent.change(screen.getByLabelText("Or drag to move through the clip"), {
+    fireEvent.change(screen.getByLabelText("Move through the clip"), {
       target: { value: "40" },
     });
     expect(screen.getByText("Frame 40 · 0:01.33")).toBeTruthy();
@@ -55,13 +70,5 @@ describe("HitFinder", () => {
     expect(screen.getByRole("status").textContent).toContain("Hit marked at frame 140");
     fireEvent.click(screen.getByRole("button", { name: "Use the app's hit instead" }));
     expect(onUseSystemHit).toHaveBeenCalled();
-  });
-
-  it("offers the skeleton overlay when a raw video is kept", () => {
-    renderFinder();
-    const video = document.querySelector("video");
-    expect(video?.getAttribute("src")).toBe("/raw.mp4");
-    fireEvent.click(screen.getByLabelText("Show the app's skeleton on the video"));
-    expect(document.querySelector("video")?.getAttribute("src")).toBe("/overlay.mp4");
   });
 });
