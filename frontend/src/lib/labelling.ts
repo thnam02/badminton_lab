@@ -103,6 +103,7 @@ export const EMPTY_DRAFT: LabelDraft = {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     cache: "no-store",
+    credentials: "include",
     headers: init?.body ? { "Content-Type": "application/json" } : undefined,
     ...init,
   });
@@ -178,6 +179,7 @@ export function uploadBatch(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API_BASE}/labelling/batches`);
+    xhr.withCredentials = true;
     xhr.responseType = "json";
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress?.(e.loaded / e.total);

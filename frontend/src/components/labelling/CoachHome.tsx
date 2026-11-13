@@ -2,21 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CoachNameGate } from "@/components/labelling/CoachNameGate";
+import { SessionGate } from "@/components/auth/SessionGate";
 import { Card } from "@/components/ui/Card";
 import { ChevronRightIcon } from "@/components/ui/icons";
-import { buttonPrimary, pageTitle } from "@/components/ui/styles";
+import { pageTitle } from "@/components/ui/styles";
 import { fetchBatches, type BatchSummary } from "@/lib/labelling";
 
 export function CoachHome() {
   return (
-    <CoachNameGate>
-      {(coach, changeCoach) => <BatchList coach={coach} onChangeCoach={changeCoach} />}
-    </CoachNameGate>
+    <SessionGate>{(me) => <BatchList coach={me.name} />}</SessionGate>
   );
 }
 
-function BatchList({ coach, onChangeCoach }: { coach: string; onChangeCoach: () => void }) {
+function BatchList({ coach }: { coach: string }) {
   const [batches, setBatches] = useState<BatchSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,23 +31,9 @@ function BatchList({ coach, onChangeCoach }: { coach: string; onChangeCoach: () 
 
   return (
     <div className="flex flex-col gap-7">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className={pageTitle}>Clips to review</h1>
-          <p className="text-lg text-text-muted">
-            Reviewing as <strong className="text-text">{coach}</strong>{" "}
-            <button
-              type="button"
-              onClick={onChangeCoach}
-              className="ml-1 inline-flex min-h-12 items-center rounded-lg px-2 text-lg text-accent hover:bg-surface-2"
-            >
-              Not you?
-            </button>
-          </p>
-        </div>
-        <Link href="/coach/new" className={`${buttonPrimary} px-6 text-base`}>
-          + Upload clips
-        </Link>
+      <header className="flex flex-col gap-2">
+        <h1 className={pageTitle}>Hi {coach}</h1>
+        <p className="text-lg text-text-muted">Clips waiting for your review.</p>
       </header>
 
       {error ? (
@@ -63,11 +47,7 @@ function BatchList({ coach, onChangeCoach }: { coach: string; onChangeCoach: () 
       ) : batches.length === 0 ? (
         <Card>
           <p className="text-lg text-text-muted">
-            No clips to review yet.{" "}
-            <Link href="/coach/new" className="font-semibold">
-              Upload clips
-            </Link>{" "}
-            to create the first batch.
+            No clips to review yet. The admin will add some for you.
           </p>
         </Card>
       ) : (

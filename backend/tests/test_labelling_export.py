@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from app.config import settings
 from app.labelling.batches import Batch, BatchClip, BatchStore
 from app.labelling.clips import load_stats_config
+from app.labelling.labels import LabelStore
 from app.labelling.export import COLUMNS
 from app.routes import labelling as routes
 from tests.test_labelling_clips import CONTACT, seed_analysis
@@ -34,7 +35,7 @@ def batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     routes.put_clip_label(
         "a1",
         routes.ClipLabelIn(
-            coach="Linh",
+            coach="Jeff",
             corrected_hit_frame=22,
             stats={
                 "elbow": routes.StatLabelIn(
@@ -48,7 +49,8 @@ def batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
             general_comment="Camera is a bit far, angles look right.",
         ),
     )
-    routes.put_clip_label("a1", routes.ClipLabelIn(coach="Minh", overall_rating=4))
+    # An older label from another coach, saved before the coach was fixed to Jeff.
+    LabelStore().write({"analysis_id": "a1", "coach": "Minh", "overall_rating": 4, "stats": {}})
     return "set-1"
 
 
@@ -61,12 +63,12 @@ def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
     # a1: two coaches × stats; a2: unlabelled, still one row per stat.
     assert len(rows) == 3 * N_STATS
     assert {(r["analysis_id"], r["coach"]) for r in rows} == {
-        ("a1", "Linh"),
+        ("a1", "Jeff"),
         ("a1", "Minh"),
         ("a2", ""),
     }
     elbow = next(
-        r for r in rows if r["coach"] == "Linh" and r["stat_id"] == "elbow"
+        r for r in rows if r["coach"] == "Jeff" and r["stat_id"] == "elbow"
     )
     assert elbow["rating"] == "needs_work"
     assert elbow["system_value"] == 150.0
@@ -83,9 +85,9 @@ def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
         (r["most_important_fix"], r["general_comment"])
         == ("elbow", "Camera is a bit far, angles look right.")
         for r in rows
-        if r["coach"] == "Linh"
+        if r["coach"] == "Jeff"
     )
-    sideon = next(r for r in rows if r["coach"] == "Linh" and r["stat_id"] == "sideon")
+    sideon = next(r for r in rows if r["coach"] == "Jeff" and r["stat_id"] == "sideon")
     assert (sideon["rating"], sideon["question_kind"], sideon["system_value"]) == (
         "cant_see",
         "coach_only",
@@ -97,8 +99,8 @@ def test_json_export_has_one_row_per_clip_per_stat(batch: str) -> None:
 
 
 def test_export_can_be_limited_to_one_coach(batch: str) -> None:
-    rows = routes.get_batch_export(batch, format="json", coach="linh")["rows"]
-    assert {r["coach"] for r in rows if r["analysis_id"] == "a1"} == {"Linh"}
+    rows = routes.get_batch_export(batch, format="json", coach="jeff")["rows"]
+    assert {r["coach"] for r in rows if r["analysis_id"] == "a1"} == {"Jeff"}
 
 
 def test_csv_export_matches_json_and_quotes_free_text(batch: str) -> None:
@@ -109,7 +111,7 @@ def test_csv_export_matches_json_and_quotes_free_text(batch: str) -> None:
     assert len(parsed) == 3 * N_STATS
     assert list(parsed[0]) == list(COLUMNS)
     elbow = next(
-        r for r in parsed if r["coach"] == "Linh" and r["stat_id"] == "elbow"
+        r for r in parsed if r["coach"] == "Jeff" and r["stat_id"] == "elbow"
     )
     assert elbow["comment"] == 'bent, "a lot"\nreach up'
     assert elbow["overall_rating"] == "3"

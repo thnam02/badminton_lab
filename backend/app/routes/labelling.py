@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+from app.auth import ROLE_COACH, Session, require_admin, require_coach, require_signed_in
+from app.config import settings
 from app.labelling.batches import Batch, BatchStore
 from app.labelling.clips import answerable_ids, clip_pose, clip_view, normalize_label
 from app.labelling.export import export_batch, rows_to_csv
@@ -26,7 +28,10 @@ from app.labelling.labels import (
     label_status,
 )
 
-router = APIRouter(prefix="/labelling", tags=["labelling"])
+# Everything here needs a signed-in admin or coach; some routes narrow that further.
+router = APIRouter(
+    prefix="/labelling", tags=["labelling"], dependencies=[Depends(require_signed_in)]
+)
 
 
 class StatLabelIn(BaseModel):
@@ -35,7 +40,8 @@ class StatLabelIn(BaseModel):
 
 
 class ClipLabelIn(BaseModel):
-    coach: str = Field(min_length=1)
+    # Ignored: labels are saved under the signed-in coach's name.
+    coach: str = ""
     batch_id: str | None = None
     corrected_hit_frame: int | None = Field(default=None, ge=0)
     stats: dict[str, StatLabelIn] = Field(default_factory=dict)
@@ -127,6 +133,7 @@ def post_batch(
     stroke_type: str = Form(default="FOREHAND_CLEAR"),
     handedness: str = Form(default="RIGHT"),
     camera_view: str = Form(default="SIDE"),
+    _admin: Session = Depends(require_admin),
 ) -> dict:
     """Upload clips as a new batch; they are analysed one by one in the background."""
     try:
@@ -144,7 +151,7 @@ def post_batch(
 
 
 @router.get("/jobs/{job_id}")
-def get_job(job_id: str) -> dict:
+def get_job(job_id: str, _admin: Session = Depends(require_admin)) -> dict:
     """Upload job progress, clip by clip."""
     try:
         return job_view(JobStore().get(job_id))
@@ -176,6 +183,7 @@ def get_batch_export(
     batch_id: str,
     format: Literal["csv", "json"] = Query(default="csv"),
     coach: str | None = Query(default=None),
+    _admin: Session = Depends(require_admin),
 ) -> Response | dict:
     """One row per clip per stat (per coach who labelled it), as CSV or JSON."""
     try:
@@ -207,7 +215,15 @@ def get_clip_pose(analysis_id: str) -> dict:
 
 
 @router.get("/clips/{analysis_id}/label")
-def get_clip_label(analysis_id: str, coach: str = Query(..., min_length=1)) -> dict:
+def get_clip_label(
+    analysis_id: str,
+    coach: str | None = Query(default=None),
+    session: Session = Depends(require_signed_in),
+) -> dict:
+    """The coach sees their own label; the admin can read any coach's (default: the coach)."""
+    is_coach = isinstance(session, Session) and session.role == ROLE_COACH
+    if is_coach or not coach:
+        coach = settings.coach_name
     clip = _clip(analysis_id)
     try:
         label = LabelStore().get(analysis_id, coach)
@@ -217,12 +233,15 @@ def get_clip_label(analysis_id: str, coach: str = Query(..., min_length=1)) -> d
 
 
 @router.put("/clips/{analysis_id}/label")
-def put_clip_label(analysis_id: str, body: ClipLabelIn) -> dict:
+def put_clip_label(
+    analysis_id: str, body: ClipLabelIn, _coach: Session = Depends(require_coach)
+) -> dict:
+    """Only the coach labels; the label is saved under the coach's fixed name."""
     clip = _clip(analysis_id)
     try:
         label = LabelStore().save(
             analysis_id,
-            body.model_dump(exclude={"batch_id"}),
+            {**body.model_dump(exclude={"batch_id"}), "coach": settings.coach_name},
             allowed_ratings={
                 q["id"]: {o["id"] for o in q["rating_options"]} for q in clip["questions"]
             },

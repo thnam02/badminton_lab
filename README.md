@@ -116,6 +116,26 @@ Health check:
 curl http://localhost:8000/health
 ```
 
+### Coach and admin sign-in
+
+The coach workspace (`/coach`) and admin area (`/admin`) need a password.
+Set these in the repo-root `.env`:
+
+```bash
+ADMIN_PASSWORD=...      # site owner
+COACH_PASSWORD=...      # the coach (labels are saved as COACH_NAME, default "Jeff")
+SESSION_SECRET=...      # signs the session cookie
+```
+
+and the same secret for the frontend proxy in `frontend/.env.local`:
+
+```bash
+SESSION_SECRET=...      # must match the backend
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+Sign in at [http://localhost:3000/login](http://localhost:3000/login).
+
 ### Coach labelling database (Postgres)
 
 Coach batches, reviews, per-stat comments, upload jobs and video records are

@@ -124,11 +124,17 @@ vi.mock("@/lib/overlay", async (importOriginal) => ({
   }),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  usePathname: () => "/coach",
+}));
+vi.mock("@/lib/auth", () => ({
+  fetchMe: async () => ({ role: "coach", name: "Jeff" }),
+}));
+
 beforeEach(() => {
   labelled.clear();
   saveClipLabel.mockClear();
-  window.localStorage.clear();
-  window.localStorage.setItem("badminton-lab.coach-name", "Linh");
   window.scrollTo = vi.fn();
 });
 
@@ -141,15 +147,6 @@ function card(title: string) {
 }
 
 describe("LabellingWorkspace", () => {
-  it("asks for the coach's name first", async () => {
-    window.localStorage.clear();
-    render(<LabellingWorkspace batchId="set-1" />);
-    fireEvent.change(await screen.findByLabelText("Your name"), { target: { value: "Minh" } });
-    fireEvent.click(screen.getByRole("button", { name: "Start reviewing" }));
-    expect(await screen.findByText("Clip 1 of 2")).toBeTruthy();
-    expect(window.localStorage.getItem("badminton-lab.coach-name")).toBe("Minh");
-  });
-
   it("groups questions by moment and shows measured values or 'You judge'", async () => {
     render(<LabellingWorkspace batchId="set-1" />);
     const ready = await screen.findByRole("region", { name: "1 · Getting ready" });
@@ -229,7 +226,7 @@ describe("LabellingWorkspace", () => {
     const [id, body] = saveClipLabel.mock.calls.at(-1)!;
     expect(id).toBe("a1");
     expect(body).toMatchObject({
-      coach: "Linh",
+      coach: "Jeff",
       batch_id: "set-1",
       corrected_hit_frame: 49,
       overall_rating: 3,

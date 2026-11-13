@@ -17,7 +17,7 @@ export type PoseFeed = {
 export async function fetchPose(analysisId: string): Promise<PoseFeed> {
   const res = await fetch(
     `${API_BASE}/labelling/clips/${encodeURIComponent(analysisId)}/pose`,
-    { cache: "no-store" }
+    { cache: "no-store", credentials: "include" }
   );
   if (!res.ok) throw new Error(`Could not load the pose (${res.status})`);
   return (await res.json()) as PoseFeed;

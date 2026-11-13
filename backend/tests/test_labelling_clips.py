@@ -329,10 +329,10 @@ def test_most_important_fix_can_be_something_not_listed(outputs: Path) -> None:
     assert [o["id"] for o in options] == CLEAR_IDS + ["not_listed"]
     assert options[-1]["title"] == "Something not listed"
     saved = routes.put_clip_label(
-        "a1", routes.ClipLabelIn(coach="Linh", most_important_fix="not_listed", general_comment="ok")
+        "a1", routes.ClipLabelIn(coach="Jeff", most_important_fix="not_listed", general_comment="ok")
     )
     assert saved["label"]["most_important_fix"] == "not_listed"
-    assert routes.get_clip_label("a1", coach="Linh")["label"]["general_comment"] == "ok"
+    assert routes.get_clip_label("a1", coach="Jeff")["label"]["general_comment"] == "ok"
 
 
 def test_label_for_an_unknown_batch_is_kept_without_the_batch_link(tmp_path: Path) -> None:
@@ -401,15 +401,15 @@ def test_coach_only_questions_save_cant_see(outputs: Path) -> None:
     answers = _all_answers(clip_view("a1"))
     answers["sideon"] = routes.StatLabelIn(rating="cant_see", comment="camera is behind")
     saved = routes.put_clip_label(
-        "a1", routes.ClipLabelIn(coach="Linh", stats=answers, overall_rating=3)
+        "a1", routes.ClipLabelIn(coach="Jeff", stats=answers, overall_rating=3)
     )
     assert saved["status"] == "done"
-    stored = LabelStore().get("a1", "Linh")
+    stored = LabelStore().get("a1", "Jeff")
     assert stored["stats"]["sideon"] == {"rating": "cant_see", "comment": "camera is behind"}
     with pytest.raises(HTTPException) as exc:
         routes.put_clip_label(
             "a1",
-            routes.ClipLabelIn(coach="Linh", stats={"elbow": routes.StatLabelIn(rating="cant_see")}),
+            routes.ClipLabelIn(coach="Jeff", stats={"elbow": routes.StatLabelIn(rating="cant_see")}),
         )
     assert exc.value.status_code == 422
 
@@ -446,12 +446,12 @@ def test_batch_endpoint_reports_labelled_clips(outputs: Path) -> None:
     routes.put_clip_label(
         "a1",
         routes.ClipLabelIn(
-            coach="Linh", batch_id="set-1", stats=_all_answers(clip_view("a1")), overall_rating=4
+            coach="Jeff", batch_id="set-1", stats=_all_answers(clip_view("a1")), overall_rating=4
         ),
     )
-    routes.put_clip_label("a2", routes.ClipLabelIn(coach="Linh", overall_rating=2))
+    routes.put_clip_label("a2", routes.ClipLabelIn(coach="Jeff", overall_rating=2))
 
-    batch = routes.get_batch("set-1", coach="linh")
+    batch = routes.get_batch("set-1", coach="jeff")
     assert (batch["total"], batch["labelled_count"]) == (3, 1)
     assert [(c["analysis_id"], c["status"]) for c in batch["clips"]] == [
         ("a1", "done"),
@@ -461,7 +461,7 @@ def test_batch_endpoint_reports_labelled_clips(outputs: Path) -> None:
     assert batch["clips"][2]["missing"] is True
     assert routes.get_batch("set-1", coach="Minh")["labelled_count"] == 0
     assert routes.get_batch("set-1", coach=None)["labelled_count"] == 1
-    listed = routes.get_batches(coach="LINH")["batches"]
+    listed = routes.get_batches(coach="JEFF")["batches"]
     assert [(b["batch_id"], b["name"], b["clip_count"], b["labelled_count"]) for b in listed] == [
         ("set-1", "Set 1", 3, 1)
     ]
@@ -472,15 +472,15 @@ def test_batch_endpoint_reports_labelled_clips(outputs: Path) -> None:
 def test_label_endpoints_round_trip_and_reject_bad_input(outputs: Path) -> None:
     seed_analysis(outputs, "a1")
     saved = routes.put_clip_label(
-        "a1", routes.ClipLabelIn(coach="Linh", corrected_hit_frame=25, feedback="ok")
+        "a1", routes.ClipLabelIn(coach="Jeff", corrected_hit_frame=25, feedback="ok")
     )
     assert saved["status"] == "in_progress"
-    got = routes.get_clip_label("a1", coach="Linh")
+    got = routes.get_clip_label("a1", coach="Jeff")
     assert got["label"]["corrected_hit_frame"] == 25
     assert routes.get_clip_label("a1", coach="Minh")["label"] is None
     with pytest.raises(HTTPException) as exc:
         routes.put_clip_label(
-            "a1", routes.ClipLabelIn(coach="Linh", stats={"nope": routes.StatLabelIn(rating="good")})
+            "a1", routes.ClipLabelIn(coach="Jeff", stats={"nope": routes.StatLabelIn(rating="good")})
         )
     assert exc.value.status_code == 422
     for call in (lambda: routes.get_clip("zzz"), lambda: routes.get_batch("missing-batch")):

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CoachNameGate } from "@/components/labelling/CoachNameGate";
+import { SessionGate } from "@/components/auth/SessionGate";
 import { HitFinder, type HitFinderHandle } from "@/components/labelling/HitFinder";
 import { PoseOverlay } from "@/components/labelling/PoseOverlay";
 import { QuestionCard } from "@/components/labelling/QuestionCard";
@@ -31,23 +31,11 @@ type Props = { batchId: string };
 
 export function LabellingWorkspace({ batchId }: Props) {
   return (
-    <CoachNameGate>
-      {(coach, changeCoach) => (
-        <Workspace batchId={batchId} coach={coach} onChangeCoach={changeCoach} />
-      )}
-    </CoachNameGate>
+    <SessionGate>{(me) => <Workspace batchId={batchId} coach={me.name} />}</SessionGate>
   );
 }
 
-function Workspace({
-  batchId,
-  coach,
-  onChangeCoach,
-}: {
-  batchId: string;
-  coach: string;
-  onChangeCoach: () => void;
-}) {
+function Workspace({ batchId, coach }: { batchId: string; coach: string }) {
   const [batch, setBatch] = useState<LabellingBatch | null>(null);
   const [index, setIndex] = useState<number | null>(null);
   const [clip, setClip] = useState<LabellingClip | null>(null);
@@ -202,16 +190,6 @@ function Workspace({
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-col">
         <h1 className="font-display text-2xl font-bold sm:text-[28px]">{batch.name}</h1>
-        <p className="text-base text-text-muted">
-          Reviewing as <strong className="text-text">{coach}</strong>{" "}
-          <button
-            type="button"
-            onClick={onChangeCoach}
-            className="ml-1 inline-flex min-h-12 items-center rounded-lg px-2 text-base text-accent hover:bg-surface-2"
-          >
-            Not you?
-          </button>
-        </p>
       </div>
       <div className="flex items-center gap-4">
         <div
