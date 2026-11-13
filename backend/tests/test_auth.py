@@ -15,13 +15,14 @@ from app.routes import labelling as labelling_routes
 from tests.test_labelling_clips import seed_analysis
 
 ADMIN_PW = "admin-secret"
-COACH_PW = "coach-secret"
+COACH_PW = "jeff"
+ADMIN = ("admin", ADMIN_PW)
+COACH = ("jeff", COACH_PW)
 
 
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    monkeypatch.setattr(settings, "admin_password", ADMIN_PW)
-    monkeypatch.setattr(settings, "coach_password", COACH_PW)
+    _accounts(monkeypatch)
     monkeypatch.setattr(settings, "session_secret", "test-secret")
     monkeypatch.setattr(settings, "output_dir", tmp_path)
     seed_analysis(tmp_path, "a1")
@@ -31,8 +32,15 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     return TestClient(app)
 
 
-def _login(client: TestClient, password: str) -> None:
-    res = client.post("/auth/login", json={"password": password})
+def _accounts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "admin_username", "admin")
+    monkeypatch.setattr(settings, "admin_password", ADMIN_PW)
+    monkeypatch.setattr(settings, "coach_username", "jeff")
+    monkeypatch.setattr(settings, "coach_password", COACH_PW)
+
+
+def _login(client: TestClient, username: str, password: str) -> None:
+    res = client.post("/auth/login", json={"username": username, "password": password})
     assert res.status_code == 200, res.text
 
 
@@ -50,20 +58,25 @@ def test_token_round_trip_and_tampering(monkeypatch: pytest.MonkeyPatch) -> None
     assert auth.read_token(token, now=1001) is None
 
 
-def test_passwords_map_to_roles(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings, "admin_password", ADMIN_PW)
-    monkeypatch.setattr(settings, "coach_password", COACH_PW)
-    assert auth.role_for_password(ADMIN_PW) == "admin"
-    assert auth.role_for_password(COACH_PW) == "coach"
-    assert auth.role_for_password("nope") is None
+def test_each_account_signs_in_with_its_own_username_and_password(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _accounts(monkeypatch)
+    assert auth.role_for_login("admin", ADMIN_PW) == "admin"
+    assert auth.role_for_login(" Jeff ", "jeff") == "coach"
+    assert auth.role_for_login("jeff", ADMIN_PW) is None
+    assert auth.role_for_login("admin", "jeff") is None
+    assert auth.role_for_login("someone", "jeff") is None
+    assert auth.role_for_login("jeff", "Jeff") is None
     monkeypatch.setattr(settings, "coach_password", "")
-    assert auth.role_for_password("") is None
+    assert auth.role_for_login("jeff", "") is None
 
 
 def test_login_sets_an_httponly_cookie_and_me_reports_the_role(client: TestClient) -> None:
     assert client.get("/auth/me").status_code == 401
-    assert client.post("/auth/login", json={"password": "wrong"}).status_code == 401
-    res = client.post("/auth/login", json={"password": COACH_PW})
+    assert client.post("/auth/login", json={"username": "jeff", "password": "wrong"}).status_code == 401
+    assert client.post("/auth/login", json={"password": COACH_PW}).status_code == 422
+    res = client.post("/auth/login", json={"username": "jeff", "password": COACH_PW})
     assert res.json() == {"role": "coach", "name": "Jeff"}
     cookie = res.headers["set-cookie"]
     assert cookie.startswith("bl_session=") and "HttpOnly" in cookie and "SameSite=lax" in cookie
@@ -76,12 +89,12 @@ def test_labelling_api_needs_a_session(client: TestClient) -> None:
     for path in ("/labelling/datasets", "/labelling/datasets/x", "/labelling/clips/a1", "/labelling/clips/a1/pose"):
         assert client.get(path).status_code == 401, path
     assert client.put("/labelling/clips/a1/label", json={}).status_code == 401
-    _login(client, COACH_PW)
+    _login(client, *COACH)
     assert client.get("/labelling/clips/a1").status_code == 200
 
 
 def test_coach_cannot_use_admin_endpoints(client: TestClient) -> None:
-    _login(client, COACH_PW)
+    _login(client, *COACH)
     assert client.get("/labelling/jobs/abc").status_code == 403
     assert client.get("/labelling/datasets/x/export").status_code == 403
     assert client.get("/labelling/analyses", params={"technique": "FOREHAND_CLEAR"}).status_code == 403
@@ -95,11 +108,11 @@ def test_coach_cannot_use_admin_endpoints(client: TestClient) -> None:
 
 
 def test_only_the_coach_labels_and_always_as_jeff(client: TestClient) -> None:
-    _login(client, ADMIN_PW)
+    _login(client, *ADMIN)
     assert client.put("/labelling/clips/a1/label", json={"overall_rating": 3}).status_code == 403
     client.post("/auth/logout")
 
-    _login(client, COACH_PW)
+    _login(client, *COACH)
     res = client.put(
         "/labelling/clips/a1/label", json={"coach": "Somebody else", "overall_rating": 3}
     )
@@ -113,7 +126,7 @@ def test_admin_reads_any_coachs_label_read_only(client: TestClient) -> None:
     from app.labelling.labels import LabelStore
 
     LabelStore().write({"analysis_id": "a1", "coach": "Linh", "overall_rating": 2, "stats": {}})
-    _login(client, ADMIN_PW)
+    _login(client, *ADMIN)
     old = client.get("/labelling/clips/a1/label", params={"coach": "Linh"}).json()
     assert old["label"]["overall_rating"] == 2
     assert client.get("/labelling/clips/a1/label").json()["label"] is None  # Jeff's: none yet

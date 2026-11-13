@@ -18,6 +18,7 @@ export function destinationAfterLogin(role: "admin" | "coach", next?: string): s
 
 export function LoginForm({ next }: Props) {
   const router = useRouter();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -26,13 +27,15 @@ export function LoginForm({ next }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const me = await login(password);
+      const me = await login(username.trim(), password);
       router.replace(destinationAfterLogin(me.role, next));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in");
       setBusy(false);
     }
   }
+
+  const ready = Boolean(username.trim() && password);
 
   return (
     <Card className="mx-auto flex w-full max-w-md flex-col gap-5">
@@ -42,9 +45,21 @@ export function LoginForm({ next }: Props) {
         className="flex flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault();
-          if (password && !busy) void submit();
+          if (ready && !busy) void submit();
         }}
       >
+        <label className="flex flex-col gap-2 font-semibold">
+          Username
+          <input
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className={`${inputBase} min-h-12 font-normal`}
+          />
+        </label>
         <label className="flex flex-col gap-2 font-semibold">
           Password
           <input
@@ -55,7 +70,7 @@ export function LoginForm({ next }: Props) {
             className={`${inputBase} min-h-12 font-normal`}
           />
         </label>
-        <button type="submit" disabled={!password || busy} className={`${buttonPrimary} min-h-12`}>
+        <button type="submit" disabled={!ready || busy} className={`${buttonPrimary} min-h-12`}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
         {error && (

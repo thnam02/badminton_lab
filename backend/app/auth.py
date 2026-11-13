@@ -89,11 +89,20 @@ def read_token(token: str | None, *, now: float | None = None) -> Session | None
     return Session(role=role, expires_at=exp)
 
 
-def role_for_password(password: str) -> str | None:
-    """Admin wins if both passwords are the same; empty passwords never match."""
+def role_for_login(username: str, password: str) -> str | None:
+    """The account's role if the username (any case) and password match; empty passwords never do."""
+    name = username.strip().lower()
     given = password.encode()
-    for role, configured in ((ROLE_ADMIN, settings.admin_password), (ROLE_COACH, settings.coach_password)):
-        if configured and hmac.compare_digest(given, configured.encode()):
+    accounts = (
+        (ROLE_ADMIN, settings.admin_username, settings.admin_password),
+        (ROLE_COACH, settings.coach_username, settings.coach_password),
+    )
+    for role, account, configured in accounts:
+        if (
+            configured
+            and name == account.strip().lower()
+            and hmac.compare_digest(given, configured.encode())
+        ):
             return role
     return None
 

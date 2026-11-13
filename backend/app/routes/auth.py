@@ -7,7 +7,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
 
-from app.auth import COOKIE_NAME, create_token, current_session, role_for_password
+from app.auth import COOKIE_NAME, create_token, current_session, role_for_login
 from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -17,6 +17,7 @@ FAILED_LOGIN_DELAY_S = 0.5
 
 
 class LoginIn(BaseModel):
+    username: str
     password: str
 
 
@@ -26,10 +27,10 @@ def _who(role: str) -> dict:
 
 @router.post("/login")
 async def login(body: LoginIn, response: Response) -> dict:
-    role = role_for_password(body.password)
+    role = role_for_login(body.username, body.password)
     if role is None:
         await asyncio.sleep(FAILED_LOGIN_DELAY_S)
-        raise HTTPException(status_code=401, detail="That password isn't right.")
+        raise HTTPException(status_code=401, detail="That username or password isn't right.")
     response.set_cookie(
         COOKIE_NAME,
         create_token(role),

@@ -122,8 +122,10 @@ The coach workspace (`/coach`) and admin area (`/admin`) need a password.
 Set these in the repo-root `.env`:
 
 ```bash
-ADMIN_PASSWORD=...      # site owner
-COACH_PASSWORD=...      # the coach (labels are saved as COACH_NAME, default "Jeff")
+ADMIN_USERNAME=admin    # site owner (default "admin")
+ADMIN_PASSWORD=...
+COACH_USERNAME=jeff     # the coach (default "jeff"; labels are saved as COACH_NAME, default "Jeff")
+COACH_PASSWORD=...
 SESSION_SECRET=...      # signs the session cookie
 ```
 
@@ -134,9 +136,9 @@ SESSION_SECRET=...      # must match the backend
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-Sign in at [http://localhost:3000/login](http://localhost:3000/login). The admin
-password opens `/admin` (datasets per technique, create a dataset, edit due
-dates, export labels); the coach password opens `/coach` (Jeff's datasets,
+Sign in at [http://localhost:3000/login](http://localhost:3000/login) with a username and password. The admin
+account opens `/admin` (datasets per technique, create a dataset, edit due
+dates, export labels); the coach account opens `/coach` (Jeff's datasets,
 most urgent first, and the labelling screen).
 
 ### Coach labelling database (Postgres)

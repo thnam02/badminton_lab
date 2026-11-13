@@ -13,12 +13,12 @@ async function parseError(res: Response): Promise<string> {
   return `Request failed (${res.status})`;
 }
 
-export async function login(password: string): Promise<Me> {
+export async function login(username: string, password: string): Promise<Me> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ username, password }),
   });
   if (!res.ok) throw new Error(await parseError(res));
   return (await res.json()) as Me;

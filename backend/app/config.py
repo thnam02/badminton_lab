@@ -110,8 +110,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg:///badminton_lab"
     cors_origins: str = "http://localhost:3000"
 
-    # Coach / admin sign-in. Empty passwords disable that role's sign-in.
+    # Coach / admin sign-in (username + password). Empty passwords disable that account.
+    admin_username: str = "admin"
     admin_password: str = ""
+    coach_username: str = "jeff"
     coach_password: str = ""
     # The single coach for now; labels are saved under this name.
     coach_name: str = "Jeff"
