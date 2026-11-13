@@ -226,6 +226,22 @@ export function createDataset(
   });
 }
 
+export type PickableAnalysis = {
+  analysis_id: string;
+  created_at: string | null;
+  handedness: string | null;
+  camera_view: string | null;
+  /** Datasets that already include this video, e.g. "Dataset 1". */
+  datasets: string[];
+};
+
+/** Saved analyses of a technique that can go into a dataset without uploading again. */
+export async function fetchPickableAnalyses(technique: Technique): Promise<PickableAnalysis[]> {
+  const qs = new URLSearchParams({ technique });
+  const data = await request<{ analyses: PickableAnalysis[] }>(`/labelling/analyses?${qs}`);
+  return data.analyses || [];
+}
+
 export function fetchUploadJob(jobId: string): Promise<UploadJob> {
   return request(`/labelling/jobs/${encodeURIComponent(jobId)}`);
 }
@@ -248,12 +264,13 @@ export function fetchClip(analysisId: string): Promise<LabellingClip> {
   return request(`/labelling/clips/${encodeURIComponent(analysisId)}`);
 }
 
+/** The coach's label for a clip; without a name, the signed-in coach's (Jeff's). */
 export function fetchClipLabel(
   analysisId: string,
-  coach: string
+  coach?: string
 ): Promise<{ label: SavedLabel | null; status: ClipStatus }> {
-  const qs = new URLSearchParams({ coach });
-  return request(`/labelling/clips/${encodeURIComponent(analysisId)}/label?${qs}`);
+  const qs = coach ? `?${new URLSearchParams({ coach })}` : "";
+  return request(`/labelling/clips/${encodeURIComponent(analysisId)}/label${qs}`);
 }
 
 export function saveClipLabel(

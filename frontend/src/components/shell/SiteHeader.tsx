@@ -9,6 +9,7 @@ const NAV = [
   { href: "/history", label: "History", match: ["/history", "/analysis"] },
   { href: "/compare", label: "Compare", match: ["/compare"] },
   { href: "/coach", label: "Coach", match: ["/coach"] },
+  { href: "/admin", label: "Admin", match: ["/admin"] },
 ];
 
 function isActive(pathname: string, prefixes: string[]): boolean {

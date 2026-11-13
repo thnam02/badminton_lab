@@ -296,3 +296,18 @@ def test_migration_turns_old_batches_into_numbered_datasets(
     assert dataset_summary(old, today=TODAY)["status"] == "not_started"
     command.downgrade(alembic_config(url), "0003")
     engine.dispose()
+
+
+def test_admin_can_pick_analysed_videos_of_the_technique(outputs: Path) -> None:
+    clears = _seed(outputs, 5)
+    _seed(outputs, 1, stroke="FOREHAND_SMASH", prefix="s")
+    _create(clears[:5])
+    picked = routes.get_pickable_analyses(technique="forehand_clear")["analyses"]
+    assert sorted(a["analysis_id"] for a in picked) == [c.analysis_id for c in clears]
+    assert {tuple(a["datasets"]) for a in picked} == {("Dataset 1",)}
+    assert (picked[0]["handedness"], picked[0]["camera_view"]) == ("RIGHT", "SIDE")
+    smashes = routes.get_pickable_analyses(technique="FOREHAND_SMASH")["analyses"]
+    assert [(a["analysis_id"], a["datasets"]) for a in smashes] == [("s0", [])]
+    with pytest.raises(HTTPException) as exc:
+        routes.get_pickable_analyses(technique="backhand_drop")
+    assert exc.value.status_code == 422

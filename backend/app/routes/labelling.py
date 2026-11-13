@@ -17,6 +17,7 @@ from app.labelling.datasets import (
     create_dataset,
     dataset_summary,
     list_datasets,
+    pickable_analyses,
     update_dataset,
 )
 from app.labelling.clips import answerable_ids, clip_pose, clip_view, normalize_label
@@ -115,6 +116,18 @@ def post_dataset(
         "dataset": dataset_summary(batch),
         "job": job_view(job) if job is not None else None,
     }
+
+
+@router.get("/analyses")
+def get_pickable_analyses(
+    technique: str = Query(...), _admin: Session = Depends(require_admin)
+) -> dict:
+    """Analyses of this technique the admin can add to a dataset without uploading again."""
+    try:
+        items = pickable_analyses(normalize_stroke_type(technique).value)
+    except (DatasetError, UnsupportedStrokeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"count": len(items), "analyses": items}
 
 
 @router.get("/jobs/{job_id}")

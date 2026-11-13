@@ -274,6 +274,41 @@ def update_dataset(
     return store.get(dataset_id)
 
 
+def pickable_analyses(
+    technique: str, *, output_dir: Path | None = None, limit: int = 200
+) -> list[dict[str, Any]]:
+    """Saved analyses of this technique, newest first, with the datasets already using them."""
+    from app.services.analysis_aggregator import list_analyses
+
+    if technique not in TECHNIQUES:
+        raise DatasetError(f"Unknown technique {technique!r}.")
+    used: dict[str, list[str]] = {}
+    for batch in BatchStore(output_dir).list():
+        for clip in batch.clips:
+            used.setdefault(clip.analysis_id, []).append(
+                dataset_title(batch.number) if batch.number else batch.name
+            )
+    out = []
+    for item in list_analyses(output_dir=output_dir, limit=limit):
+        analysis_id = item["analysis_id"]
+        try:
+            art = ClipArtifacts(analysis_id, output_dir)
+        except FileNotFoundError:
+            continue
+        if art.stroke_type() != technique:
+            continue
+        out.append(
+            {
+                "analysis_id": analysis_id,
+                "created_at": item.get("created_at"),
+                "handedness": art.evidence.get("handedness") or item.get("handedness"),
+                "camera_view": art.evidence.get("camera_view") or item.get("camera_view"),
+                "datasets": used.get(analysis_id, []),
+            }
+        )
+    return out
+
+
 def backfill_datasets(conn: Connection, output_dir: Path | None = None) -> int:
     """Give older batches a technique (from their clips, else their upload job) and
     a number per technique in creation order; due dates stay empty."""

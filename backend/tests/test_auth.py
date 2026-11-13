@@ -84,6 +84,7 @@ def test_coach_cannot_use_admin_endpoints(client: TestClient) -> None:
     _login(client, COACH_PW)
     assert client.get("/labelling/jobs/abc").status_code == 403
     assert client.get("/labelling/datasets/x/export").status_code == 403
+    assert client.get("/labelling/analyses", params={"technique": "FOREHAND_CLEAR"}).status_code == 403
     assert client.patch("/labelling/datasets/x", json={"due_date": "2030-01-01"}).status_code == 403
     res = client.post(
         "/labelling/datasets",
