@@ -1,13 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CONTAINER_CLASSES } from "@/components/shell/PageContainer";
 import { fetchMe, logout, type Me } from "@/lib/auth";
+import { loadPage } from "@/lib/navigation";
 
 /** Thin bar above the coach / admin pages: who is signed in, and sign out. */
 export function SignedInBar({ area }: { area: "Coach workspace" | "Admin" }) {
-  const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
@@ -26,7 +25,7 @@ export function SignedInBar({ area }: { area: "Coach workspace" | "Admin" }) {
             type="button"
             onClick={async () => {
               await logout();
-              router.replace("/login");
+              loadPage("/login");
             }}
             className="inline-flex min-h-11 items-center rounded-lg px-3 text-text hover:bg-surface-2"
           >

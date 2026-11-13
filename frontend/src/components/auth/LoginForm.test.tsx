@@ -2,14 +2,14 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginForm, destinationAfterLogin } from "./LoginForm";
 
-const replace = vi.fn();
+const loadPage = vi.fn();
 const login = vi.fn();
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
+vi.mock("@/lib/navigation", () => ({ loadPage: (url: string) => loadPage(url) }));
 vi.mock("@/lib/auth", () => ({ login: (user: string, pw: string) => login(user, pw) }));
 
 beforeEach(() => {
-  replace.mockReset();
+  loadPage.mockReset();
   login.mockReset();
 });
 
@@ -31,7 +31,7 @@ describe("LoginForm", () => {
     expect(submit.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: " jeff " } });
     fireEvent.click(submit);
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/coach"));
+    await waitFor(() => expect(loadPage).toHaveBeenCalledWith("/coach"));
     expect(login).toHaveBeenCalledWith("jeff", "jeff");
   });
 
@@ -42,6 +42,6 @@ describe("LoginForm", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "x" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     expect((await screen.findByRole("alert")).textContent).toBe("That username or password isn't right.");
-    expect(replace).not.toHaveBeenCalled();
+    expect(loadPage).not.toHaveBeenCalled();
   });
 });

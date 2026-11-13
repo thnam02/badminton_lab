@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { buttonPrimary, inputBase, pageTitle } from "@/components/ui/styles";
 import { login } from "@/lib/auth";
+import { loadPage } from "@/lib/navigation";
 import { homeFor } from "@/lib/session";
 
 type Props = { next?: string };
@@ -17,7 +17,6 @@ export function destinationAfterLogin(role: "admin" | "coach", next?: string): s
 }
 
 export function LoginForm({ next }: Props) {
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +27,7 @@ export function LoginForm({ next }: Props) {
     setError(null);
     try {
       const me = await login(username.trim(), password);
-      router.replace(destinationAfterLogin(me.role, next));
+      loadPage(destinationAfterLogin(me.role, next));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in");
       setBusy(false);

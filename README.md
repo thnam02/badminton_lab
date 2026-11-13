@@ -201,6 +201,21 @@ API contract:
 - `POST /analyze` (multipart field `video`) → `{ "video_url": "/outputs/....mp4", "output_path": "..." }`
 - Processed files are served under `/outputs/...`
 
+## 7. Put it online from this Mac
+
+```bash
+brew install cloudflared   # once
+./scripts/go-live.sh
+```
+
+This builds the site, runs it on ports 3100 (website) and 8100 (API), and
+prints a public link like `https://<random>.trycloudflare.com/login`. The
+browser only talks to that one address; the website forwards `/api/*` to the
+API. The link changes each time the script starts, the Mac must stay on (it
+is kept awake while the script runs), and Ctrl+C takes the site offline. Logs
+are in `.live/`. Cloudflare's free link accepts uploads up to 100 MB per
+request and waits at most 100 seconds for a response.
+
 ## Notes
 
 - Processing is **synchronous** for this scaffold (no queue/Celery).
