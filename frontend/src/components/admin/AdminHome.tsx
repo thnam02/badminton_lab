@@ -53,6 +53,7 @@ export function AdminHome() {
                   <thead className="text-xs uppercase tracking-[0.06em] text-text-muted">
                     <tr>
                       <th className="px-3 font-semibold">Dataset</th>
+                      <th className="px-3 font-semibold">Source</th>
                       <th className="px-3 font-semibold">Videos</th>
                       <th className="px-3 font-semibold">Labelled</th>
                       <th className="px-3 font-semibold">Due</th>
@@ -87,6 +88,7 @@ function DatasetRow({ dataset: d }: { dataset: DatasetSummary }) {
           <span className="ml-2 text-sm text-warn">{d.processing_count} processing</span>
         )}
       </td>
+      <td className={`${cell} text-sm text-text-muted`}>{d.source || "—"}</td>
       <td className={cell}>{d.video_count}</td>
       <td className={`${cell} w-[28%]`}>
         <span className="flex items-center gap-3">

@@ -71,6 +71,8 @@ export type DatasetSummary = {
   batch_id: string;
   name: string;
   clip_count: number;
+  /** Admin-only provenance (e.g. MultiSenseBadminton). Absent on coach payloads. */
+  source?: string | null;
 };
 
 export type DatasetClip = {

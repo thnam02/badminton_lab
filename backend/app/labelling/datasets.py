@@ -137,6 +137,7 @@ def dataset_summary(
     coach: str | None = None,
     today: date | None = None,
     clips: list[dict[str, Any]] | None = None,
+    include_source: bool = False,
 ) -> dict[str, Any]:
     today = today or date.today()
     coach = coach or settings.coach_name
@@ -146,7 +147,7 @@ def dataset_summary(
     started = sum(1 for c in clips if c["status"] != STATUS_NOT_STARTED)
     due = date.fromisoformat(batch.due_date) if batch.due_date else None
     video_count = len(batch.clips) + pending
-    return {
+    summary = {
         "dataset_id": batch.batch_id,
         "technique": batch.technique,
         "technique_label": technique_label(batch.technique),
@@ -165,10 +166,21 @@ def dataset_summary(
         "name": batch.name,
         "clip_count": len(batch.clips),
     }
+    if include_source:
+        summary["source"] = batch.source
+    return summary
 
 
-def list_datasets(*, coach: str | None = None, today: date | None = None) -> list[dict[str, Any]]:
-    summaries = [dataset_summary(b, coach=coach, today=today) for b in BatchStore().list()]
+def list_datasets(
+    *,
+    coach: str | None = None,
+    today: date | None = None,
+    include_source: bool = False,
+) -> list[dict[str, Any]]:
+    summaries = [
+        dataset_summary(b, coach=coach, today=today, include_source=include_source)
+        for b in BatchStore().list()
+    ]
     return sorted(summaries, key=coach_sort_key)
 
 
@@ -179,9 +191,10 @@ def _next_number(conn: Connection, technique: str) -> int:
     return (current or 0) + 1
 
 
-def _parse_due(value: str | date | None, today: date) -> date:
-    if not value:
-        raise DatasetError("Choose a due date.")
+def _parse_due(value: str | date | None, today: date) -> date | None:
+    """Parse a due date. ``None`` / empty means no due date (allowed for imports)."""
+    if value is None or value == "":
+        return None
     try:
         due = value if isinstance(value, date) else date.fromisoformat(str(value))
     except ValueError as exc:
@@ -196,6 +209,7 @@ def create_dataset(
     technique: str,
     due_date: str | date | None,
     note: str = "",
+    source: str | None = None,
     uploads: Iterable[tuple[str, BinaryIO, str, str]] = (),
     existing: Iterable[BatchClip] = (),
     output_dir: Path | None = None,
@@ -243,8 +257,9 @@ def create_dataset(
         clips=existing,
         technique=technique,
         number=number,
-        due_date=due.isoformat(),
+        due_date=due.isoformat() if due else None,
         note=(note or "").strip(),
+        source=(source or "").strip() or None,
     )
     store.save(batch)
     job = (

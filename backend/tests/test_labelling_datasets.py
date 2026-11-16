@@ -150,7 +150,6 @@ def test_uploads_and_existing_videos_count_together(outputs: Path) -> None:
     ("kwargs", "message"),
     [
         ({"technique": "BACKHAND_DROP"}, "Unknown technique"),
-        ({"due": ""}, "Choose a due date"),
         ({"due": "2026-11-09"}, "in the past"),
         ({"due": "20 Nov"}, "not a date"),
     ],
@@ -158,6 +157,12 @@ def test_uploads_and_existing_videos_count_together(outputs: Path) -> None:
 def test_bad_dataset_details_are_refused(outputs: Path, kwargs: dict, message: str) -> None:
     with pytest.raises(DatasetError, match=message):
         _create(_seed(outputs, 5), **kwargs)
+
+
+def test_dataset_may_have_no_due_date(outputs: Path) -> None:
+    batch = _create(_seed(outputs, 5), due=None)
+    assert batch.due_date is None
+    assert dataset_summary(batch, today=TODAY)["status"] == "not_started"
 
 
 def test_picked_videos_must_exist_match_the_technique_and_be_distinct(outputs: Path) -> None:

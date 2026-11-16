@@ -57,6 +57,8 @@ class Batch:
     # ISO date (YYYY-MM-DD); labelling stays allowed after it.
     due_date: str | None = None
     note: str = ""
+    # Admin-only provenance (e.g. MultiSenseBadminton).
+    source: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -80,6 +82,7 @@ class Batch:
             number=d.get("number"),
             due_date=d.get("due_date"),
             note=str(d.get("note") or ""),
+            source=(str(d["source"]) if d.get("source") else None),
         )
 
 
@@ -131,6 +134,7 @@ class BatchStore:
                 "number": batch.number,
                 "due_date": date.fromisoformat(batch.due_date) if batch.due_date else None,
                 "note": batch.note or "",
+                "source": batch.source,
             }
             if exists:
                 conn.execute(
@@ -220,6 +224,7 @@ def _batch(conn: Connection, row: Any) -> Batch:
         number=row.number,
         due_date=row.due_date.isoformat() if row.due_date else None,
         note=row.note or "",
+        source=getattr(row, "source", None),
     )
 
 

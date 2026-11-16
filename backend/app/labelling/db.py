@@ -61,6 +61,8 @@ batches = Table(
     Column("number", Integer),
     Column("due_date", Date),
     Column("note", Text, nullable=False, default="", server_default=""),
+    # Optional provenance for admin views (e.g. MultiSenseBadminton); never shown to coaches.
+    Column("source", String(100)),
     UniqueConstraint("technique", "number", name="uq_labelling_batches_technique_number"),
 )
 

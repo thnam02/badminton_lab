@@ -17,6 +17,7 @@ from app.labelling.clips import (
     normalize_label,
 )
 from app.labelling.labels import LabelStore, coach_slug, label_status
+from app.labelling.multisense.external_labels import load_external_labels
 
 EXPORT_FORMAT_VERSION = "2.1.0"
 
@@ -24,6 +25,7 @@ COLUMNS = (
     "batch_id",
     "technique",
     "dataset_number",
+    "dataset_source",
     "clip_position",
     "analysis_id",
     "source_file",
@@ -50,6 +52,12 @@ COLUMNS = (
     "general_comment",
     "label_format_version",
     "label_updated_at",
+    # MultiSense ground truth (admin export only; never on coach screens).
+    "ms_participant_id",
+    "ms_skill_level",
+    "ms_hitting_position",
+    "ms_sound",
+    "ms_ball_landing",
 )
 
 
@@ -80,6 +88,7 @@ def export_batch(
         ]
         system = clip["system_contact_frame"]
         fix_titles = {o["id"]: o["title"] for o in clip["fix_options"]}
+        ms = load_external_labels(entry.analysis_id, output_dir) or {}
         for label in clip_labels or [None]:
             lb = normalize_label(label, clip) or {}
             answers = lb.get("stats") or {}
@@ -88,6 +97,7 @@ def export_batch(
                 "batch_id": batch.batch_id,
                 "technique": batch.technique,
                 "dataset_number": batch.number,
+                "dataset_source": batch.source,
                 "clip_position": position,
                 "analysis_id": entry.analysis_id,
                 "source_file": entry.source_file,
@@ -106,6 +116,11 @@ def export_batch(
                 "general_comment": lb.get("general_comment", ""),
                 "label_format_version": lb.get("label_format_version"),
                 "label_updated_at": lb.get("updated_at"),
+                "ms_participant_id": ms.get("participant_id"),
+                "ms_skill_level": ms.get("skill_level"),
+                "ms_hitting_position": ms.get("hitting_position"),
+                "ms_sound": ms.get("sound"),
+                "ms_ball_landing": ms.get("ball_landing"),
             }
             for q in clip["questions"]:
                 answer = answers.get(q["id"]) or {}

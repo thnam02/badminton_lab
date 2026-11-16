@@ -83,6 +83,9 @@ export function AdminDataset({ datasetId }: { datasetId: string }) {
           </h1>
           <StatusPill status={dataset.status} />
         </div>
+        {dataset.source ? (
+          <p className="text-sm text-text-muted">Source: {dataset.source}</p>
+        ) : null}
         <p className="text-lg">
           <DueText dataset={dataset} />
           <span className="text-text-muted">

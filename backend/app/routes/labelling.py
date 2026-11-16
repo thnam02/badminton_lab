@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from app.auth import ROLE_COACH, Session, require_admin, require_coach, require_signed_in
+from app.auth import ROLE_ADMIN, ROLE_COACH, Session, require_admin, require_coach, require_signed_in
 from app.config import settings
 from app.labelling.batches import Batch, BatchClip, BatchStore
 from app.labelling.datasets import (
@@ -74,9 +74,11 @@ def _dataset(dataset_id: str) -> Batch:
 
 
 @router.get("/datasets")
-def get_datasets() -> dict:
+def get_datasets(session: Session = Depends(require_signed_in)) -> dict:
     """Every dataset with the coach's progress and its status, in the coach's order."""
-    items = list_datasets(coach=settings.coach_name)
+    items = list_datasets(
+        coach=settings.coach_name, include_source=session.role == ROLE_ADMIN
+    )
     return {"count": len(items), "coach": settings.coach_name, "datasets": items}
 
 
@@ -140,11 +142,13 @@ def get_job(job_id: str, _admin: Session = Depends(require_admin)) -> dict:
 
 
 @router.get("/datasets/{dataset_id}")
-def get_dataset(dataset_id: str) -> dict:
+def get_dataset(dataset_id: str, session: Session = Depends(require_signed_in)) -> dict:
     """The dataset, its videos with the coach's label status, and upload progress."""
     batch = _dataset(dataset_id)
     clips = clip_statuses(batch, settings.coach_name)
-    summary = dataset_summary(batch, clips=clips)
+    summary = dataset_summary(
+        batch, clips=clips, include_source=session.role == ROLE_ADMIN
+    )
     return {
         **summary,
         "clips": clips,
@@ -164,7 +168,7 @@ def patch_dataset(
         batch = update_dataset(dataset_id, due_date=body.due_date, note=body.note)
     except DatasetError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return dataset_summary(batch)
+    return dataset_summary(batch, include_source=True)
 
 
 @router.get("/datasets/{dataset_id}/export", response_model=None)
