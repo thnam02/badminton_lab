@@ -31,3 +31,4 @@ vendor/
 
 # External datasets (MultiSenseBadminton raw archives — do not commit)
 data/external/
+data/multisense_clips/
