@@ -28,3 +28,6 @@ vendor/
 
 # go-live (scripts/go-live.sh) logs
 .live/
+
+# External datasets (MultiSenseBadminton raw archives — do not commit)
+data/external/
