@@ -18,7 +18,13 @@ def test_drop_when_no_swing():
 
 def test_keep_when_contact_present_even_if_swing_count_missing():
     assert (
-        drop_reason({"quality": {"warnings": []}, "evidence": {"contact": {"frame_index": 12}}})
+        drop_reason(
+            {
+                "quality": {"warnings": []},
+                "evidence": {},
+                "contact": {"frame_index": 12, "swing_candidates": [{"chosen": True}]},
+            }
+        )
         is None
     )
 

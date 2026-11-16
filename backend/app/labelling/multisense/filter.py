@@ -36,38 +36,45 @@ def _load_json(path: Path) -> dict[str, Any] | None:
 
 
 def analysis_artifacts(analysis_id: str, output_dir: Path) -> dict[str, Any]:
-    """Collect quality + evidence payloads for one analysis id."""
+    """Collect quality + evidence + contact payloads for one analysis id."""
     root = Path(output_dir)
     quality = (
-        _load_json(root / f"{analysis_id}_video_quality.json")
+        _load_json(root / f"{analysis_id}_pose_video_quality.json")
+        or _load_json(root / f"{analysis_id}_video_quality.json")
         or _load_json(root / analysis_id / "video_quality.json")
     )
     evidence = (
-        _load_json(root / f"{analysis_id}_evidence.json")
+        _load_json(root / f"{analysis_id}_pose_evidence.json")
+        or _load_json(root / f"{analysis_id}_evidence.json")
         or _load_json(root / analysis_id / "evidence.json")
     )
-    return {"quality": quality or {}, "evidence": evidence or {}}
+    contact = (
+        _load_json(root / f"{analysis_id}_contact.json")
+        or _load_json(root / analysis_id / "contact.json")
+        or (evidence or {}).get("contact")
+        or {}
+    )
+    return {"quality": quality or {}, "evidence": evidence or {}, "contact": contact or {}}
 
 
 def drop_reason(artifacts: dict[str, Any]) -> str | None:
     """Return the first matching drop reason, or None to keep."""
     quality = artifacts.get("quality") or {}
     evidence = artifacts.get("evidence") or {}
-    warnings = set(quality.get("warnings") or []) | set(evidence.get("measurement_warnings") or [])
+    contact = artifacts.get("contact") or evidence.get("contact") or {}
+    warnings = set(quality.get("warnings") or []) | set(
+        evidence.get("measurement_warnings") or []
+    ) | set(contact.get("warnings") or [])
 
     swing_count = evidence.get("swing_count")
     if swing_count is None:
-        candidates = evidence.get("swing_candidates") or []
+        candidates = evidence.get("swing_candidates") or contact.get("swing_candidates") or []
         swing_count = len(candidates) if candidates else None
-    contact = evidence.get("contact") or {}
     if swing_count is None and contact.get("swing_count") is not None:
         swing_count = contact.get("swing_count")
-    if not swing_count:
-        # No evidence of a swing peak / chosen contact.
-        if not contact.get("frame_index") and not contact.get("timestamp"):
-            return REASON_NO_SWING
-        if swing_count == 0:
-            return REASON_NO_SWING
+    has_contact = contact.get("frame_index") is not None or contact.get("timestamp") is not None
+    if swing_count == 0 or (not swing_count and not has_contact):
+        return REASON_NO_SWING
 
     if warnings & _PERSON_WARNINGS:
         return REASON_WRONG_PERSON
